@@ -11,6 +11,8 @@
 import { existsSync } from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DEFAULT_PERMISSIONS, PERMISSION_KEYS } from "../../src/lib/logic/permissions";
+import { STAFF_ROLES } from "../../src/lib/logic/roles";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
@@ -124,6 +126,76 @@ describe.skipIf(!enabled)("row-level security", () => {
   it("never lets anyone move a person to another organisation", async () => {
     const res = await adminA.from("staff_users").update({ org_id: orgB }).eq("id", ids["sales@demo-a.coast.test"]!).select();
     expect(res.error).not.toBeNull(); // column isn't updatable at all
+  });
+
+  describe("who sees what (permissions)", () => {
+    afterAll(async () => {
+      // Restore the defaults for both demo organisations.
+      for (const org of [orgA, orgB]) {
+        await service.from("role_permissions").delete().eq("org_id", org);
+        const defaults = Object.entries(DEFAULT_PERMISSIONS)
+          .filter(([role]) => role !== "admin")
+          .flatMap(([role, perms]) => perms.map((permission) => ({ org_id: org, role, permission, granted_by: null })));
+        await service.from("role_permissions").insert(defaults);
+      }
+    });
+
+    it("stores exactly the same permission list as the app", async () => {
+      const { data } = await service.from("permissions").select("key").order("sort_order");
+      expect(data!.map((r) => r.key)).toEqual([...PERMISSION_KEYS]);
+    });
+
+    it("stores exactly the same defaults as the app", async () => {
+      const { data } = await service.from("permission_defaults").select("role, permission");
+      for (const role of STAFF_ROLES.filter((r) => r !== "admin")) {
+        const db = data!.filter((r) => r.role === role).map((r) => r.permission).sort();
+        expect(db, role).toEqual([...DEFAULT_PERMISSIONS[role]].sort());
+      }
+    });
+
+    it("gives a new organisation the defaults automatically", async () => {
+      const { data } = await service.from("role_permissions").select("role, permission").eq("org_id", orgB).eq("role", "sales");
+      expect(data!.map((r) => r.permission).sort()).toEqual([...DEFAULT_PERMISSIONS.sales].sort());
+    });
+
+    it("answers has_permission from the organisation's settings", async () => {
+      expect((await salesA.rpc("has_permission", { p: "costs.view" })).data).toBe(true);
+      expect((await salesA.rpc("has_permission", { p: "orders.edit" })).data).toBe(false);
+      expect((await adminA.rpc("has_permission", { p: "orders.edit" })).data).toBe(true);
+      expect((await adminA.rpc("has_permission", { p: "made.up" })).data).toBe(false);
+      expect((await anon().rpc("has_permission", { p: "costs.view" })).data ?? false).toBe(false);
+    });
+
+    it("lets an admin switch a permission off and on for a role", async () => {
+      const off = await adminA.from("role_permissions").delete().match({ org_id: orgA, role: "sales", permission: "costs.view" }).select();
+      expect(off.data).toHaveLength(1);
+      expect((await salesA.rpc("has_permission", { p: "costs.view" })).data).toBe(false);
+
+      const adminId = ids["admin@demo-a.coast.test"]!;
+      const on = await adminA.from("role_permissions").insert({ org_id: orgA, role: "sales", permission: "costs.view", granted_by: adminId }).select();
+      expect(on.error).toBeNull();
+      expect((await salesA.rpc("has_permission", { p: "costs.view" })).data).toBe(true);
+    });
+
+    it("keeps one organisation's switches away from another", async () => {
+      expect((await adminA.from("role_permissions").select("org_id")).data!.every((r) => r.org_id === orgA)).toBe(true);
+      const del = await adminA.from("role_permissions").delete().match({ org_id: orgB, role: "sales", permission: "costs.view" }).select();
+      expect(del.data ?? []).toEqual([]);
+      const ins = await adminA.from("role_permissions").insert({ org_id: orgB, role: "sales", permission: "orders.edit", granted_by: ids["admin@demo-a.coast.test"]! });
+      expect(ins.error).not.toBeNull();
+    });
+
+    it("stops anyone but an admin changing permissions, including granting themselves more", async () => {
+      const ins = await salesA.from("role_permissions").insert({ org_id: orgA, role: "sales", permission: "orders.edit", granted_by: ids["sales@demo-a.coast.test"]! });
+      expect(ins.error).not.toBeNull();
+      const del = await salesA.from("role_permissions").delete().match({ org_id: orgA, role: "sales", permission: "costs.view" }).select();
+      expect(del.data ?? []).toEqual([]);
+    });
+
+    it("never stores permissions for the admin role", async () => {
+      const ins = await adminA.from("role_permissions").insert({ org_id: orgA, role: "admin", permission: "orders.edit", granted_by: ids["admin@demo-a.coast.test"]! });
+      expect(ins.error).not.toBeNull();
+    });
   });
 
   it("cuts off a deactivated user immediately", async () => {

@@ -188,3 +188,61 @@ pre-filled per line for one-click acceptance.
   Credentials go into environment variables only; never commit them, never
   paste them into chat.
 - Permission to show real carrier logos (until then: monogram tiles).
+
+---
+
+## E. Product-owner decisions — 14 October 2026
+
+These override the defaults above where they speak.
+
+### E1. Sales visibility — DECIDED (replaces C4)
+Sales reps see **all orders**. The Orders screen opens filtered to the rep
+viewing it ("My orders"); they can switch to "All" or to any other rep.
+Sales see **supplier names and costs by default**; each company's admin can
+switch either off (E2). Where a role can't see supplier identity or costs,
+internal screens use a permission-scoped projection with no field for them
+(the same structural approach as customer masking) — RLS enforces it too, by
+keeping supplier identity and costs in tables whose policies check
+`has_permission()`.
+
+### E2. Who sees what is set per company by its admins — DECIDED (replaces fixed role rules)
+Every screen, kind of data (everyone's orders, supplier names, costs) and
+action is a permission the organisation's admins switch on or off per role,
+in Settings → Who sees what. Defaults: `src/lib/logic/permissions.ts`,
+mirrored in `supabase/migrations/0003_permissions.sql`; tests fail if they
+drift. RLS uses `public.has_permission('<key>')`.
+- **Everyone can open Settings** by default; changing company settings is a
+  separate permission (admin only by default).
+- **Admins always have everything** and can't be switched off — no
+  organisation can lock itself out.
+- **Changing team and permissions is admin-only** and can't be delegated (so
+  nobody can grant themselves more).
+- Each later phase adds its new permissions (e.g. customer messaging) to the
+  list with sensible defaults.
+- Per-person overrides (one user different from their role) are not built;
+  role-level only for now.
+
+### E3. Directors — DECIDED
+See everything; view-only by default ("metric tracking"). An admin can switch
+on any action for directors, e.g. editing orders when a director needs to
+step into a big order.
+
+### E4. Customer tracking codes — DECIDED (amends B7)
+Each order gets a random, hard-to-guess tracking code (like `K7Q-4M2-XP9`),
+never the SO number.
+- **With a customer account:** the customer enters the code to add the order
+  to their account. Once added, they can find their orders by **their own PO
+  number** or **the SO number**.
+- **Without an account:** the code alone tracks that one order. (The
+  sign-in mockup also asks for a postcode; per this decision it isn't
+  required. Can be added back as an extra check if wanted.)
+- Rate limiting and identical "not found" messages from B7 still apply.
+
+### E5. Billing — DEFERRED
+Multi-tenant product (C1 confirmed). Billing comes later, if COAST is sold
+publicly. Not built now: it needs real prices, terms and a payment-provider
+account, and nothing built now blocks adding it.
+
+### E6. Commit identity — DECIDED
+Commits use the GitHub username with GitHub's noreply address. Dedicated
+COAST email addresses can replace it later.

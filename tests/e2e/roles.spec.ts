@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Signs in as each demo role and checks the sidebar matches decisions B9.
+// Signs in as each demo role and checks the sidebar matches the default permissions (decisions B9, E1–E3).
 // Needs the dev database and demo users (npm run db:seed-demo); skipped otherwise.
 
 const password = process.env.DEMO_USER_PASSWORD;
@@ -8,10 +8,10 @@ const enabled = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && password) && pro
 
 const ROLES = [
   { email: "admin@demo-a.coast.test", label: "Admin", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
-  { email: "procurement@demo-a.coast.test", label: "Procurement", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics"] },
-  { email: "sales@demo-a.coast.test", label: "Sales", nav: ["Home", "Orders", "Chases", "Updates", "Metrics"] },
+  { email: "procurement@demo-a.coast.test", label: "Procurement", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
+  { email: "sales@demo-a.coast.test", label: "Sales", nav: ["Home", "Orders", "Chases", "Updates", "Metrics", "Settings"] },
   { email: "director@demo-a.coast.test", label: "Director", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
-  { email: "goodsin@demo-a.coast.test", label: "Goods-in", nav: ["Home", "Goods-in"] },
+  { email: "goodsin@demo-a.coast.test", label: "Goods-in", nav: ["Home", "Goods-in", "Settings"] },
 ];
 
 test.describe("signed-in roles", () => {
@@ -47,6 +47,35 @@ test.describe("signed-in roles", () => {
     const team = page.getByRole("region", { name: "Team" });
     await expect(team.getByRole("cell", { name: "[Admin B]" })).toBeVisible();
     await expect(team.getByText("demo-a.coast.test")).toHaveCount(0);
+  });
+
+  test("an admin's switch in Who sees what changes a sales rep's screens", async ({ browser }) => {
+    const adminPage = await (await browser.newContext()).newPage();
+    await signIn(adminPage, "admin@demo-a.coast.test");
+    await adminPage.goto("/app/settings");
+    const box = adminPage.getByRole("checkbox", { name: "Suppliers for Sales" });
+    await expect(box).not.toBeChecked();
+    await box.check();
+    await expect(box).toBeChecked();
+
+    const salesPage = await (await browser.newContext()).newPage();
+    await signIn(salesPage, "sales@demo-a.coast.test");
+    const nav = salesPage.getByRole("navigation", { name: "Main" });
+    await expect(nav.getByRole("link", { name: "Suppliers" })).toBeVisible();
+
+    // Put it back.
+    await adminPage.reload();
+    await adminPage.getByRole("checkbox", { name: "Suppliers for Sales" }).uncheck();
+    await expect(adminPage.getByRole("checkbox", { name: "Suppliers for Sales" })).not.toBeChecked();
+    await salesPage.reload();
+    await expect(nav.getByRole("link", { name: "Suppliers" })).toHaveCount(0);
+  });
+
+  test("non-admins see Who sees what but can't change it", async ({ page }) => {
+    await signIn(page, "director@demo-a.coast.test");
+    await page.goto("/app/settings");
+    await expect(page.getByRole("heading", { name: "Who sees what" })).toBeVisible();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
   });
 
   test("the theme toggle switches and is remembered", async ({ page }) => {

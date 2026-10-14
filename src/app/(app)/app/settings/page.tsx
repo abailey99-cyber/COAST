@@ -3,6 +3,7 @@ import { ROLE_LABELS } from "@/lib/logic/roles";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
+import { PermissionMatrix } from "./PermissionMatrix";
 
 export const metadata = { title: "Settings" };
 
@@ -14,40 +15,20 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const { canEdit, integrations, team } = await loadSettings();
+  const { canManagePermissions, integrations, team, grants } = await loadSettings();
 
   return (
     <>
-      <PageHeader title="Settings" subtitle={canEdit ? "Connections and your team" : "Connections and your team · view only"} />
+      <PageHeader title="Settings" subtitle={canManagePermissions ? "Connections, your team and who sees what" : "Connections, your team and who sees what · view only"} />
 
-      <section className={styles.card} aria-labelledby="connections-title">
-        <h2 id="connections-title" className={styles.cardTitle}>Connections</h2>
+      <section className={styles.card} aria-labelledby="access-title">
+        <h2 id="access-title" className={styles.cardTitle}>Who sees what</h2>
         <p className={styles.cardText}>
-          Whether each connection has its credentials set. &quot;Healthy&quot; here means configured, not yet tested against
-          the live service — live checks arrive with each integration.
+          {canManagePermissions
+            ? "Switch each screen, kind of data and action on or off for each role. Changes apply straight away, to everyone with that role. Admins always have full access."
+            : "What each role in your company can see and do. Only an admin can change this."}
         </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Connection</th>
-                <th scope="col">Status</th>
-                <th scope="col">Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {integrations.map((i) => (
-                <tr key={i.key}>
-                  <td>{i.label}</td>
-                  <td>
-                    <span className={`status ${STATUS_CLASS[i.status]}`}>● {HEALTH_LABELS[i.status]}</span>
-                  </td>
-                  <td>{i.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PermissionMatrix grants={grants} editable={canManagePermissions} />
       </section>
 
       <section className={styles.card} aria-labelledby="team-title">
@@ -72,6 +53,36 @@ export default async function SettingsPage() {
                   <td>
                     <span className={`status ${p.isActive ? "status-ok" : "status-neutral"}`}>● {p.isActive ? "Active" : "Deactivated"}</span>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.card} aria-labelledby="connections-title">
+        <h2 id="connections-title" className={styles.cardTitle}>Connections</h2>
+        <p className={styles.cardText}>
+          Whether each connection has its credentials set. &quot;Healthy&quot; here means configured, not yet tested against
+          the live service — live checks arrive with each integration.
+        </p>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Connection</th>
+                <th scope="col">Status</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {integrations.map((i) => (
+                <tr key={i.key}>
+                  <td>{i.label}</td>
+                  <td>
+                    <span className={`status ${STATUS_CLASS[i.status]}`}>● {HEALTH_LABELS[i.status]}</span>
+                  </td>
+                  <td>{i.reason}</td>
                 </tr>
               ))}
             </tbody>

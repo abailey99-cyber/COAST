@@ -1,41 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { SECTIONS, activeSectionKey, canAccessSection, getSection, sectionsForRole } from "./navigation";
-import { STAFF_ROLES } from "./roles";
+import { SECTIONS, activeSectionKey, canAccessSection, getSection, visibleSections } from "./navigation";
+import { DEFAULT_PERMISSIONS, resolvePermissions, type Permission } from "./permissions";
+import { STAFF_ROLES, type StaffRole } from "./roles";
 
-const keys = (role: Parameters<typeof sectionsForRole>[0]) => sectionsForRole(role).map((s) => s.key);
+const perms = (role: StaffRole) => resolvePermissions(role, DEFAULT_PERMISSIONS[role]);
+const keys = (role: StaffRole) => visibleSections(perms(role)).map((s) => s.key);
 
-describe("sectionsForRole", () => {
-  it.each(STAFF_ROLES)("puts Home first for %s", (role) => {
+describe("visibleSections with default permissions", () => {
+  it.each(STAFF_ROLES)("puts Home first and shows Settings for %s", (role) => {
     expect(keys(role)[0]).toBe("home");
+    expect(keys(role)).toContain("settings");
   });
 
-  it("shows goods-in staff only Home and Goods-in (B9)", () => {
-    expect(keys("goods_in")).toEqual(["home", "goods-in"]);
+  it("shows goods-in staff Home, Goods-in and Settings", () => {
+    expect(keys("goods_in")).toEqual(["home", "goods-in", "settings"]);
   });
 
-  it("shows sales Orders, Chases, Updates and Metrics but no supplier screens (B9, C4)", () => {
-    expect(keys("sales")).toEqual(["home", "orders", "chases", "updates", "metrics"]);
+  it("shows sales Orders, Chases, Updates, Metrics and Settings", () => {
+    expect(keys("sales")).toEqual(["home", "orders", "chases", "updates", "metrics", "settings"]);
   });
 
-  it("shows admin every section", () => {
-    expect(keys("admin")).toEqual(SECTIONS.map((s) => s.key));
+  it.each(["admin", "director", "procurement"] as const)("shows %s every section", (role) => {
+    expect(keys(role)).toEqual(SECTIONS.map((s) => s.key));
+  });
+});
+
+describe("visibleSections with custom permissions", () => {
+  it("always shows Home, even with nothing granted", () => {
+    expect(visibleSections(new Set()).map((s) => s.key)).toEqual(["home"]);
   });
 
-  it("shows director every section (read-only is enforced elsewhere)", () => {
-    expect(keys("director")).toEqual(SECTIONS.map((s) => s.key));
-  });
-
-  it("keeps Settings away from procurement", () => {
-    expect(keys("procurement")).not.toContain("settings");
+  it("follows exactly what the admin switched on", () => {
+    const custom = new Set<Permission>(["section.suppliers", "section.metrics"]);
+    expect(visibleSections(custom).map((s) => s.key)).toEqual(["home", "suppliers", "metrics"]);
   });
 });
 
 describe("canAccessSection", () => {
   it("matches the sidebar for every role and section", () => {
     for (const role of STAFF_ROLES) {
-      for (const s of SECTIONS) {
-        expect(canAccessSection(role, s.key)).toBe(keys(role).includes(s.key));
-      }
+      for (const s of SECTIONS) expect(canAccessSection(perms(role), s.key)).toBe(keys(role).includes(s.key));
     }
   });
 });
@@ -61,9 +65,12 @@ describe("activeSectionKey", () => {
 });
 
 describe("section table", () => {
-  it("has unique keys and hrefs under /app", () => {
+  it("has unique keys and hrefs under /app, and a permission for every section but Home", () => {
     expect(new Set(SECTIONS.map((s) => s.key)).size).toBe(SECTIONS.length);
     expect(new Set(SECTIONS.map((s) => s.href)).size).toBe(SECTIONS.length);
-    for (const s of SECTIONS) expect(s.href.startsWith("/app/")).toBe(true);
+    for (const s of SECTIONS) {
+      expect(s.href.startsWith("/app/")).toBe(true);
+      expect(s.permission === null).toBe(s.key === "home");
+    }
   });
 });

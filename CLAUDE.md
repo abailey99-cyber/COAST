@@ -48,7 +48,9 @@ Don't re-read everything every session — read what the current phase needs.
    cost/price, internal notes or direct-ship origin address. Exactly one
    function converts raw → masked. Leak tests try to break it. Every staff
    reply to a customer is scanned for real supplier names and PO numbers and
-   blocked if one appears. Sales reps get a separate rep-safe projection.
+   blocked if one appears. Staff who aren't permitted to see supplier
+   identity or costs (decisions E1/E2) get a permission-scoped projection
+   with no field for them.
 2. **Four layers, never skipped:** pure logic (no I/O, time passed in as a
    parameter, unit-tested) → data layer (reads/writes only) → server actions
    (auth + role check, then call down) → thin UI.
@@ -65,8 +67,9 @@ Don't re-read everything every session — read what the current phase needs.
    vs. per-org thresholds), reused unmodified for supplier chases, internal
    chases and delivery exceptions.
 7. **RLS on every table, in the same migration that creates it.** Use small
-   SQL helper functions (`current_org_id()`, `is_elevated()`,
-   `can_manage_procurement()`). Child tables scope via their parent; no
+   SQL helper functions (`current_org_id()`, `has_permission(key)`,
+   `is_admin()`). Who sees what is configurable per organisation
+   (decisions E2) — never hard-code a role check where a permission fits. Child tables scope via their parent; no
    redundant `org_id` columns just to simplify a policy.
 8. **Numbered migrations only.** Never edit a database by hand.
 9. **Disclose gaps.** Anything stubbed, best-effort or unverified is marked in
@@ -107,6 +110,11 @@ have RLS + an isolation test (org A can't read org B). New customer-facing
 data passes through the masking function. No secrets in code.
 
 ## Working conventions
+
+- **Permissions:** any new screen, data type or action gets a permission
+  key in `src/lib/logic/permissions.ts` **and** the matching migration rows
+  (list, defaults, backfill). Every new table grants `service_role` in its
+  own migration (newer Supabase projects don't by default).
 
 - Environment variables only for credentials; keep `.env.example` complete
   and commented. Integration variable names are in `docs/integrations/`.
