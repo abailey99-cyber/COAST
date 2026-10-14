@@ -49,7 +49,7 @@ export const ROUTE_STAGES: Record<FulfilmentRoute, readonly LineStage[]> = {
   direct_ship: ["ordered", "po_sent", "confirmed", "dispatched", "in_transit", "delivered"],
 };
 
-/** Internal wording (App.dc.html). Customer wording is a separate mapping in Phase 5 (decisions B6). */
+/** Internal wording (App.dc.html). Customer wording is mapped in masking.ts (decisions B6). */
 export function stageLabel(stage: LineStage, route: FulfilmentRoute): string {
   switch (stage) {
     case "ordered":

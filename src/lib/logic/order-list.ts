@@ -9,6 +9,18 @@ import { getCarrier, isCarrierKey } from "./carriers";
 import { SHIPMENT_STATUS_LABELS, isShipmentLeg, isShipmentStatus } from "./shipments";
 import { PREDICTION_SOURCE_LABELS, formatRange, isPredictionSource } from "./prediction";
 
+const NOTIFIED_WORDS: Record<string, string> = {
+  date_confirmed: "delivery date confirmed",
+  date_changed: "delivery date changed",
+  dispatched: "dispatched",
+  out_for_delivery: "out for delivery",
+  delivered: "delivered",
+  late: "may be late",
+  delivery_problem: "delivery problem",
+  reply: "reply",
+  digest: "daily summary",
+};
+
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
 export const ORDER_VIEWS = ["open", "at_risk", "direct", "delivered", "all"] as const;
@@ -87,7 +99,10 @@ export type OrderEventKind =
   | "chase_resolved"
   | "shipment_added"
   | "shipment_status_changed"
-  | "prediction_changed";
+  | "prediction_changed"
+  | "customer_message"
+  | "staff_reply"
+  | "customer_notified";
 
 const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
 const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
@@ -189,6 +204,12 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       if (e.detail.at_risk !== true && e.detail.was_at_risk === true) return `Back on track: predicted delivery ${when ?? "not known"}${source}`;
       return when ? `Predicted delivery now ${when}${source}` : "Predicted delivery not known yet";
     }
+    case "customer_message":
+      return "Customer sent a message";
+    case "staff_reply":
+      return "Replied to the customer";
+    case "customer_notified":
+      return `Customer emailed${typeof e.detail.topic === "string" ? `: ${NOTIFIED_WORDS[e.detail.topic] ?? "an update"}` : ""}${e.detail.status === "logged" ? " (logged — email isn't connected yet)" : ""}`;
     case "line_stage_changed": {
       const to = e.detail.to;
       const route = line?.route;

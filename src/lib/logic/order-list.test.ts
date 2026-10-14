@@ -118,3 +118,12 @@ describe("at risk (Phase 4)", () => {
     expect(d({ from: null, to: null, source: "unknown", at_risk: null })).toBe("Predicted delivery not known yet");
   });
 });
+
+describe("customer events (Phase 5)", () => {
+  it("describes messages and notifications", () => {
+    const ctx: EventContext = { lines: new Map(), poNumbers: new Map() };
+    expect(describeEvent({ kind: "customer_message", orderLineId: null, detail: {} }, ctx)).toBe("Customer sent a message");
+    expect(describeEvent({ kind: "staff_reply", orderLineId: null, detail: {} }, ctx)).toBe("Replied to the customer");
+    expect(describeEvent({ kind: "customer_notified", orderLineId: null, detail: { topic: "dispatched", status: "logged" } }, ctx)).toBe("Customer emailed: dispatched (logged — email isn't connected yet)");
+  });
+});

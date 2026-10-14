@@ -78,5 +78,7 @@ export async function setNewPassword(_prev: FormState, formData: FormData): Prom
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: "That password couldn't be saved. Try a different one." };
 
-  redirect("/app/home");
+  // Staff go to the app; customer accounts (Phase 5) to their orders.
+  const staff = await getStaffProfile(supabase, data.claims.sub);
+  redirect(staff ? "/app/home" : "/portal");
 }

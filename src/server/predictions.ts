@@ -3,6 +3,7 @@ import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   availabilityFor,
+  getPrediction,
   getPredictionSettings,
   listOrdersToRefresh,
   loadPredictionInput,
@@ -20,11 +21,14 @@ import {
   type OrderPrediction,
 } from "@/lib/logic/prediction";
 import { getPurchaseOrder } from "@/lib/data/procurement";
+import { getCustomerPageSettings } from "@/lib/data/customer-portal";
+import { topicForPredictionChange } from "@/lib/logic/notifications";
+import { notifyCustomer } from "./notifications";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Recalculating predictions — the one place COAST works out an order's
- * delivery date (spec §9.3: notifications will hang off this in Phase 5).
+ * delivery date (spec §9.3), so customer notifications about dates start here too.
  * It's COAST's own work, so it runs with the service-role client, and only
  * for order ids that came from something the caller was allowed to touch.
  * It never throws: a failed recalculation must not undo the change that
@@ -41,6 +45,8 @@ export interface Computed {
   prediction: OrderPrediction;
   leadTimes: LineLeadTime[];
   override: PredictionInput["override"];
+  orgId: string;
+  promisedDate: string | null;
 }
 
 async function compute(admin: SupabaseClient, orderId: string, now: Date): Promise<Computed | null> {
@@ -73,14 +79,18 @@ async function compute(admin: SupabaseClient, orderId: string, now: Date): Promi
     };
   });
   const prediction = predictOrder({ promisedDate: input.promisedDate, override: input.override, lines }, settings, today);
-  return { prediction, leadTimes, override: input.override };
+  return { prediction, leadTimes, override: input.override, orgId: input.orgId, promisedDate: input.promisedDate };
 }
 
 async function refreshOne(admin: SupabaseClient, orderId: string, now: Date): Promise<Computed | null> {
-  const computed = await compute(admin, orderId, now);
+  const [computed, before] = await Promise.all([compute(admin, orderId, now), getPrediction(admin, orderId)]);
   if (!computed) return null;
   const p = computed.prediction;
   await savePrediction(admin, orderId, { from: p.from, to: p.to, source: p.source, confidence: p.confidence, atRisk: p.atRisk, reason: p.reason, lines: p.lines });
+  // The one place a delivery date is recalculated, so the one place customers hear about it (spec §9.3).
+  const settings = await getCustomerPageSettings(admin, computed.orgId);
+  const topic = topicForPredictionChange(before, p, computed.promisedDate, { minGapHours: settings.minGapHours, dateShiftDays: settings.dateShiftDays });
+  if (topic) await notifyCustomer(orderId, topic, { now });
   return computed;
 }
 

@@ -17,7 +17,9 @@ test("sign-in page has both tabs and a labelled team form", async ({ page }) => 
 
   await page.getByRole("tab", { name: "Track an order" }).click();
   await expect(page.getByRole("tab", { name: "Track an order" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByText("Order tracking isn't open yet.")).toBeVisible();
+  await expect(page.getByLabel("Tracking code")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Track my order" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to your customer account" })).toBeVisible();
 });
 
 test("the staff app sends signed-out visitors to sign in", async ({ page }) => {

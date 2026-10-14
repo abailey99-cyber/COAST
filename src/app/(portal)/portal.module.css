@@ -1,0 +1,387 @@
+/* Customer tracking page — Customer.dc.html. Light theme, Deep Sea header. */
+
+.page {
+  min-height: 100vh;
+  background: var(--coast-sea-mist);
+  color: var(--coast-deep-sea);
+}
+
+.header {
+  background: var(--coast-deep-sea);
+  color: #ffffff;
+}
+
+.headerInner {
+  max-width: var(--width-customer);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  font-weight: var(--fw-semibold);
+}
+
+.brand img {
+  border-radius: 10px;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.credit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #9fb4bc;
+}
+
+.credit strong {
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.1em;
+  color: #ffffff;
+}
+
+.hero {
+  max-width: var(--width-customer);
+  margin: 0 auto;
+  padding: 32px var(--gutter) 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.heroMeta {
+  font-size: 14px;
+  color: #9fb4bc;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: var(--fw-bold);
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+.heroStatus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: #9fb4bc;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: #173b4f;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+.pillOk { color: #7fe0a8; }
+.pillWarn { color: #ffc37a; }
+.pillNeutral { color: #c9d6da; }
+
+.main {
+  max-width: var(--width-customer);
+  margin: -28px auto 0;
+  padding: 0 var(--gutter) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 1px 2px rgb(14 42 59 / 0.06), 0 8px 24px rgb(14 42 59 / 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+}
+
+.bars,
+.stageNames {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #d5dee1;
+}
+
+.barDone {
+  background: var(--coast-tide-teal);
+}
+
+.stageNames {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stageNames [aria-current] {
+  color: var(--coast-deep-sea);
+  font-weight: var(--fw-semibold);
+}
+
+.latest {
+  background: var(--coast-sea-mist);
+  border-radius: 12px;
+  padding: 16px 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.wide {
+  flex: 999 1 420px;
+  min-width: 0;
+}
+
+.side {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.timeline li {
+  display: flex;
+  gap: 14px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #9fb4bc;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.dotNow {
+  background: var(--coast-tide-teal);
+}
+
+.eventTitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+}
+
+.eventMeta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.badgeCarrier,
+.badgeShipper {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.badgeCarrier {
+  color: var(--badge-carrier-text);
+  background: var(--badge-carrier-bg);
+}
+
+.badgeShipper {
+  color: var(--badge-shipper-text);
+  background: var(--badge-shipper-bg);
+}
+
+.lineRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.quiet {
+  color: var(--text-secondary);
+}
+
+.divider {
+  border-top: 1px solid var(--divider);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.help {
+  background: var(--coast-deep-sea);
+  color: #ffffff;
+  border-radius: 18px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--fw-bold);
+  color: #ffffff;
+}
+
+.help p {
+  margin: 0;
+  font-size: 14px;
+  color: #c9d6da;
+  line-height: 1.5;
+}
+
+.help label {
+  font-size: 13px;
+  color: #c9d6da;
+}
+
+.help .input,
+.help textarea,
+.help input {
+  background: #ffffff;
+  color: var(--coast-deep-sea);
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.msgYou,
+.msgUs {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msgYou {
+  background: var(--coast-sea-mist);
+  margin-left: 24px;
+}
+
+.msgUs {
+  background: var(--badge-carrier-bg);
+  margin-right: 24px;
+}
+
+.msgMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.error {
+  color: var(--status-bad);
+  font-size: 14px;
+  margin: 0;
+}
+
+.ok {
+  color: var(--status-ok);
+  font-size: 14px;
+  margin: 0;
+}
+
+.helpOk {
+  color: #7fe0a8;
+  font-size: 14px;
+  margin: 0;
+}
+
+.helpError {
+  color: #ffb4a6;
+  font-size: 14px;
+  margin: 0;
+}
+
+.narrow {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 48px var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .headerInner,
+  .hero,
+  .main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .stageNames {
+    font-size: 11px;
+  }
+}

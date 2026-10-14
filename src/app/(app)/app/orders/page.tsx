@@ -117,6 +117,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                       </td>
                       <td>
                         {r.atRisk ? <span className="status status-warn">● At risk</span> : <span className={`status ${STATUS_CLASS[r.status]}`}>● {r.statusLabel}</span>}
+                        {r.newMessages > 0 && <div className="status status-warn">● {r.newMessages} new {r.newMessages === 1 ? "message" : "messages"}</div>}
                       </td>
                     </tr>
                   ))}

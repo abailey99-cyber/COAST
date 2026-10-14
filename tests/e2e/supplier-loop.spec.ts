@@ -142,7 +142,7 @@ test.describe("supplier loop", () => {
 
     const procurement = await as(browser, "procurement@demo-a.coast.test");
     await procurement.goto(`/app/orders/${order.orderId}`);
-    await procurement.getByLabel("Reply").fill("Chasing the supplier today");
+    await procurement.getByLabel("Reply", { exact: true }).fill("Chasing the supplier today");
     await procurement.getByRole("button", { name: "Answer and close" }).click();
     // Wait until it has saved (the panel shows it answered), then check it sticks.
     await expect(procurement.getByText("“Chasing the supplier today”")).toBeVisible({ timeout: 15_000 });

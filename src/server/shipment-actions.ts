@@ -35,6 +35,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission } from "./session";
 import { pollShipment } from "./tracking-poll";
 import { refreshPredictionsLater } from "./predictions";
+import { notifyCustomerLater } from "./notifications";
+import { topicForShipmentStatus } from "@/lib/logic/notifications";
 
 export interface ShipmentResult {
   ok: boolean;
@@ -155,6 +157,8 @@ export async function setShipmentStatus(shipmentId: string, status: string, note
     if (!shipment) return { ok: false, error: "That shipment isn't available." };
     const text = note.trim().slice(0, 300) || null;
     if (!(await setShipmentStatusByHand(supabase, shipmentId, status, text))) return { ok: false, error: "That shipment isn't available." };
+    const topic = topicForShipmentStatus(shipment.leg, shipment.status, status);
+    if (topic) notifyCustomerLater(shipment.salesOrderId, topic);
     const now = new Date().toISOString();
     const description = `${SHIPMENT_STATUS_LABELS[status]} (set by ${staff.fullName})${text ? ` — ${text}` : ""}`;
     await insertTrackingEvents(supabase, shipmentId, [{ occurredAt: now, status, description, location: null, key: eventKey({ occurredAt: now, description }) }], "manual");

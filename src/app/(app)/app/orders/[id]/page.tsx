@@ -6,6 +6,7 @@ import ui from "../../ui.module.css";
 import { DeliveryDateControl, LeadTimeInput } from "./DeliveryDate";
 import { OrderChases } from "./OrderChases";
 import { OrderShipments } from "./OrderShipments";
+import { OrderCustomer, TrackingLink } from "./OrderCustomer";
 import { RaisePoForm } from "./RaisePoForm";
 import { StageSelect } from "./StageSelect";
 
@@ -69,7 +70,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </dd>
               <dt>Tracking code</dt>
               <dd>
-                <code>{order.trackingCode}</code> <span className={ui.muted}>· the customer tracking page opens in Phase 5</span>
+                <TrackingLink orderId={order.id} panel={page.customer} />
               </dd>
             </dl>
           </section>
@@ -157,6 +158,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className={ui.aside} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <OrderCustomer orderId={order.id} panel={page.customer} />
         <OrderShipments orderId={order.id} data={page.shipments} />
         {(page.chases.length > 0 || page.chaseableLines.length > 0) && <OrderChases chases={page.chases} lines={page.chaseableLines} />}
         <aside className={ui.panel} aria-labelledby="history-title">

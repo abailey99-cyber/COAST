@@ -154,6 +154,7 @@ describe.skipIf(!enabled)("shipment security", () => {
   });
 
   it("lets only settings editors set a claim window, per organisation", async () => {
+    await service.from("carrier_settings").delete().eq("org_id", orgA).eq("carrier", "ups");
     expect((await admin.from("carrier_settings").insert({ org_id: orgA, carrier: "ups", claim_window_days: 30 })).error).toBeNull();
     expect((await sales.from("carrier_settings").update({ claim_window_days: 1 }).eq("org_id", orgA).eq("carrier", "ups").select()).data ?? []).toEqual([]);
     expect((await admin.from("carrier_settings").update({ claim_window_days: 400 }).eq("org_id", orgA).eq("carrier", "ups")).error).not.toBeNull();

@@ -48,6 +48,12 @@ the check by hand locally:
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tracking-poll
 ```
 
+## Customer pages
+
+- `/track` — enter a tracking code; `/track/<code>` — the customer's page for one order.
+- `/portal/sign-in` and `/portal` — customer accounts (invited from an order's Customer panel).
+- Daily summary emails: `/api/cron/notification-digest` (`.github/workflows/notification-digest.yml`).
+
 ## Demo sign-ins (development only)
 
 After `npm run db:seed-demo`, sign in with any of these and the

@@ -9,6 +9,7 @@ import { ThemeToggle } from "../ThemeToggle";
 import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PredictionSettingsForm } from "./PredictionSettingsForm";
+import { CustomerPageForm } from "./CustomerPageForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
 
@@ -22,14 +23,14 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Appearance, who sees what, your team, chasing, delivery dates, carriers, connections and the audit log" />
+      <PageHeader title="Settings" subtitle="Appearance, who sees what, your team, chasing, delivery dates, customer page, carriers, connections and the audit log" />
 
       <section className={styles.card} aria-labelledby="appearance-title">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -117,6 +118,24 @@ export default async function SettingsPage() {
             is after the date promised to the customer. A date or lead time someone sets by hand is never changed.
           </p>
           <PredictionSettingsForm editable={canEditSettings} values={prediction} />
+        </div>
+      </details>
+
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Customer page</h2>
+            <span className={styles.foldMeta}>
+              Shown as {customerPage.displayName ?? orgName} · “{customerPage.supplierWord}” · updates at most every {customerPage.minGapHours}h
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            What customers see on their tracking page and in update emails. They never see supplier names, PO numbers, costs or
+            internal notes — COAST checks every page and every reply before it goes out.
+          </p>
+          <CustomerPageForm values={customerPage} orgName={orgName} editable={canEditSettings} />
         </div>
       </details>
 

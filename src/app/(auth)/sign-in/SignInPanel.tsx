@@ -1,5 +1,6 @@
 "use client";
 
+import { TrackForm } from "@/app/(portal)/track/TrackForm";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { signInStaff, type FormState } from "@/server/auth-actions";
@@ -92,10 +93,10 @@ export function SignInPanel({ next, initialError, notConnected }: { next: string
       <div id={trackPanel} role="tabpanel" aria-labelledby={trackTab} hidden={tab !== "track"}>
         <div className={styles.form}>
           <p className={styles.help}>Ordered from a business that uses COAST? Check your delivery here. No account needed.</p>
-          {/* UNVERIFIED: tracking by code + postcode arrives in Phase 5 (decisions B7). Not shown as working until then. */}
-          <p className="notice" role="status">
-            Order tracking isn&apos;t open yet. If you&apos;ve been sent a tracking link, it will work once tracking launches.
-          </p>
+          {/* Decision E4: the tracking code alone is enough (no postcode box). */}
+          <TrackForm buttonClass="btn btn-primary btn-block btn-lg" />
+          <p className={styles.help} style={{ textAlign: "center" }}>or</p>
+          <Link href="/portal/sign-in" className="btn btn-secondary btn-block">Sign in to your customer account</Link>
         </div>
       </div>
     </>

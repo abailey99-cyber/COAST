@@ -413,3 +413,38 @@ The rule lives in `src/lib/logic/prediction.ts` so no caller can skip it.
 ### I5. Lead-time ticker
 Internal only: "Day 3 of 5", or "2 working days over its 5-day lead time",
 for supplier lines still waiting on their supplier.
+
+## J. Build notes — Phase 5 (14 October 2026)
+
+### J1. The masking layer — DECIDED (non-negotiable 1)
+`src/lib/logic/masking.ts`: `toCustomerView` is the only function that builds
+a `CustomerOrderView`, whose type has no field for a supplier name, PO
+number, cost, internal note or shipment origin. Every customer page and
+email is built from it, then scanned (`assertViewIsClean`) against every
+supplier name in the company and the order's PO numbers; a hit refuses the
+page. Staff replies are scanned the same way and blocked with the reason.
+
+### J2. What customers see of shipments — DEFAULT — CONFIRM
+Our own shipments to the customer show the carrier and tracking number.
+Shipments straight from a supplier show only plain statuses ("Dispatched",
+"In transit") with a "SHIPPER UPDATE" badge, never the carrier's own words
+or places (they can name the supplier's town) — unless the company switches
+on "Show the carrier for direct shipments" in Settings → Customer page.
+Inbound shipments to the warehouse are never shown (B6).
+
+### J3. Tracking without an account — DECIDED (E4)
+The tracking code alone opens the order's page (no postcode box). Codes are
+9 characters from a 31-letter alphabet; lookups are rate-limited and a wrong
+code gets the same answer as a missing one.
+
+### J4. Notifications — DEFAULT — CONFIRM
+Default level "Key milestones": date confirmed, dispatched, delivered,
+problems, replies. Routine updates at most every 4 hours (held ones folded
+into the next); date changes only when the date moves 2+ days or crosses the
+promised date; "may be late" and replies always go at once; an optional
+daily summary. All per company in Settings → Customer page.
+
+### J5. Customer accounts — DEFAULT — CONFIRM
+Staff invite a customer from the order (permission "Talk to customers", on
+for procurement, sales and sales managers). A customer login can never be a
+staff login. Customers add further orders with their tracking codes.

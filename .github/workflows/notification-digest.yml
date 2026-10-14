@@ -1,0 +1,29 @@
+# Sends each customer who chose it one summary email a day (decisions B12).
+# Does nothing until the repository secrets COAST_APP_URL and CRON_SECRET are
+# set — see tracking-poll.yml.
+name: Notification digest
+
+on:
+  schedule:
+    - cron: "30 6 * * *" # 07:30 UK summer time / 06:30 winter
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send the daily summaries
+        env:
+          COAST_APP_URL: ${{ secrets.COAST_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$COAST_APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "COAST_APP_URL or CRON_SECRET isn't set yet — nothing to do."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${COAST_APP_URL%/}/api/cron/notification-digest"

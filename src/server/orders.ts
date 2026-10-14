@@ -27,6 +27,8 @@ import { waitingFor, type Waiting } from "./supplier-loop";
 import { predictionForOrderPage, type LineLeadTime } from "./predictions";
 import { LEAD_TIME_SOURCE_LABELS, formatRange, type LinePrediction } from "@/lib/logic/prediction";
 import { loadOrderShipments, type OrderShipments } from "./shipments";
+import { loadOrderCustomer, type OrderCustomerPanel } from "./customer-staff";
+import { unreadCustomerMessages } from "@/lib/data/customer-portal";
 
 /** Loaders for the order screens. Each checks who's asking first; RLS checks again underneath. */
 
@@ -49,6 +51,7 @@ export interface OrderRow {
   predicted: string;
   predictedEstimate: boolean;
   atRisk: boolean;
+  newMessages: number;
 }
 
 export interface OrdersView {
@@ -87,7 +90,7 @@ export async function loadOrders(params: { view?: string; q?: string; rep?: stri
 
   const repId = repFilter === "mine" ? staff.id : repFilter === "all" ? undefined : repFilter.repId;
   const ids = q ? await searchOrderIds(supabase, q) : undefined;
-  const [orders, reps] = await Promise.all([listOrders(supabase, { repId, ids }), loadReps(staff)]);
+  const [orders, reps, unread] = await Promise.all([listOrders(supabase, { repId, ids }), loadReps(staff), unreadCustomerMessages(supabase)]);
 
   const listable = orders.map((o) => ({ ...o, atRisk: o.prediction?.atRisk ?? null }));
   const rows = listable.filter((o) => matchesView(o, view)).map<OrderRow>((o) => {
@@ -106,6 +109,7 @@ export async function loadOrders(params: { view?: string; q?: string; rep?: stri
       predicted: status === "cancelled" ? "—" : (formatRange(o.prediction?.from ?? null, o.prediction?.to ?? null) ?? "Not known yet"),
       predictedEstimate: o.prediction?.confidence === "estimate",
       atRisk: status === "open" && o.atRisk === true,
+      newMessages: unread.get(o.id) ?? 0,
     };
   });
 
@@ -178,6 +182,7 @@ export interface OrderPage {
   suppliers: Supplier[];
   chases: ChaseView[];
   shipments: OrderShipments;
+  customer: OrderCustomerPanel;
   prediction: {
     label: string;
     estimate: boolean;
@@ -210,13 +215,14 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     chase: hasPermission(staff.permissions, "chases.internal"),
   };
 
-  const [events, team, suppliers, chases, settings, shipments] = await Promise.all([
+  const [events, team, suppliers, chases, settings, shipments, customer] = await Promise.all([
     listOrderEvents(supabase, id),
     listStaffInOrg(supabase),
     can.raisePo ? listSuppliers(supabase) : Promise.resolve([] as Supplier[]),
     listChases(supabase, { orderId: id }),
     getChaseSettings(supabase),
     loadOrderShipments(staff, supabase, id, order.lines),
+    loadOrderCustomer(staff, supabase, id, order.trackingCode),
   ]);
   const now = new Date();
   const names = new Map(team.map((p) => [p.id, p.fullName]));
@@ -276,6 +282,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     can,
     suppliers: suppliers.filter((s) => s.isActive),
     shipments,
+    customer,
     prediction: computed
       ? {
           label: formatRange(computed.prediction.from, computed.prediction.to) ?? (computed.prediction.source === "unknown" && computed.prediction.reason === "Cancelled" ? "—" : "Not known yet"),

@@ -4,7 +4,7 @@ Everything stubbed, best-effort, unverified or deliberately deferred
 (CLAUDE.md non-negotiable 9). Updated at the end of every phase. Search the
 code for `UNVERIFIED:` for the in-code markers.
 
-_Last updated: end of Phase 4 — 14 October 2026._
+_Last updated: end of Phase 5 — 14 October 2026._
 
 ## Not built yet (by design — later phases)
 
@@ -12,9 +12,6 @@ _Last updated: end of Phase 4 — 14 October 2026._
 |---|---|---|
 | Chases screen (all chases in one place), Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N". Chases themselves work, on each order and PO | Phase 6 |
 | Home "what needs attention today" | Home shows a welcome and what's ready | Phase 6 |
-| Track an order (tracking code) | Sign-in "Track an order" tab says tracking isn't open yet | Phase 5 |
-| Customer tracking page | `/track` says tracking isn't open yet | Phase 5 |
-| Sign in to a customer account | Not shown on the sign-in page | Phase 5 |
 | Marketing site (How it works, Integrations, Pricing, register interest) | Home is a one-section holding page; the header shows only "Sign in"; the footer shows only the copyright line. "Register interest" isn't linked anywhere until the form exists | Any time — separate slot |
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
@@ -24,6 +21,39 @@ _Last updated: end of Phase 4 — 14 October 2026._
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 5 (customer page, messages, updates, accounts)
+
+- **Customer emails are written and logged, not sent**, like PO emails, until
+  Microsoft 365 is connected (Phase 8). Each order's Customer panel shows
+  exactly what was written, held back or skipped, and why. Invitations show
+  their set-password link once on screen so staff can pass it on.
+- **Staff hear about customer messages on the Orders list and the order**
+  ("● 1 new message"); the email to the rep (or procurement, with no rep) is
+  logged, not sent. A proper "needs attention" list is Home (Phase 6).
+- **One standing link for all of a customer's orders** (spec §5.5) isn't
+  built; customer accounts cover it. **Tracking codes don't expire**; staff
+  can issue a new one, which stops the old one at once.
+- **Rate limits are simple counters** per visitor address (60 lookups and 15
+  misses per 10 minutes; 20 messages an hour). Behind Vercel the address
+  comes from the x-forwarded-for header. Full rate limiting is Phase 9.
+- **Customers can't create their own account**; staff invite them from an
+  order (public sign-up stays off). An account belongs to one business and
+  sees only orders added to it with a tracking code (decision E4).
+- **The account's "spend" is the order value at your prices**, by currency,
+  for orders added to the account.
+- **Customer email addresses are per order** (set by the customer on their
+  page, or by staff). There's no customer contact book yet.
+- **Notification wording is fixed English**; per-company email templates and
+  the full branding settings (colours, custom domain) stay roadmap (B5).
+- **"Report a problem" from the customer page** arrives with delivery
+  exceptions (Phase 7). Customers can write in meanwhile.
+- **Database access rules call their permission helpers once per row.** The
+  audit log's rule now uses the faster once-per-query form (migration 0018);
+  the rest should be converted the same way before real volumes (Phase 9).
+- **Every view a customer sees is checked twice**: built only through the
+  masking function, then scanned for every supplier name and this order's
+  PO numbers; if anything slips through, the page refuses to show.
 
 ### Phase 4 (delivery dates, at risk, lead times)
 
@@ -52,8 +82,7 @@ _Last updated: end of Phase 4 — 14 October 2026._
   Estimates counted from today drift daily without a history entry.
 - **Availability is one figure per product code**, not per supplier, and is
   pasted or uploaded by hand (decision C2); there's no supplier feed.
-- **Customers don't see any of this yet** — that's Phase 5, through the
-  masking layer, and notifications on date changes come with it.
+- **Customers see the prediction** on their tracking page (Phase 5): a single date only when it's confirmed, a range otherwise.
 
 ### Phase 3 (shipments and carrier tracking)
 

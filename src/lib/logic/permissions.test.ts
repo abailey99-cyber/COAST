@@ -62,9 +62,10 @@ describe("defaults (product-owner decisions E1–E3)", () => {
   it("lets sales see every order, supplier names and costs, but not edit", () => {
     const s = defaults("sales");
     for (const k of ["orders.view_all", "supplier.identity.view", "costs.view"] as Permission[]) expect(hasPermission(s, k)).toBe(true);
-    for (const k of ACTIONS.filter((a) => a !== "chases.internal")) expect(hasPermission(s, k)).toBe(false);
-    // …but they can chase procurement about a line.
+    for (const k of ACTIONS.filter((a) => a !== "chases.internal" && a !== "customers.manage")) expect(hasPermission(s, k)).toBe(false);
+    // …but they can chase procurement about a line, and talk to their customers.
     expect(hasPermission(s, "chases.internal")).toBe(true);
+    expect(hasPermission(s, "customers.manage")).toBe(true);
   });
 
   it("makes directors see everything but change nothing", () => {

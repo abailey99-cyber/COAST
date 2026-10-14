@@ -41,6 +41,7 @@ export const PERMISSIONS = [
   { key: "procurement.manage", group: "Actions", label: "Manage suppliers and POs", description: "Create suppliers and purchase orders, chase suppliers, resolve discrepancies." },
   { key: "chases.internal", group: "Actions", label: "Chase procurement", description: "Ask procurement for an update on an order line." },
   { key: "shipments.manage", group: "Actions", label: "Add and update shipments", description: "Add shipments and tracking numbers to orders, check them with the carrier, and set their status by hand." },
+  { key: "customers.manage", group: "Actions", label: "Talk to customers", description: "Reply to customer messages, set who gets order updates, invite customers to an account and issue new tracking codes." },
   { key: "goods_in.check", group: "Actions", label: "Check in deliveries", description: "Record deliveries arriving at the warehouse." },
   { key: "settings.edit", group: "Actions", label: "Change company settings", description: "Change company settings such as chase timings. (Team and role permissions stay admin-only.)" },
   { key: "people.manage_sales", group: "Actions", label: "Manage sales reps’ access", description: "Give or take away permissions for individual sales reps — only ones they have themselves." },
@@ -69,6 +70,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "procurement.manage",
     "chases.internal",
     "shipments.manage",
+    "customers.manage",
     "goods_in.check",
   ],
   // E1: sales see all orders, supplier names and costs unless the company switches them off.
@@ -83,6 +85,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "supplier.identity.view",
     "costs.view",
     "chases.internal",
+    "customers.manage",
   ],
   // E7: a sales manager is a sales rep who can also set individual reps’ access.
   sales_manager: [
@@ -95,6 +98,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "supplier.identity.view",
     "costs.view",
     "chases.internal",
+    "customers.manage",
     "people.manage_sales",
   ],
   // E3: directors see everything, change nothing — unless an admin allows it.

@@ -20,6 +20,8 @@ import { applySnapshot, lineStageForShipment } from "@/lib/logic/shipments";
 import { nextPollAt, planPollRun, runAllowance, runsLeftToday } from "@/lib/logic/tracking-poll";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { refreshPredictions, sweepPredictions } from "./predictions";
+import { flushHeldNotifications, notifyCustomer } from "./notifications";
+import { topicForShipmentStatus } from "@/lib/logic/notifications";
 
 /**
  * Checking shipments with their carriers (spec §5.2). Runs as the system,
@@ -83,6 +85,10 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
   await recordCarrierOutcome(admin, due.carrier, null);
   const changed = result.statusChange !== null || result.newEvents.length > 0 || result.patch.estimatedFrom !== shipment.estimatedFrom || result.patch.estimatedTo !== shipment.estimatedTo;
   if (changed) await refreshPredictions([shipment.salesOrderId], now);
+  if (result.statusChange) {
+    const topic = topicForShipmentStatus(shipment.leg, result.statusChange.from, result.statusChange.to);
+    if (topic) await notifyCustomer(shipment.salesOrderId, topic, { now });
+  }
   return changed ? "updated" : "unchanged";
 }
 
@@ -144,12 +150,14 @@ export async function runTrackingPoll(admin: SupabaseClient, now: Date = new Dat
 }
 
 /** The /api/cron/tracking-poll job. */
-export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error"; predictionsRefreshed?: number } & Partial<PollRunSummary>> {
+export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error"; predictionsRefreshed?: number; heldUpdatesSent?: number } & Partial<PollRunSummary>> {
   const admin = createSupabaseAdminClient();
   if (!admin) return { outcome: "error" };
   const s = await runTrackingPoll(admin);
   // Delivery dates drift as days pass, so the same run keeps predictions fresh (Phase 4).
   const predictionsRefreshed = await sweepPredictions(admin);
+  // Customer updates held back by the spacing rule go out once the gap has passed (Phase 5).
+  const heldUpdatesSent = await flushHeldNotifications(admin, "throttle");
   const outcome = s.failed === 0 ? "ok" : s.failed < s.checked ? "partial" : "error";
-  return { outcome, ...s, predictionsRefreshed };
+  return { outcome, ...s, predictionsRefreshed, heldUpdatesSent };
 }
