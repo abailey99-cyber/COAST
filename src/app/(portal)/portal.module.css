@@ -465,8 +465,24 @@
 }
 
 /* "Add to my COAST account" in the tracking page banner. */
+.heroSplit {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 420px;
+}
+
 .heroAction {
-  margin-top: 10px;
+  flex: 0 0 auto;
 }
 
 .heroAdded {

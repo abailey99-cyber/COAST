@@ -74,7 +74,8 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
             <strong>COAST</strong>
           </div>
         </div>
-        <div className={styles.hero}>
+        <div className={`${styles.hero} ${styles.heroSplit}`}>
+          <div className={styles.heroText}>
           <div className={styles.heroMeta}>
             Order {v.soNumber}
             {v.customerReference ? ` · your ref ${v.customerReference}` : ""} · placed {formatDateTime(new Date(v.placedAt)).split(",")[0]}
@@ -84,7 +85,8 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
             <span className={`${styles.pill} ${PILL[v.status.tone]}`}>● {v.status.label}</span>
             <span>Last updated {formatDateTime(new Date(v.lastUpdated))}</span>
           </div>
-          {/* Top left, where it's seen first: keep this order with all their others. */}
+          </div>
+          {/* In the banner, where it's seen first: keep this order with all their others. */}
           <div className={styles.heroAction}>
             {signedIn && page.inAccount ? (
               <InAccount />
@@ -199,9 +201,8 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
             <section className={styles.cta} aria-labelledby="cta-account">
               <h2 id="cta-account">Track all your deliveries in one place</h2>
               <p>A free COAST account shows this order, and deliveries from every other business that uses COAST, on one page — soonest first.</p>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <div>
                 <Link href={`/portal/sign-up?add=${page.code}`} className="btn btn-primary">Create a free account</Link>
-                <Link href={`/portal/sign-in?add=${page.code}`}>I have one — add this order</Link>
               </div>
             </section>
           )}
