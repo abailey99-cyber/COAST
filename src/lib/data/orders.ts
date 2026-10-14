@@ -2,7 +2,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isCurrency, type Currency } from "@/lib/logic/format";
 import { isFulfilmentRoute, isLineStage, type FulfilmentRoute, type LineStage, type ValidOrder } from "@/lib/logic/orders";
+import type { OrderEventKind } from "@/lib/logic/order-list";
 import type { PoStatus } from "@/lib/logic/purchase-orders";
+import type { ValidOrderEdit } from "@/lib/logic/orders";
 
 /**
  * Sales orders and their lines. Reads and writes only. Every call uses the
@@ -252,7 +254,7 @@ export async function updateLineStage(client: SupabaseClient, lineId: string, fr
 
 export interface OrderEvent {
   id: number;
-  kind: "order_created" | "line_stage_changed" | "po_raised" | "po_status_changed";
+  kind: OrderEventKind;
   orderLineId: string | null;
   detail: Record<string, unknown>;
   actorId: string | null;
@@ -270,4 +272,26 @@ export async function listOrderEvents(client: SupabaseClient, orderId: string): 
     .returns<{ id: number; kind: OrderEvent["kind"]; order_line_id: string | null; detail: Record<string, unknown>; actor_id: string | null; created_at: string }[]>();
   if (error) throw new Error(`Couldn't load order history: ${error.message}`);
   return (data ?? []).map((e) => ({ id: e.id, kind: e.kind, orderLineId: e.order_line_id, detail: e.detail ?? {}, actorId: e.actor_id, createdAt: e.created_at }));
+}
+
+export async function updateOrder(client: SupabaseClient, orderId: string, edit: ValidOrderEdit): Promise<void> {
+  const { error } = await client.rpc("update_sales_order", {
+    p: {
+      id: orderId,
+      customer_name: edit.customerName,
+      customer_reference: edit.customerReference ?? "",
+      sales_rep_id: edit.salesRepId ?? "",
+      currency: edit.currency,
+      promised_date: edit.promisedDate ?? "",
+      delivery_name: edit.delivery.name,
+      delivery_line1: edit.delivery.line1,
+      delivery_line2: edit.delivery.line2 ?? "",
+      delivery_town: edit.delivery.town,
+      delivery_postcode: edit.delivery.postcode,
+      delivery_country: edit.delivery.country,
+      line_updates: edit.lineUpdates.map((l) => ({ id: l.id, sku: l.sku ?? "", description: l.description, quantity: l.quantity, unit_price_minor: l.unitPriceMinor ?? "" })),
+      new_lines: edit.newLines.map((l) => ({ sku: l.sku ?? "", description: l.description, quantity: l.quantity, unit_price_minor: l.unitPriceMinor ?? "", route: l.route })),
+    },
+  });
+  if (error) throw new Error(`Couldn't save the order: ${error.message}`);
 }

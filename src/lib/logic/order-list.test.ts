@@ -68,3 +68,13 @@ describe("describeEvent", () => {
     expect(describeEvent({ kind: "po_status_changed", orderLineId: null, detail: {} }, ctx)).toBe("A purchase order marked changed");
   });
 });
+
+describe("describeEvent — edits", () => {
+  const ctx: EventContext = { lines: new Map([["l1", { lineNo: 1, route: "direct_ship" as const }]]), poNumbers: new Map() };
+  it("names the fields that changed, never their values", () => {
+    expect(describeEvent({ kind: "order_updated", orderLineId: null, detail: { fields: ["promised_date", "delivery_address"] } }, ctx)).toBe("Order details changed (promised date, delivery address)");
+    expect(describeEvent({ kind: "line_updated", orderLineId: "l1", detail: { fields: ["quantity", "price"] } }, ctx)).toBe("Line 1 changed (quantity, price)");
+    expect(describeEvent({ kind: "line_added", orderLineId: "l1", detail: {} }, ctx)).toBe("Line 1 added");
+    expect(describeEvent({ kind: "order_updated", orderLineId: null, detail: {} }, ctx)).toBe("Order details changed");
+  });
+});

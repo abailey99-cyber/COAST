@@ -235,7 +235,11 @@ export interface ValidOrder {
 export const MAX_ORDER_LINES = 200;
 
 /** Checks a new order and returns either plain-English errors per field, or clean values. */
-export function validateNewOrder(input: NewOrderInput): { ok: true; order: ValidOrder } | { ok: false; errors: FieldErrors } {
+export function validateNewOrder(
+  input: NewOrderInput,
+  opts: { requireLines?: boolean; lineKey?: string; firstLineNo?: number } = {},
+): { ok: true; order: ValidOrder } | { ok: false; errors: FieldErrors } {
+  const { requireLines = true, lineKey = "lines", firstLineNo = 1 } = opts;
   const errors: FieldErrors = {};
   const t = (s: string) => s.trim();
 
@@ -263,17 +267,18 @@ export function validateNewOrder(input: NewOrderInput): { ok: true; order: Valid
 
   const lines: ValidOrderLine[] = [];
   const filled = input.lines.filter((l) => t(l.description) || t(l.sku) || t(l.quantity) || t(l.unitPrice));
-  if (filled.length === 0) errors.lines = "Add at least one line.";
-  if (filled.length > MAX_ORDER_LINES) errors.lines = `An order can have up to ${MAX_ORDER_LINES} lines.`;
+  if (requireLines && filled.length === 0) errors[lineKey] = "Add at least one line.";
+  if (filled.length > MAX_ORDER_LINES) errors[lineKey] = `An order can have up to ${MAX_ORDER_LINES} lines.`;
   filled.forEach((l, i) => {
-    const n = i + 1;
+    const n = i + firstLineNo;
+    const k = `${lineKey}.${i}`;
     const description = t(l.description);
-    if (!description) errors[`lines.${i}.description`] = `Line ${n}: describe the item.`;
+    if (!description) errors[`${k}.description`] = `Line ${n}: describe the item.`;
     const quantity = parseQuantity(l.quantity);
-    if (quantity === null) errors[`lines.${i}.quantity`] = `Line ${n}: enter a quantity above 0.`;
+    if (quantity === null) errors[`${k}.quantity`] = `Line ${n}: enter a quantity above 0.`;
     const unitPriceMinor = t(l.unitPrice) ? parseMoneyToMinor(l.unitPrice) : null;
-    if (t(l.unitPrice) && unitPriceMinor === null) errors[`lines.${i}.unitPrice`] = `Line ${n}: enter a price like 12.50.`;
-    if (!isFulfilmentRoute(l.route)) errors[`lines.${i}.route`] = `Line ${n}: choose how it's fulfilled.`;
+    if (t(l.unitPrice) && unitPriceMinor === null) errors[`${k}.unitPrice`] = `Line ${n}: enter a price like 12.50.`;
+    if (!isFulfilmentRoute(l.route)) errors[`${k}.route`] = `Line ${n}: choose how it's fulfilled.`;
     if (description && quantity !== null && isFulfilmentRoute(l.route)) {
       lines.push({ sku: t(l.sku) || null, description, quantity, unitPriceMinor, route: l.route });
     }
@@ -314,4 +319,99 @@ export function parseRepFilter(value: string | undefined, role: string): RepFilt
   if (value === "mine" || value === "all") return value;
   if (value && /^[0-9a-f-]{36}$/i.test(value)) return { repId: value };
   return defaultRepFilter(role);
+}
+
+// ── Editing an existing order ───────────────────────────────────────────────
+
+export interface ExistingLineForEdit {
+  id: string;
+  lineNo: number;
+  stage: LineStage;
+  /** Total quantity on live (not cancelled) purchase orders. */
+  quantityOnLivePos: number;
+}
+
+export interface LineEditInput {
+  id: string;
+  sku: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+export interface EditOrderInput extends Omit<NewOrderInput, "soNumber" | "lines"> {
+  lines: LineEditInput[];
+  newLines: NewOrderLineInput[];
+}
+
+export interface ValidLineUpdate {
+  id: string;
+  sku: string | null;
+  description: string;
+  quantity: number;
+  unitPriceMinor: number | null;
+}
+
+export interface ValidOrderEdit extends Omit<ValidOrder, "soNumber" | "lines"> {
+  lineUpdates: ValidLineUpdate[];
+  newLines: ValidOrderLine[];
+}
+
+/** Delivered and cancelled lines are final; nothing about them can change. */
+export function isLineLocked(stage: LineStage): boolean {
+  return stage === "delivered" || stage === "cancelled";
+}
+
+/**
+ * Checks changes to an existing order. The SO number and each line's
+ * fulfilment route can't change (customers quote the number; POs depend on
+ * the route). Locked lines are left exactly as they are. A quantity can't
+ * drop below what's already on live purchase orders.
+ */
+export function validateOrderEdit(
+  input: EditOrderInput,
+  existing: readonly ExistingLineForEdit[],
+): { ok: true; edit: ValidOrderEdit } | { ok: false; errors: FieldErrors } {
+  const t = (s: string) => s.trim();
+  const errors: FieldErrors = {};
+  const byId = new Map(existing.map((l) => [l.id, l]));
+  const nextLineNo = existing.reduce((m, l) => Math.max(m, l.lineNo), 0) + 1;
+
+  const base = validateNewOrder({ ...input, soNumber: "", lines: input.newLines }, { requireLines: false, lineKey: "newLines", firstLineNo: nextLineNo });
+  if (!base.ok) Object.assign(errors, base.errors);
+
+  const lineUpdates: ValidLineUpdate[] = [];
+  const seen = new Set<string>();
+  for (const l of input.lines) {
+    const line = byId.get(l.id);
+    if (!line || seen.has(l.id)) {
+      errors[`line.${l.id}`] = "That line isn't on this order.";
+      continue;
+    }
+    seen.add(l.id);
+    if (isLineLocked(line.stage)) continue;
+    const n = line.lineNo;
+    const description = t(l.description);
+    if (!description) errors[`line.${l.id}.description`] = `Line ${n}: describe the item.`;
+    else if (description.length > 500) errors[`line.${l.id}.description`] = `Line ${n}: use 500 characters or fewer.`;
+    const quantity = parseQuantity(l.quantity);
+    if (quantity === null) errors[`line.${l.id}.quantity`] = `Line ${n}: enter a quantity above 0.`;
+    else if (quantity < line.quantityOnLivePos) {
+      errors[`line.${l.id}.quantity`] = `Line ${n}: ${line.quantityOnLivePos} are already on a purchase order. Cancel or change the PO first.`;
+    }
+    const unitPriceMinor = t(l.unitPrice) ? parseMoneyToMinor(l.unitPrice) : null;
+    if (t(l.unitPrice) && unitPriceMinor === null) errors[`line.${l.id}.unitPrice`] = `Line ${n}: enter a price like 12.50.`;
+    if (description && quantity !== null && quantity >= line.quantityOnLivePos) {
+      lineUpdates.push({ id: l.id, sku: t(l.sku) || null, description, quantity, unitPriceMinor });
+    }
+  }
+
+  const liveLines = existing.filter((l) => l.stage !== "cancelled").length;
+  if (base.ok && liveLines === 0 && base.order.lines.length === 0) errors.newLines = "Add at least one line.";
+  if (existing.length + (base.ok ? base.order.lines.length : 0) > MAX_ORDER_LINES) errors.newLines = `An order can have up to ${MAX_ORDER_LINES} lines.`;
+
+  if (Object.keys(errors).length > 0 || !base.ok) return { ok: false, errors };
+  const { lines: newLines, soNumber: _so, ...header } = base.order;
+  void _so;
+  return { ok: true, edit: { ...header, lineUpdates, newLines } };
 }

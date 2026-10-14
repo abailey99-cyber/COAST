@@ -18,6 +18,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader title={order.soNumber} subtitle={`${order.customerName} · ${page.fulfilment} · created ${page.createdAt}`}>
+        {can.edit && (
+          <Link href={`/app/orders/${order.id}/edit`} className="btn btn-primary">Edit order</Link>
+        )}
         <Link href="/app/orders" className="btn btn-secondary">All orders</Link>
       </PageHeader>
 

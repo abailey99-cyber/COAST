@@ -16,6 +16,7 @@ import {
   parseRepFilter,
   stageLabel,
   validateNewOrder,
+  validateOrderEdit,
   type NewOrderInput,
 } from "./orders";
 
@@ -214,5 +215,66 @@ describe("sales-rep filter (E1)", () => {
     expect(parseRepFilter(undefined, "sales")).toBe("mine");
     expect(parseRepFilter("0b0e2a3b-1f8a-4c9c-9a75-84f4f6f5aaaa", "admin")).toEqual({ repId: "0b0e2a3b-1f8a-4c9c-9a75-84f4f6f5aaaa" });
     expect(parseRepFilter("'; drop table", "admin")).toBe("all");
+  });
+});
+
+describe("validateOrderEdit", () => {
+  const header = {
+    customerName: "[Customer A]",
+    customerReference: "",
+    salesRepId: "",
+    currency: "GBP",
+    promisedDate: "",
+    deliveryName: "Goods In",
+    deliveryLine1: "1 Street",
+    deliveryLine2: "",
+    deliveryTown: "Newark",
+    deliveryPostcode: "NG24 1AB",
+    deliveryCountry: "GB",
+  };
+  const existing = [
+    { id: "a", lineNo: 1, stage: "po_sent" as const, quantityOnLivePos: 4 },
+    { id: "b", lineNo: 2, stage: "delivered" as const, quantityOnLivePos: 0 },
+  ];
+  const lineA = { id: "a", sku: "SKU", description: "Widget", quantity: "4", unitPrice: "10" };
+
+  it("accepts changes, ignores locked lines, and numbers new lines after the last", () => {
+    const r = validateOrderEdit(
+      {
+        ...header,
+        lines: [lineA, { id: "b", sku: "", description: "", quantity: "0", unitPrice: "" }],
+        newLines: [{ sku: "", description: "Extra", quantity: "1", unitPrice: "", route: "from_stock" }],
+      },
+      existing,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.edit.lineUpdates).toEqual([{ id: "a", sku: "SKU", description: "Widget", quantity: 4, unitPriceMinor: 1000 }]);
+    expect(r.edit.newLines).toHaveLength(1);
+  });
+
+  it("won't drop a quantity below what's on a live PO", () => {
+    const r = validateOrderEdit({ ...header, lines: [{ ...lineA, quantity: "3" }], newLines: [] }, existing);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors["line.a.quantity"]).toMatch(/already on a purchase order/);
+  });
+
+  it("numbers errors on new lines from the next line number", () => {
+    const r = validateOrderEdit({ ...header, lines: [lineA], newLines: [{ sku: "", description: "", quantity: "2", unitPrice: "", route: "from_stock" }] }, existing);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors["newLines.0.description"]).toBe("Line 3: describe the item.");
+  });
+
+  it("refuses lines from another order, and an order left with no live lines", () => {
+    expect(validateOrderEdit({ ...header, lines: [{ ...lineA, id: "zzz" }], newLines: [] }, existing).ok).toBe(false);
+    const allCancelled = [{ id: "c", lineNo: 1, stage: "cancelled" as const, quantityOnLivePos: 0 }];
+    const r = validateOrderEdit({ ...header, lines: [], newLines: [] }, allCancelled);
+    expect(r.ok).toBe(false);
+  });
+
+  it("still checks the header", () => {
+    const r = validateOrderEdit({ ...header, deliveryPostcode: "nope", lines: [lineA], newLines: [] }, existing);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.deliveryPostcode).toBeDefined();
   });
 });

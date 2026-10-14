@@ -59,8 +59,28 @@ export function orderKpis(orders: readonly Listable[]): OrderKpis {
 }
 
 // ── Order history wording ───────────────────────────────────────────────────
+export type OrderEventKind = "order_created" | "line_stage_changed" | "po_raised" | "po_status_changed" | "order_updated" | "line_added" | "line_updated";
+
+const FIELD_LABELS: Record<string, string> = {
+  customer: "customer",
+  customer_reference: "their reference",
+  sales_rep: "sales rep",
+  currency: "currency",
+  promised_date: "promised date",
+  delivery_address: "delivery address",
+  sku: "product code",
+  description: "description",
+  quantity: "quantity",
+  price: "price",
+};
+
+function fieldList(detail: Record<string, unknown>): string {
+  const fields = Array.isArray(detail.fields) ? detail.fields.filter((f): f is string => typeof f === "string") : [];
+  const labels = fields.map((f) => FIELD_LABELS[f] ?? f);
+  return labels.length ? ` (${labels.join(", ")})` : "";
+}
 export interface EventInput {
-  kind: "order_created" | "line_stage_changed" | "po_raised" | "po_status_changed";
+  kind: OrderEventKind;
   orderLineId: string | null;
   detail: Record<string, unknown>;
 }
@@ -94,6 +114,12 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       const to = e.detail.to;
       return `${poRef(e.detail.purchase_order_id, ctx)} marked ${isPoStatus(to) ? PO_STATUS_LABELS[to].toLowerCase() : "changed"}`;
     }
+    case "order_updated":
+      return `Order details changed${fieldList(e.detail)}`;
+    case "line_added":
+      return `${lineRef} added`;
+    case "line_updated":
+      return `${lineRef} changed${fieldList(e.detail)}`;
     case "line_stage_changed": {
       const to = e.detail.to;
       const route = line?.route;

@@ -27,9 +27,9 @@ _Last updated: end of Phase 1 — 14 October 2026._
 
 ### Phase 1 (orders and procurement)
 
-- **Orders can't be edited after they're created** — only their line stages
-  change, and POs are raised against them. Editing the customer, address,
-  rep, promised date or lines is the next small piece of work.
+- **An order's SO number and a line's fulfilment route can't be edited.**
+  Everything else can (Edit order). To change a route, cancel the line and add
+  a new one. Delivered and cancelled lines are locked.
 - **The Orders list shows the newest 500 orders**; search reaches older ones.
   The tiles are worked out from those 500.
 - **"At risk" isn't tracked yet** (Phase 4, delivery-date prediction), and the

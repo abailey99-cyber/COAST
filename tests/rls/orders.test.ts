@@ -178,6 +178,30 @@ describe.skipIf(!enabled)("orders and procurement security", () => {
     await service.from("suppliers").delete().eq("id", ok.data!.id);
   });
 
+  it("edits an order in one step, but never its SO number or a line's route", async () => {
+    const before = await procurement.from("sales_orders").select("so_number, order_lines(id, line_no)").eq("id", created[0]!).single();
+    const lineId = before.data!.order_lines[0]!.id;
+    const { error } = await procurement.rpc("update_sales_order", {
+      p: {
+        ...newOrder({ promised_date: "2026-11-09", customer_reference: "RLS-REF-2" }),
+        id: created[0],
+        line_updates: [{ id: lineId, sku: "RLS-1", description: "RLS test item (edited)", quantity: 3, unit_price_minor: 1200 }],
+        new_lines: [{ sku: "", description: "RLS added line", quantity: 1, unit_price_minor: "", route: "from_stock" }],
+      },
+    });
+    expect(error).toBeNull();
+    const after = await procurement.from("sales_orders").select("so_number, promised_date, customer_reference, order_lines(line_no, description)").eq("id", created[0]!).single();
+    expect(after.data!.so_number).toBe(before.data!.so_number);
+    expect(after.data!.promised_date).toBe("2026-11-09");
+    expect(after.data!.order_lines.map((l) => l.line_no).sort()).toEqual([1, 2]);
+    const kinds = (await procurement.from("order_events").select("kind").eq("sales_order_id", created[0]!)).data!.map((e) => e.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["order_updated", "line_updated", "line_added"]));
+
+    expect((await procurement.from("sales_orders").update({ so_number: "SO-CHANGED" }).eq("id", created[0]!)).error).not.toBeNull();
+    expect((await procurement.from("order_lines").update({ route: "from_stock" }).eq("id", lineId)).error).not.toBeNull();
+    expect((await director.rpc("update_sales_order", { p: { ...newOrder(), id: created[0], line_updates: [], new_lines: [] } })).error).not.toBeNull();
+  });
+
   it("records every change in an audit log nobody can edit or delete", async () => {
     const entries = await adminA.from("audit_log").select("id, table_name, action").eq("table_name", "sales_orders").order("id", { ascending: false }).limit(5);
     expect(entries.data!.length).toBeGreaterThan(0);

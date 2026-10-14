@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { DuplicateError, createOrder, getLineForStageChange, getOrder, updateLineStage } from "@/lib/data/orders";
+import { DuplicateError, createOrder, getLineForStageChange, getOrder, updateLineStage, updateOrder } from "@/lib/data/orders";
 import { createPurchaseOrder, createSupplier, getPoStatus, updatePoStatus } from "@/lib/data/procurement";
 import { listStaffInOrg } from "@/lib/data/staff";
-import { canMoveStage, isLineStage, validateNewOrder, type FieldErrors, type NewOrderInput } from "@/lib/logic/orders";
+import { canMoveStage, isLineStage, validateNewOrder, validateOrderEdit, type EditOrderInput, type FieldErrors, type NewOrderInput } from "@/lib/logic/orders";
 import { hasPermission } from "@/lib/logic/permissions";
 import { allowedPoStatusChanges, validateNewPo, validateNewSupplier, type PoStatus } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -194,4 +194,71 @@ export async function changePoStatus(poId: string, to: string): Promise<ActionRe
   } catch (e) {
     return failure(e, "The status couldn't be changed. Try again.");
   }
+}
+
+// ── Editing an order ────────────────────────────────────────────────────────
+export async function updateOrderAction(orderId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const staff = await requirePermission("orders.edit");
+    const supabase = await client();
+    const order = await getOrder(supabase, orderId);
+    if (!order) return { error: "That order isn't available." };
+
+    const lineIds = formData.getAll("lineId").filter((v): v is string => typeof v === "string");
+    const newCount = Math.min(Number(field(formData, "newLineCount")) || 0, 200);
+    const input: EditOrderInput = {
+      customerName: field(formData, "customerName"),
+      customerReference: field(formData, "customerReference"),
+      salesRepId: field(formData, "salesRepId"),
+      currency: field(formData, "currency"),
+      promisedDate: field(formData, "promisedDate"),
+      deliveryName: field(formData, "deliveryName"),
+      deliveryLine1: field(formData, "deliveryLine1"),
+      deliveryLine2: field(formData, "deliveryLine2"),
+      deliveryTown: field(formData, "deliveryTown"),
+      deliveryPostcode: field(formData, "deliveryPostcode"),
+      deliveryCountry: field(formData, "deliveryCountry"),
+      lines: lineIds.map((id) => ({
+        id,
+        sku: field(formData, `line.${id}.sku`),
+        description: field(formData, `line.${id}.description`),
+        quantity: field(formData, `line.${id}.quantity`),
+        unitPrice: field(formData, `line.${id}.unitPrice`),
+      })),
+      newLines: Array.from({ length: newCount }, (_, i) => ({
+        sku: field(formData, `newLines.${i}.sku`),
+        description: field(formData, `newLines.${i}.description`),
+        quantity: field(formData, `newLines.${i}.quantity`),
+        unitPrice: field(formData, `newLines.${i}.unitPrice`),
+        route: field(formData, `newLines.${i}.route`),
+      })),
+    };
+    const result = validateOrderEdit(
+      input,
+      order.lines.map((l) => ({
+        id: l.id,
+        lineNo: l.lineNo,
+        stage: l.stage,
+        quantityOnLivePos: l.poLinks.filter((p) => p.status !== "cancelled").reduce((s, p) => s + p.quantity, 0),
+      })),
+    );
+    if (!result.ok) return { error: "Please check the highlighted fields.", fieldErrors: result.errors };
+
+    if (result.edit.salesRepId && result.edit.salesRepId !== order.salesRepId) {
+      const team = await listStaffInOrg(supabase);
+      if (!team.some((p) => p.id === result.edit.salesRepId && p.isActive)) {
+        return { error: "Please check the highlighted fields.", fieldErrors: { salesRepId: "Choose someone from your team." } };
+      }
+    }
+    if (!hasPermission(staff.permissions, "orders.view_all") && result.edit.salesRepId !== staff.id) {
+      return { error: "Please check the highlighted fields.", fieldErrors: { salesRepId: "You can only keep orders assigned to yourself." } };
+    }
+    await updateOrder(supabase, orderId, result.edit);
+  } catch (e) {
+    if (e instanceof NotAllowedError) return { error: e.message };
+    return { error: "The changes couldn't be saved. Try again." };
+  }
+  revalidatePath(`/app/orders/${orderId}`);
+  revalidatePath("/app/orders");
+  redirect(`/app/orders/${orderId}`);
 }

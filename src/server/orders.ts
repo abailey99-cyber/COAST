@@ -144,7 +144,7 @@ export interface OrderPage {
   createdAt: string;
   lines: LineView[];
   history: HistoryItem[];
-  can: { changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean };
+  can: { edit: boolean; changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean };
   suppliers: Supplier[];
 }
 
@@ -156,6 +156,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
   if (!order) return null;
 
   const can = {
+    edit: hasPermission(staff.permissions, "orders.edit"),
     changeStage: hasPermission(staff.permissions, "orders.edit") || hasPermission(staff.permissions, "procurement.manage"),
     raisePo: hasPermission(staff.permissions, "procurement.manage") && hasPermission(staff.permissions, "supplier.identity.view"),
     seeSuppliers: hasPermission(staff.permissions, "supplier.identity.view"),
@@ -228,4 +229,85 @@ export async function loadNewOrderForm(): Promise<{ reps: Rep[]; defaultRepId: s
   if (!hasPermission(staff.permissions, "orders.edit")) throw new Error("not allowed");
   const reps = await loadReps(staff);
   return { reps, defaultRepId: reps.some((r) => r.id === staff.id) ? staff.id : null };
+}
+
+// ── Editing ─────────────────────────────────────────────────────────────────
+
+export interface EditLine {
+  id: string;
+  lineNo: number;
+  sku: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  route: string;
+  stageLabel: string;
+  locked: boolean;
+  quantityOnLivePos: number;
+}
+
+export interface OrderEditPage {
+  id: string;
+  soNumber: string;
+  values: {
+    customerName: string;
+    customerReference: string;
+    salesRepId: string;
+    currency: string;
+    promisedDate: string;
+    deliveryName: string;
+    deliveryLine1: string;
+    deliveryLine2: string;
+    deliveryTown: string;
+    deliveryPostcode: string;
+    deliveryCountry: string;
+  };
+  lines: EditLine[];
+  reps: Rep[];
+  mustBeOwnRep: boolean;
+}
+
+/** Money in minor units → "12.50" for an input box. */
+function moneyInput(minor: number | null): string {
+  return minor === null ? "" : (minor / 100).toFixed(2);
+}
+
+export async function loadOrderEdit(id: string): Promise<OrderEditPage | null> {
+  const staff = await requireStaff({ section: "orders" });
+  if (!hasPermission(staff.permissions, "orders.edit") || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const order = await getOrder(await client(), id);
+  if (!order) return null;
+  const reps = await loadReps(staff);
+  if (order.salesRepId && !reps.some((r) => r.id === order.salesRepId)) reps.push({ id: order.salesRepId, name: order.salesRepName ?? "Former rep" });
+  return {
+    id: order.id,
+    soNumber: order.soNumber,
+    values: {
+      customerName: order.customerName,
+      customerReference: order.customerReference ?? "",
+      salesRepId: order.salesRepId ?? "",
+      currency: order.currency,
+      promisedDate: order.promisedDate ?? "",
+      deliveryName: order.delivery.name,
+      deliveryLine1: order.delivery.line1,
+      deliveryLine2: order.delivery.line2 ?? "",
+      deliveryTown: order.delivery.town,
+      deliveryPostcode: order.delivery.postcode,
+      deliveryCountry: order.delivery.country,
+    },
+    lines: order.lines.map((l) => ({
+      id: l.id,
+      lineNo: l.lineNo,
+      sku: l.sku ?? "",
+      description: l.description,
+      quantity: String(l.quantity),
+      unitPrice: moneyInput(l.unitPriceMinor),
+      route: ROUTE_LABELS[l.route],
+      stageLabel: stageLabel(l.stage, l.route),
+      locked: l.stage === "delivered" || l.stage === "cancelled",
+      quantityOnLivePos: l.poLinks.filter((p) => p.status !== "cancelled").reduce((s, p) => s + p.quantity, 0),
+    })),
+    reps,
+    mustBeOwnRep: !hasPermission(staff.permissions, "orders.view_all"),
+  };
 }

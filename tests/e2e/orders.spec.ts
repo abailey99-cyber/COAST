@@ -130,6 +130,37 @@ test.describe("orders", () => {
     await expect(page.getByText(/Purchase order PO-\d+ raised for line 1/)).toBeVisible();
   });
 
+  test("procurement edits the order: details, a line, and a new line", async ({ browser }) => {
+    const page = await as(browser, "procurement@demo-a.coast.test");
+    await page.goto("/app/orders?view=all&q=E2E-REF-9");
+    await page.getByRole("link", { name: /^SO-\d+$/ }).first().click();
+    await page.getByRole("link", { name: "Open order" }).click();
+    await page.getByRole("link", { name: "Edit order" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Edit SO-\d+$/);
+
+    // Line 1 is dispatched with 5 on a PO: can't go below 5.
+    await page.getByLabel("Line 1 quantity").fill("4");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText(/5 are already on a purchase order/)).toBeVisible();
+
+    await page.getByLabel("Line 1 quantity").fill("5");
+    await page.getByLabel("Line 1 description").fill("E2E test widget, blue");
+    await page.getByLabel("Promised delivery date (optional)").fill("2026-11-20");
+    await page.getByRole("button", { name: "Add a line" }).click();
+    await page.getByLabel("Line 2 description").fill("E2E extra item");
+    await page.getByLabel("Line 2 quantity").fill("2");
+    await page.getByLabel("Line 2 fulfilled").selectOption("from_stock");
+    await page.getByRole("button", { name: "Save changes" }).click();
+
+    await expect(page).toHaveURL(/\/app\/orders\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+    await expect(page.getByText("Fri 20 Nov")).toBeVisible();
+    await expect(page.getByText("E2E test widget, blue")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Lines" }).getByRole("row", { name: /E2E extra item/ })).toContainText("To pick");
+    await expect(page.getByText("Order details changed (promised date)")).toBeVisible();
+    await expect(page.getByText("Line 1 changed (description)")).toBeVisible();
+    await expect(page.getByText("Line 2 added")).toBeVisible();
+  });
+
   test("the audit log in Settings shows the changes", async ({ browser }) => {
     const page = await as(browser, "admin@demo-a.coast.test");
     await page.goto("/app/settings");
