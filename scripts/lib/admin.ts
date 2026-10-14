@@ -48,7 +48,7 @@ export async function ensureOrganisation(admin: SupabaseClient, name: string, sl
 export interface StaffSpec {
   email: string;
   fullName: string;
-  role: "admin" | "procurement" | "sales" | "director" | "goods_in";
+  role: "admin" | "procurement" | "sales_manager" | "sales" | "director" | "goods_in";
   orgId: string;
   password?: string;
 }

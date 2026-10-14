@@ -246,3 +246,23 @@ account, and nothing built now blocks adding it.
 ### E6. Commit identity — DECIDED
 Commits use the GitHub username with GitHub's noreply address. Dedicated
 COAST email addresses can replace it later.
+
+### E7. Sales manager role and individual access — DECIDED (14 October 2026)
+A **Sales manager** role so admins don't have to do everything:
+- Starts with the same access as Sales, plus **Manage sales reps' access**.
+- Can give or take away permissions for **individual sales reps** — only
+  permissions the manager holds themselves, and never the power to manage
+  others. Can't change themselves, admins or other roles.
+- Admins can change any non-admin person individually, for any permission.
+- Individual changes sit on top of the role ("Same as role" / "Allow" /
+  "Block"), in Settings → Team and individual access.
+- A sales manager covers all sales reps in the company for now; separate
+  teams per manager can be added if needed.
+- Enforced in the database by `public.can_manage_person_access()` and
+  `staff_permission_overrides` (migrations 0004–0006), mirrored by
+  `canManagePersonAccess()` / `grantablePermissions()` in
+  `src/lib/logic/permissions.ts`.
+
+Settings is organised into collapsible sections (Who sees what — split into
+Screens / Data / Actions; Team and individual access — one fold-out per
+person; Connections), closed by default with a one-line summary each.

@@ -39,5 +39,5 @@ database directly.
 After `npm run db:seed-demo`, sign in with any of these and the
 `DEMO_USER_PASSWORD` from your `.env.local`:
 
-`admin@`, `procurement@`, `sales@`, `director@`, `goodsin@` + `demo-a.coast.test`,
+`admin@`, `procurement@`, `salesmanager@`, `sales@`, `sales2@`, `director@`, `goodsin@` + `demo-a.coast.test`,
 and `admin@demo-b.coast.test` (a second organisation, for isolation tests).

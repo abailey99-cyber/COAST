@@ -4,6 +4,8 @@ import {
   DEFAULT_PERMISSIONS,
   PERMISSIONS,
   PERMISSION_KEYS,
+  canManagePersonAccess,
+  grantablePermissions,
   hasPermission,
   isPermission,
   isViewOnly,
@@ -89,5 +91,86 @@ describe("isViewOnly", () => {
     expect(isViewOnly(new Set())).toBe(true);
     expect(isViewOnly(new Set<Permission>(["costs.view"]))).toBe(true);
     expect(isViewOnly(new Set<Permission>(["orders.edit"]))).toBe(false);
+  });
+});
+
+describe("per-person overrides", () => {
+  it("adds and blocks on top of the role", () => {
+    const p = resolvePermissions("sales", DEFAULT_PERMISSIONS.sales, [
+      { permission: "section.suppliers", granted: true },
+      { permission: "costs.view", granted: false },
+    ]);
+    expect(hasPermission(p, "section.suppliers")).toBe(true);
+    expect(hasPermission(p, "costs.view")).toBe(false);
+    expect(hasPermission(p, "orders.view_all")).toBe(true);
+  });
+
+  it("ignores unknown keys in overrides", () => {
+    const p = resolvePermissions("sales", [], [{ permission: "made.up", granted: true }]);
+    expect(p.size).toBe(0);
+  });
+
+  it("never reduces an admin", () => {
+    const p = resolvePermissions("admin", [], [{ permission: "costs.view", granted: false }]);
+    expect(hasPermission(p, "costs.view")).toBe(true);
+  });
+});
+
+describe("canManagePersonAccess (E7)", () => {
+  const admin = { id: "a", role: "admin" as const, permissions: resolvePermissions("admin", []) };
+  const manager = { id: "m", role: "sales_manager" as const, permissions: resolvePermissions("sales_manager", DEFAULT_PERMISSIONS.sales_manager) };
+  const rep = { id: "r", role: "sales" as const, permissions: resolvePermissions("sales", DEFAULT_PERMISSIONS.sales) };
+
+  it("lets admins change anyone except admins and themselves", () => {
+    expect(canManagePersonAccess(admin, { id: "r", role: "sales" })).toBe(true);
+    expect(canManagePersonAccess(admin, { id: "p", role: "procurement" })).toBe(true);
+    expect(canManagePersonAccess(admin, { id: "m", role: "sales_manager" })).toBe(true);
+    expect(canManagePersonAccess(admin, { id: "a2", role: "admin" })).toBe(false);
+    expect(canManagePersonAccess(admin, { id: "a", role: "admin" })).toBe(false);
+  });
+
+  it("lets a sales manager change sales reps only", () => {
+    expect(canManagePersonAccess(manager, { id: "r", role: "sales" })).toBe(true);
+    for (const role of ["procurement", "director", "goods_in", "sales_manager", "admin"] as const) {
+      expect(canManagePersonAccess(manager, { id: "x", role })).toBe(false);
+    }
+  });
+
+  it("stops a sales manager changing their own access", () => {
+    expect(canManagePersonAccess({ ...manager, role: "sales_manager" }, { id: "m", role: "sales_manager" })).toBe(false);
+  });
+
+  it("gives a plain sales rep no say over anyone", () => {
+    expect(canManagePersonAccess(rep, { id: "r2", role: "sales" })).toBe(false);
+  });
+
+  it("follows the permission, not the role name", () => {
+    const managerWithoutPower = { ...manager, permissions: resolvePermissions("sales_manager", DEFAULT_PERMISSIONS.sales) };
+    expect(canManagePersonAccess(managerWithoutPower, { id: "r", role: "sales" })).toBe(false);
+  });
+});
+
+describe("grantablePermissions (E7)", () => {
+  it("lets admins switch everything", () => {
+    expect(grantablePermissions({ id: "a", role: "admin", permissions: resolvePermissions("admin", []) })).toHaveLength(PERMISSION_KEYS.length);
+  });
+
+  it("limits a sales manager to what they hold, minus managing others", () => {
+    const manager = { id: "m", role: "sales_manager" as const, permissions: resolvePermissions("sales_manager", DEFAULT_PERMISSIONS.sales_manager) };
+    const g = grantablePermissions(manager);
+    expect(g).toContain("costs.view");
+    expect(g).not.toContain("orders.edit");
+    expect(g).not.toContain("procurement.manage");
+    expect(g).not.toContain("people.manage_sales");
+  });
+});
+
+describe("sales manager defaults (E7)", () => {
+  it("is everything sales has, plus managing reps", () => {
+    expect([...DEFAULT_PERMISSIONS.sales_manager].sort()).toEqual([...DEFAULT_PERMISSIONS.sales, "people.manage_sales"].sort());
+  });
+
+  it("is a configurable role", () => {
+    expect(CONFIGURABLE_ROLES).toContain("sales_manager");
   });
 });

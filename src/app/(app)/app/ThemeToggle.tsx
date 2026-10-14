@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { Theme } from "@/lib/logic/theme";
-import { setAppTheme } from "@/server/theme-actions";
+import { useState } from "react";
+import { THEME_COOKIE, type Theme } from "@/lib/logic/theme";
 import styles from "./shell.module.css";
 
 export function ThemeToggle({ initial }: { initial: Theme }) {
   const [theme, setTheme] = useState<Theme>(initial);
-  const [, startTransition] = useTransition();
 
   function choose(next: Theme) {
     setTheme(next);
-    // Instant feedback; the cookie keeps the choice for next time.
     document.querySelector("[data-app-theme]")?.setAttribute("data-theme", next);
-    startTransition(() => setAppTheme(next));
+    // Remembered in a cookie straight away, so the server renders the same theme next time.
+    const secure = window.location.protocol === "https:" ? "; secure" : "";
+    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax${secure}`;
   }
 
   return (

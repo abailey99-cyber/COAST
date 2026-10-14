@@ -17,8 +17,10 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    // Signed-in tests run once, at desktop size, to stay well under Supabase sign-in rate limits.
+    // Signs each demo user in once and saves the session (Supabase limits sign-ins).
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
+    // Signed-in tests run once, at desktop size.
     { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /roles\.spec\.ts/ },
   ],
   webServer: {

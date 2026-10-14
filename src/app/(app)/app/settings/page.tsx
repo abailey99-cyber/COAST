@@ -1,9 +1,9 @@
 import { HEALTH_LABELS, type HealthStatus } from "@/lib/logic/health";
-import { ROLE_LABELS } from "@/lib/logic/roles";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
 import { PermissionMatrix } from "./PermissionMatrix";
+import { TeamAccess } from "./TeamAccess";
 
 export const metadata = { title: "Settings" };
 
@@ -16,79 +16,89 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 
 export default async function SettingsPage() {
   const { canManagePermissions, integrations, team, grants } = await loadSettings();
+  const editablePeople = team.filter((p) => p.editable).length;
+  const connected = integrations.filter((i) => i.status === "ok").length;
 
   return (
     <>
-      <PageHeader title="Settings" subtitle={canManagePermissions ? "Connections, your team and who sees what" : "Connections, your team and who sees what · view only"} />
+      <PageHeader title="Settings" subtitle="Who sees what, your team and connections" />
 
-      <section className={styles.card} aria-labelledby="access-title">
-        <h2 id="access-title" className={styles.cardTitle}>Who sees what</h2>
-        <p className={styles.cardText}>
-          {canManagePermissions
-            ? "Switch each screen, kind of data and action on or off for each role. Changes apply straight away, to everyone with that role. Admins always have full access."
-            : "What each role in your company can see and do. Only an admin can change this."}
-        </p>
-        <PermissionMatrix grants={grants} editable={canManagePermissions} />
-      </section>
-
-      <section className={styles.card} aria-labelledby="team-title">
-        <h2 id="team-title" className={styles.cardTitle}>Team</h2>
-        <p className={styles.cardText}>Adding and removing people from here arrives later. For now your COAST admin does it.</p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {team.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.fullName}</td>
-                  <td>{p.email}</td>
-                  <td>{ROLE_LABELS[p.role]}</td>
-                  <td>
-                    <span className={`status ${p.isActive ? "status-ok" : "status-neutral"}`}>● {p.isActive ? "Active" : "Deactivated"}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Who sees what</h2>
+            <span className={styles.foldMeta}>
+              What each role can see and do{canManagePermissions ? " · you can change this" : " · view only"}
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            {canManagePermissions
+              ? "Switch each screen, kind of data and action on or off for each role. Changes apply straight away, to everyone with that role. Admins always have full access. To change one person only, use Team below."
+              : "What each role in your company can see and do. Only an admin can change this."}
+          </p>
+          <PermissionMatrix grants={grants} editable={canManagePermissions} />
         </div>
-      </section>
+      </details>
 
-      <section className={styles.card} aria-labelledby="connections-title">
-        <h2 id="connections-title" className={styles.cardTitle}>Connections</h2>
-        <p className={styles.cardText}>
-          Whether each connection has its credentials set. &quot;Healthy&quot; here means configured, not yet tested against
-          the live service — live checks arrive with each integration.
-        </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Connection</th>
-                <th scope="col">Status</th>
-                <th scope="col">Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {integrations.map((i) => (
-                <tr key={i.key}>
-                  <td>{i.label}</td>
-                  <td>
-                    <span className={`status ${STATUS_CLASS[i.status]}`}>● {HEALTH_LABELS[i.status]}</span>
-                  </td>
-                  <td>{i.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Team and individual access</h2>
+            <span className={styles.foldMeta}>
+              {team.length} {team.length === 1 ? "person" : "people"}
+              {editablePeople > 0 ? ` · you can change access for ${editablePeople}` : ""}
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            Open a person to see exactly what they can do. Adding and removing people from here arrives later; for now your
+            COAST admin does it.
+          </p>
+          <TeamAccess people={team} />
         </div>
-      </section>
+      </details>
+
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Connections</h2>
+            <span className={styles.foldMeta}>
+              {connected} of {integrations.length} set up
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            Whether each connection has its credentials set. &quot;Healthy&quot; here means configured, not yet tested against
+            the live service — live checks arrive with each integration.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">Connection</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {integrations.map((i) => (
+                  <tr key={i.key}>
+                    <td>{i.label}</td>
+                    <td>
+                      <span className={`status ${STATUS_CLASS[i.status]}`}>● {HEALTH_LABELS[i.status]}</span>
+                    </td>
+                    <td>{i.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
     </>
   );
 }

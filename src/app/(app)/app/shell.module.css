@@ -271,3 +271,141 @@
   accent-color: var(--coast-tide-teal-deep);
   cursor: pointer;
 }
+
+/* ── Collapsible sections (native <details>, keyboard and screen-reader friendly) ── */
+.fold {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+
+.fold > summary,
+.subFold > summary,
+.person > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.fold > summary::-webkit-details-marker,
+.subFold > summary::-webkit-details-marker,
+.person > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Chevron: rotates when open. */
+.fold > summary::before,
+.subFold > summary::before,
+.person > summary::before {
+  content: "";
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  margin: 0 4px;
+}
+
+.fold[open] > summary::before,
+.subFold[open] > summary::before,
+.person[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.fold > summary {
+  padding: 16px 20px;
+}
+
+.foldTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.foldMeta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.foldBody {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subFold {
+  border-top: 1px solid var(--divider);
+}
+
+.subFold > summary {
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.person {
+  border-top: 1px solid var(--divider);
+}
+
+.person > summary {
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.personName {
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.personMeta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pill {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--selected);
+  color: var(--text-strong);
+}
+
+.personBody {
+  padding: 0 0 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.select {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0 8px;
+}
+
+@media (max-width: 760px) {
+  .personBody {
+    padding-left: 0;
+  }
+}
+
+.saveStatus {
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--status-ok);
+}

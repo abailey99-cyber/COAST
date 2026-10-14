@@ -35,7 +35,7 @@ _Last updated: end of Phase 0 — 14 October 2026._
   allows a few emails an hour and comes from a Supabase address. Fine for
   development; production needs custom SMTP (or Microsoft 365, Phase 8).
 - **Database security tests and signed-in browser tests run on your computer, not in CI.**
-  `tests/rls/isolation.test.ts` (19 tests) and `tests/e2e/roles.spec.ts`
+  `tests/rls/isolation.test.ts` (27 tests) and `tests/e2e/roles.spec.ts`
   sign in as the demo users against the Supabase development project. Both
   skip themselves when the database isn't configured, which includes CI for
   now. To run them in CI, add the dev project's keys and `DEMO_USER_PASSWORD`
@@ -57,14 +57,16 @@ _Last updated: end of Phase 0 — 14 October 2026._
 See docs/00-decisions-and-conflicts.md section E. In short: who sees what is
 set per company by its admins (built: Settings → Who sees what); sales see all
 orders, supplier names and costs by default; everyone can open Settings;
-directors are view-only unless an admin allows more; random tracking codes;
+directors are view-only unless an admin allows more; a sales manager role
+sets individual reps’ access (E7); random tracking codes;
 billing deferred.
 
 ## Not yet built from those decisions
 
-- **Per-person permission overrides** — permissions are per role only.
-- **Permission changes aren't in the audit log yet** — the table records who
-  granted each permission and when; full change history arrives with the
+- **Sales manager teams** — a sales manager covers every sales rep in the company; separate teams per manager aren't built (E7).
+- **Individual access isn't cleared on a role change** — if someone moves role, their individual changes stay and still apply on top of the new role. Team management (later) should offer to clear them.
+- **Permission changes aren't in the audit log yet** — the tables record who
+  last granted or changed each permission and when; full change history arrives with the
   audit log in Phase 1.
 - **"My orders" default filter for sales** — Phase 1 (Orders screen).
 

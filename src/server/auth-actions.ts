@@ -44,7 +44,8 @@ export async function signInStaff(_prev: FormState, formData: FormData): Promise
 
 export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  if (supabase) await supabase.auth.signOut();
+  // "local": signs out this browser only, not the person's other devices.
+  if (supabase) await supabase.auth.signOut({ scope: "local" });
   redirect("/sign-in");
 }
 

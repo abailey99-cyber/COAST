@@ -198,6 +198,70 @@ describe.skipIf(!enabled)("row-level security", () => {
     });
   });
 
+  describe("individual access (E7)", () => {
+    let manager: SupabaseClient;
+    let rep2: SupabaseClient;
+
+    beforeAll(async () => {
+      [manager, rep2] = await Promise.all([signedIn("salesmanager@demo-a.coast.test"), signedIn("sales2@demo-a.coast.test")]);
+    });
+
+    afterAll(async () => {
+      const people = Object.values(ids);
+      await service.from("staff_permission_overrides").delete().in("user_id", people);
+    });
+
+    const override = (client: SupabaseClient, who: string, permission: string, granted: boolean, by: string) =>
+      client.from("staff_permission_overrides").insert({ user_id: ids[who]!, permission, granted, set_by: ids[by]! }).select();
+
+    it("lets a sales manager block something for one rep, and only that rep", async () => {
+      const res = await override(manager, "sales2@demo-a.coast.test", "costs.view", false, "salesmanager@demo-a.coast.test");
+      expect(res.error).toBeNull();
+      expect((await rep2.rpc("has_permission", { p: "costs.view" })).data).toBe(false);
+      expect((await salesA.rpc("has_permission", { p: "costs.view" })).data).toBe(true);
+
+      const reset = await manager.from("staff_permission_overrides").delete().match({ user_id: ids["sales2@demo-a.coast.test"]!, permission: "costs.view" }).select();
+      expect(reset.data).toHaveLength(1);
+      expect((await rep2.rpc("has_permission", { p: "costs.view" })).data).toBe(true);
+    });
+
+    it("stops a sales manager passing on access they don't have", async () => {
+      const res = await override(manager, "sales2@demo-a.coast.test", "orders.edit", true, "salesmanager@demo-a.coast.test");
+      expect(res.error).not.toBeNull();
+    });
+
+    it("stops a sales manager making another manager", async () => {
+      const res = await override(manager, "sales2@demo-a.coast.test", "people.manage_sales", true, "salesmanager@demo-a.coast.test");
+      expect(res.error).not.toBeNull();
+    });
+
+    it("limits a sales manager to sales reps, never themselves", async () => {
+      expect((await override(manager, "procurement@demo-a.coast.test", "costs.view", false, "salesmanager@demo-a.coast.test")).error).not.toBeNull();
+      expect((await override(manager, "director@demo-a.coast.test", "costs.view", false, "salesmanager@demo-a.coast.test")).error).not.toBeNull();
+      expect((await override(manager, "salesmanager@demo-a.coast.test", "section.suppliers", true, "salesmanager@demo-a.coast.test")).error).not.toBeNull();
+    });
+
+    it("gives a plain sales rep no control over another rep", async () => {
+      expect((await override(salesA, "sales2@demo-a.coast.test", "costs.view", false, "sales@demo-a.coast.test")).error).not.toBeNull();
+    });
+
+    it("lets an admin give one rep extra access", async () => {
+      const res = await override(adminA, "sales@demo-a.coast.test", "orders.edit", true, "admin@demo-a.coast.test");
+      expect(res.error).toBeNull();
+      expect((await salesA.rpc("has_permission", { p: "orders.edit" })).data).toBe(true);
+      expect((await rep2.rpc("has_permission", { p: "orders.edit" })).data).toBe(false);
+    });
+
+    it("never lets an override touch an admin", async () => {
+      expect((await override(adminA, "admin@demo-a.coast.test", "costs.view", false, "admin@demo-a.coast.test")).error).not.toBeNull();
+    });
+
+    it("keeps another organisation out of your people's access", async () => {
+      expect((await override(adminB, "sales@demo-a.coast.test", "costs.view", false, "admin@demo-b.coast.test")).error).not.toBeNull();
+      expect((await adminB.from("staff_permission_overrides").select("user_id")).data).toEqual([]);
+    });
+  });
+
   it("cuts off a deactivated user immediately", async () => {
     const goodsIn = await signedIn("goodsin@demo-a.coast.test");
     expect((await goodsIn.from("organisations").select("id")).data).toEqual([{ id: orgA }]);

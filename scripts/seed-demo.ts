@@ -25,7 +25,9 @@ async function main() {
   const people: StaffSpec[] = [
     { email: "admin@demo-a.coast.test", fullName: "[Admin A]", role: "admin", orgId: orgA },
     { email: "procurement@demo-a.coast.test", fullName: "[Procurement A]", role: "procurement", orgId: orgA },
+    { email: "salesmanager@demo-a.coast.test", fullName: "[Sales manager A]", role: "sales_manager", orgId: orgA },
     { email: "sales@demo-a.coast.test", fullName: "[Sales rep A]", role: "sales", orgId: orgA },
+    { email: "sales2@demo-a.coast.test", fullName: "[Sales rep A2]", role: "sales", orgId: orgA },
     { email: "director@demo-a.coast.test", fullName: "[Director A]", role: "director", orgId: orgA },
     { email: "goodsin@demo-a.coast.test", fullName: "[Goods-in A]", role: "goods_in", orgId: orgA },
     { email: "admin@demo-b.coast.test", fullName: "[Admin B]", role: "admin", orgId: orgB },

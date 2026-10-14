@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { grantRolePermission, revokeRolePermission } from "@/lib/data/permissions";
-import { isPermission } from "@/lib/logic/permissions";
+import { grantRolePermission, revokeRolePermission, setPersonOverride } from "@/lib/data/permissions";
+import { getStaffProfile } from "@/lib/data/staff";
+import { canManagePersonAccess, grantablePermissions, isPermission } from "@/lib/logic/permissions";
 import { isStaffRole } from "@/lib/logic/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { NotAllowedError, requireAdmin } from "./session";
+import { NotAllowedError, requireAdmin, requireStaffForAction } from "./session";
 
 export interface PermissionChangeResult {
   ok: boolean;
@@ -24,6 +25,35 @@ export async function setRolePermission(role: string, permission: string, grante
 
     if (granted) await grantRolePermission(supabase, admin.orgId, admin.id, role, permission);
     else await revokeRolePermission(supabase, admin.orgId, role, permission);
+
+    // TODO(Phase 1): write to the audit log once it exists (decisions B4).
+    revalidatePath("/app", "layout");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof NotAllowedError) return { ok: false, error: e.message };
+    return { ok: false, error: "That change couldn't be saved. Try again." };
+  }
+}
+
+/**
+ * Give one person an individual exception, or put them back to their role's
+ * setting (decision E7). state: "allow" | "block" | "default".
+ */
+export async function setPersonPermission(userId: string, permission: string, state: string): Promise<PermissionChangeResult> {
+  try {
+    const actor = await requireStaffForAction();
+    if (!isPermission(permission)) return { ok: false, error: "Unknown permission." };
+    if (state !== "allow" && state !== "block" && state !== "default") return { ok: false, error: "Unknown setting." };
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { ok: false, error: "The database isn't connected." };
+
+    const target = await getStaffProfile(supabase, userId);
+    if (!target) return { ok: false, error: "That person isn't in your team." };
+    if (!canManagePersonAccess(actor, target)) return { ok: false, error: "You can't change this person's access." };
+    if (!grantablePermissions(actor).includes(permission)) return { ok: false, error: "You can only pass on access you have yourself." };
+
+    await setPersonOverride(supabase, actor.id, target.id, permission, state === "default" ? null : state === "allow");
 
     // TODO(Phase 1): write to the audit log once it exists (decisions B4).
     revalidatePath("/app", "layout");

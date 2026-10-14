@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { listRolePermissions } from "@/lib/data/permissions";
+import { listPersonOverrides, listRolePermissions } from "@/lib/data/permissions";
 import { getStaffProfile, type StaffProfile } from "@/lib/data/staff";
 import { canAccessSection, type SectionKey } from "@/lib/logic/navigation";
 import { hasPermission, resolvePermissions, type Permission, type PermissionSet } from "@/lib/logic/permissions";
@@ -34,8 +34,10 @@ export const getStaffSession = cache(async (): Promise<StaffSession> => {
   const profile = await getStaffProfile(supabase, userId);
   if (!profile || !profile.isActive) return { state: "not-staff" };
 
-  const granted = profile.role === "admin" ? [] : (await listRolePermissions(supabase, profile.role)).map((r) => r.permission);
-  return { state: "staff", staff: { ...profile, permissions: resolvePermissions(profile.role, granted) } };
+  if (profile.role === "admin") return { state: "staff", staff: { ...profile, permissions: resolvePermissions("admin", []) } };
+  const [roleRows, overrides] = await Promise.all([listRolePermissions(supabase, profile.role), listPersonOverrides(supabase, profile.id)]);
+  const permissions = resolvePermissions(profile.role, roleRows.map((r) => r.permission), overrides);
+  return { state: "staff", staff: { ...profile, permissions } };
 });
 
 /** For pages and layouts: redirects anyone who isn't signed-in active staff. */
@@ -56,7 +58,7 @@ export class NotAllowedError extends Error {
   }
 }
 
-async function requireStaffForAction(): Promise<StaffContext> {
+export async function requireStaffForAction(): Promise<StaffContext> {
   const session = await getStaffSession();
   if (session.state !== "staff") throw new NotAllowedError("Please sign in again.");
   return session.staff;
