@@ -10,6 +10,7 @@ import { createTestOrder, deleteTestCustomer, demoOrgId, e2eEnabled, serviceClie
 const CUSTOMER = "[E2E portal customer]";
 const SUPPLIER = "[Demo Supplier One]";
 const EMAIL = `e2e-portal-${Date.now()}@customer.coast.test`;
+const SELF_EMAIL = `e2e-self-${Date.now()}@customer.coast.test`;
 
 test.describe("customer portal", () => {
   test.skip(!e2eEnabled, "Dev database or DEMO_USER_PASSWORD not configured");
@@ -35,7 +36,7 @@ test.describe("customer portal", () => {
 
   test.afterAll(async () => {
     const service = serviceClient();
-    const { data } = await service.from("customer_accounts").select("user_id").eq("email", EMAIL);
+    const { data } = await service.from("customer_accounts").select("user_id").in("email", [EMAIL, SELF_EMAIL]);
     for (const a of data ?? []) await service.auth.admin.deleteUser(a.user_id);
     await deleteTestCustomer(service, CUSTOMER);
   });
@@ -161,6 +162,40 @@ test.describe("customer portal", () => {
     await customer.getByLabel("Password").fill(pw);
     await customer.getByRole("button", { name: "Sign in" }).click();
     await expect(customer).toHaveURL(/\/portal$/, { timeout: 15_000 });
+  });
+
+  test("a customer can create their own account with a tracking code", async ({ browser }) => {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(`/track/${code}`);
+    await page.getByRole("link", { name: "Create an account" }).click();
+    await expect(page).toHaveURL(/\/portal\/sign-up$/);
+    const pw = `${randomBytes(12).toString("base64url")}Aa1!`;
+    // A wrong code is refused.
+    await page.getByLabel("Tracking code from one of your orders").fill("AAA-AAA-AAA");
+    await page.getByLabel("Your name").fill("Sam Self");
+    await page.getByLabel("Email").fill(SELF_EMAIL);
+    await page.getByLabel("Choose a password").fill(pw);
+    await page.getByLabel("Type it again").fill(pw);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByText(/couldn't find an order with that tracking code/)).toBeVisible({ timeout: 15_000 });
+    // A staff address can't be used, and the message doesn't say why.
+    await page.getByLabel("Tracking code from one of your orders").fill(code);
+    await page.getByLabel("Your name").fill("Sam Self");
+    await page.getByLabel("Email").fill("sales@demo-a.coast.test");
+    await page.getByLabel("Choose a password").fill(pw);
+    await page.getByLabel("Type it again").fill(pw);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByText(/can't be used for a new account/)).toBeVisible({ timeout: 15_000 });
+    // The real thing.
+    await page.getByLabel("Tracking code from one of your orders").fill(code);
+    await page.getByLabel("Your name").fill("Sam Self");
+    await page.getByLabel("Email").fill(SELF_EMAIL);
+    await page.getByLabel("Choose a password").fill(pw);
+    await page.getByLabel("Type it again").fill(pw);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/portal$/, { timeout: 15_000 });
+    await expect(page.getByRole("link", { name: order.soNumber })).toBeVisible();
+    await expect(page.getByText("Sam Self")).toBeVisible();
   });
 
   test("a new tracking code stops the old one working", async ({ browser }) => {

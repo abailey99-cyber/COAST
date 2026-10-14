@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/customer-portal";
 import { emailChannel } from "@/lib/email/channel";
 import { appUrl } from "@/lib/env";
+import { passwordProblem } from "@/lib/logic/security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { visitorKey } from "./customer-view";
@@ -123,4 +124,65 @@ export async function inviteCustomer(orderId: string, _prev: AccountResult, form
     if (e instanceof NotAllowedError) return { ok: false, error: e.message };
     return { ok: false, error: "The invitation couldn't be made. Try again." };
   }
+}
+
+/**
+ * A customer makes their own account (spec §5.5). A tracking code from one of
+ * their orders proves they deal with the business and ties the account to
+ * the right customer; that order is added straight away.
+ *
+ * UNVERIFIED: the email address isn't proven yet — confirming it needs real
+ * email (Phase 8). Low risk meanwhile: an account only ever sees orders whose
+ * tracking codes its owner holds. See KNOWN-GAPS.md.
+ */
+export async function signUpCustomer(_prev: AccountResult, formData: FormData): Promise<AccountResult> {
+  try {
+    const code = normaliseTrackingCode(String(formData.get("code") ?? ""));
+    const name = String(formData.get("name") ?? "").trim().slice(0, 120);
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const password = String(formData.get("password") ?? "");
+    const confirm = String(formData.get("confirm") ?? "");
+    if (!name) return { ok: false, error: "Enter your name." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "That email address doesn't look right." };
+    const problem = passwordProblem(password, confirm);
+    if (problem) return { ok: false, error: problem };
+    const supabase = await createSupabaseServerClient();
+    const admin = createSupabaseAdminClient();
+    if (!supabase || !admin) return { ok: false, error: NOT_CONNECTED };
+    if (!(await hitRateLimit(admin, `customer-sign-up:${await visitorKey()}`, 10, 3600))) return { ok: false, error: "Too many tries. Please wait a while and try again." };
+
+    const found = code ? await findOrderByTrackingCode(admin, code) : null;
+    if (!found) return { ok: false, error: "We couldn't find an order with that tracking code. You'll find it in your order confirmation." };
+    const { data: so } = await admin.from("sales_orders").select("customer_id").eq("id", found.orderId).single<{ customer_id: string }>();
+    if (!so) return { ok: false, error: "We couldn't find an order with that tracking code." };
+
+    // The same message whether the address is a team member's or already has an account — it doesn't reveal which.
+    const taken = "That email address can't be used for a new account. If it's yours, sign in instead, or use “Forgotten your password?”.";
+    const [{ data: staffRow }, { data: accountRow }] = await Promise.all([
+      admin.from("staff_users").select("id").eq("email", email).maybeSingle(),
+      admin.from("customer_accounts").select("user_id").eq("email", email).maybeSingle(),
+    ]);
+    if (staffRow || accountRow) return { ok: false, error: taken };
+
+    const created = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: name, kind: "customer" } });
+    if (created.error || !created.data.user) return { ok: false, error: taken };
+    try {
+      await createCustomerAccount(admin, { userId: created.data.user.id, orgId: found.orgId, customerId: so.customer_id, fullName: name, email, invitedBy: null });
+      await addOrderToAccount(admin, created.data.user.id, found.orderId);
+    } catch {
+      await admin.auth.admin.deleteUser(created.data.user.id);
+      return { ok: false, error: "Your account couldn't be made. Please try again." };
+    }
+    await emailChannel().send({
+      to: email,
+      subject: "Your order tracking account",
+      text: `Hello ${name},\n\nYour account is ready. Sign in any time to see your orders in one place: ${appUrl()}/portal/sign-in\n`,
+      html: `<p>Hello ${name.replace(/[<>&]/g, "")},</p><p>Your account is ready. <a href="${appUrl()}/portal/sign-in">Sign in</a> any time to see your orders in one place.</p>`,
+    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { ok: true, message: "Your account is ready. Please sign in." };
+  } catch {
+    return { ok: false, error: "Your account couldn't be made. Please try again." };
+  }
+  redirect("/portal");
 }

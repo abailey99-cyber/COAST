@@ -19,7 +19,10 @@ export default function TrackPage() {
         <h1 style={{ fontSize: 28 }}>Where&apos;s my order?</h1>
         <p className={styles.quiet}>Ordered from a business that uses COAST? Enter the tracking code they gave you. No account needed.</p>
         <TrackForm />
-        <p className={styles.quiet}>Have a customer account? <Link href="/portal/sign-in">Sign in</Link> to see all your orders.</p>
+        <p className={styles.quiet}>
+          Have a customer account? <Link href="/portal/sign-in">Sign in</Link> to see all your orders, or{" "}
+          <Link href="/portal/sign-up">create one</Link>.
+        </p>
       </main>
     </div>
   );

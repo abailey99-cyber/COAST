@@ -180,7 +180,13 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
               />
             </section>
 
-            {signedIn && <Link href="/portal" className="btn btn-secondary">View all my orders</Link>}
+            {signedIn ? (
+              <Link href="/portal" className="btn btn-secondary">View all my orders</Link>
+            ) : (
+              <p className={styles.quiet} style={{ fontSize: 14, margin: 0, textAlign: "center" }}>
+                Order from {v.branding.displayName} often? <Link href="/portal/sign-up">Create an account</Link> to see every order in one place.
+              </p>
+            )}
           </div>
         </div>
       </main>

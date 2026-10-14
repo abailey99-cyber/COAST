@@ -16,8 +16,11 @@ export default function CustomerSignInPage() {
       </header>
       <main id="main" className={styles.narrow}>
         <h1 style={{ fontSize: 28 }}>Sign in to see your orders</h1>
-        <p className={styles.quiet}>For customers of businesses that use COAST. Your account is set up by the business you order from.</p>
+        <p className={styles.quiet}>For customers of businesses that use COAST. Use the account you created, or the one the business set up for you.</p>
         <CustomerSignInForm />
+        <p className={styles.quiet}>
+          No account yet? <Link href="/portal/sign-up">Create one with a tracking code</Link>
+        </p>
         <p className={styles.quiet}>
           <Link href="/sign-in/forgotten">Forgotten your password?</Link> · <Link href="/track">Track one order with a code</Link>
         </p>

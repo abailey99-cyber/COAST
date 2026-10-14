@@ -37,9 +37,15 @@ _Last updated: end of Phase 5 — 14 October 2026._
 - **Rate limits are simple counters** per visitor address (60 lookups and 15
   misses per 10 minutes; 20 messages an hour). Behind Vercel the address
   comes from the x-forwarded-for header. Full rate limiting is Phase 9.
-- **Customers can't create their own account**; staff invite them from an
-  order (public sign-up stays off). An account belongs to one business and
-  sees only orders added to it with a tracking code (decision E4).
+- **Customers can create their own account with a tracking code**, or be
+  invited from an order. Public sign-up in Supabase stays off; COAST makes
+  the login itself. An account belongs to one business and sees only orders
+  added to it with a tracking code (decision E4).
+- **UNVERIFIED: a self-made account's email address isn't confirmed yet**
+  (that needs real email, Phase 8). Low risk: the account only sees orders
+  whose codes its owner holds, and password resets go to the real address.
+- **One email address, one business**: someone who buys from two COAST
+  businesses can only have an account with one of them for now.
 - **The account's "spend" is the order value at your prices**, by currency,
   for orders added to the account.
 - **Customer email addresses are per order** (set by the customer on their

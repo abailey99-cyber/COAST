@@ -386,7 +386,7 @@ export async function getCustomerAccount(admin: SupabaseClient, userId: string):
   return data ? { userId: data.user_id, orgId: data.org_id, customerId: data.customer_id, fullName: data.full_name, email: data.email } : null;
 }
 
-export async function createCustomerAccount(admin: SupabaseClient, a: CustomerAccount & { invitedBy: string }): Promise<void> {
+export async function createCustomerAccount(admin: SupabaseClient, a: CustomerAccount & { invitedBy: string | null }): Promise<void> {
   const { error } = await admin.from("customer_accounts").insert({ user_id: a.userId, org_id: a.orgId, customer_id: a.customerId, full_name: a.fullName, email: a.email, invited_by: a.invitedBy });
   if (error) throw new Error(`Couldn't create the customer account: ${error.message}`);
 }
