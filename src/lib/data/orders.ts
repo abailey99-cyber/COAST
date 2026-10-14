@@ -22,6 +22,8 @@ export interface OrderListItem {
   promisedDate: string | null;
   createdAt: string;
   lines: { route: FulfilmentRoute; stage: LineStage }[];
+  /** Null until COAST has worked one out. */
+  prediction: { from: string | null; to: string | null; confidence: "confirmed" | "estimate" | "unknown"; atRisk: boolean | null } | null;
 }
 
 interface ListRow {
@@ -34,6 +36,14 @@ interface ListRow {
   customers: { name: string } | null;
   staff_users: { full_name: string } | null;
   order_lines: { route: string; stage: string }[];
+  order_predictions: RawListPrediction | RawListPrediction[] | null;
+}
+
+interface RawListPrediction {
+  predicted_from: string | null;
+  predicted_to: string | null;
+  confidence: "confirmed" | "estimate" | "unknown";
+  at_risk: boolean | null;
 }
 
 export const ORDER_LIST_LIMIT = 500;
@@ -42,10 +52,15 @@ function cleanLines(rows: { route: string; stage: string }[]) {
   return rows.flatMap((l) => (isFulfilmentRoute(l.route) && isLineStage(l.stage) ? [{ route: l.route, stage: l.stage }] : []));
 }
 
+function listPrediction(raw: ListRow["order_predictions"]): OrderListItem["prediction"] {
+  const p = Array.isArray(raw) ? raw[0] : raw;
+  return p ? { from: p.predicted_from, to: p.predicted_to, confidence: p.confidence, atRisk: p.at_risk } : null;
+}
+
 export async function listOrders(client: SupabaseClient, filter: { repId?: string; ids?: string[] } = {}): Promise<OrderListItem[]> {
   let query = client
     .from("sales_orders")
-    .select("id, so_number, customer_reference, sales_rep_id, promised_date, created_at, customers(name), staff_users(full_name), order_lines(route, stage)")
+    .select("id, so_number, customer_reference, sales_rep_id, promised_date, created_at, customers(name), staff_users(full_name), order_lines(route, stage), order_predictions(predicted_from, predicted_to, confidence, at_risk)")
     .order("created_at", { ascending: false })
     .limit(ORDER_LIST_LIMIT);
   if (filter.repId) query = query.eq("sales_rep_id", filter.repId);
@@ -62,6 +77,7 @@ export async function listOrders(client: SupabaseClient, filter: { repId?: strin
     promisedDate: r.promised_date,
     createdAt: r.created_at,
     lines: cleanLines(r.order_lines ?? []),
+    prediction: listPrediction(r.order_predictions),
   }));
 }
 
@@ -96,7 +112,7 @@ export interface OrderLineDetail {
   poLinks: PoLink[];
 }
 
-export interface OrderDetail extends Omit<OrderListItem, "lines"> {
+export interface OrderDetail extends Omit<OrderListItem, "lines" | "prediction"> {
   currency: Currency;
   trackingCode: string;
   delivery: { name: string; line1: string; line2: string | null; town: string; postcode: string; country: string };

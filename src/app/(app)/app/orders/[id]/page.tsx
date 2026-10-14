@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadOrder } from "@/server/orders";
 import { PageHeader } from "../../PageHeader";
 import ui from "../../ui.module.css";
+import { DeliveryDateControl, LeadTimeInput } from "./DeliveryDate";
 import { OrderChases } from "./OrderChases";
 import { OrderShipments } from "./OrderShipments";
 import { RaisePoForm } from "./RaisePoForm";
@@ -43,7 +44,24 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <dt>Promised</dt>
               <dd>{page.promised}</dd>
               <dt>Predicted</dt>
-              <dd className={ui.muted}>Delivery-date prediction arrives in Phase 4</dd>
+              <dd>
+                {page.prediction ? (
+                  <>
+                    <span className={ui.strong}>{page.prediction.label}</span>
+                    {page.prediction.estimate && <span className={ui.muted}> · estimate</span>}
+                    {page.prediction.atRisk === true && <> · <span className="status status-warn">● At risk</span></>}
+                    {page.prediction.atRisk === false && page.status === "open" && <> · <span className="status status-ok">● On track</span></>}
+                    <div className={ui.muted}>
+                      {page.prediction.reason}
+                      {page.prediction.override?.note ? ` — “${page.prediction.override.note}”` : ""}
+                      {page.prediction.atRisk === null && page.status === "open" && !order.promisedDate ? " · no promised date, so COAST can't say if it's at risk" : ""}
+                    </div>
+                    {page.prediction.canOverride && page.status === "open" && <DeliveryDateControl orderId={order.id} override={page.prediction.override} />}
+                  </>
+                ) : (
+                  <span className={ui.muted}>Not worked out yet</span>
+                )}
+              </dd>
               <dt>Deliver to</dt>
               <dd>
                 {order.delivery.name}, {order.delivery.line1}
@@ -68,6 +86,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                     <th scope="col">Price</th>
                     <th scope="col">Fulfilment</th>
                     <th scope="col">Stage</th>
+                    <th scope="col">Lead time · expected</th>
                     {can.seeSuppliers && <th scope="col">Purchase order</th>}
                   </tr>
                 </thead>
@@ -88,6 +107,18 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                         ) : (
                           l.stageLabel
                         )}
+                      </td>
+                      <td>
+                        {l.leadTime ? (
+                          <>
+                            <div>{l.leadTime.label}</div>
+                            {l.leadTime.ticker && <div className={l.leadTime.overdue ? "status status-warn" : ui.muted}>{l.leadTime.overdue ? "● " : ""}{l.leadTime.ticker}</div>}
+                            {l.leadTime.editable && <LeadTimeInput lineId={l.id} lineNo={l.lineNo} manualDays={l.leadTime.manualDays} />}
+                          </>
+                        ) : (
+                          <span className={ui.muted}>From stock</span>
+                        )}
+                        {l.predicted && <div className={ui.muted}>Expected {l.predicted}</div>}
                       </td>
                       {can.seeSuppliers && (
                         <td>

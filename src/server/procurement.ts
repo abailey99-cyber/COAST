@@ -8,6 +8,7 @@ import { PO_STATUS_LABELS, allowedPoStatusChanges, type PoStatus } from "@/lib/l
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
 import { getChaseSettings } from "@/lib/data/supplier-loop";
+import { listAvailability } from "@/lib/data/predictions";
 import { waitingFor } from "./supplier-loop";
 
 async function client() {
@@ -23,6 +24,17 @@ export async function loadSuppliers() {
     canSee,
     canCreate: canSee && hasPermission(staff.permissions, "procurement.manage"),
     suppliers: canSee ? await listSuppliers(await client()) : [],
+    availability: await loadAvailability(staff),
+  };
+}
+
+/** Availability by product code (decision C2). Not supplier-specific, so it shows even when supplier names are hidden. */
+async function loadAvailability(staff: Awaited<ReturnType<typeof requireStaff>>) {
+  const { rows, total } = await listAvailability(await client(), 500);
+  return {
+    canEdit: hasPermission(staff.permissions, "procurement.manage"),
+    total,
+    rows: rows.map((r) => ({ sku: r.sku, days: r.days === 0 ? "In stock" : `${r.days} working ${r.days === 1 ? "day" : "days"}`, source: r.source === "csv" ? "Uploaded" : "Pasted", updated: formatDateTime(new Date(r.updatedAt)) })),
   };
 }
 

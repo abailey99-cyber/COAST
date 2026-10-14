@@ -19,6 +19,8 @@ import type { StaffRole } from "@/lib/logic/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
 import { loadCarrierConnections, type CarrierConnectionsView } from "./shipments";
+import { getPredictionSettings } from "@/lib/data/predictions";
+import { DEFAULT_PREDICTION_SETTINGS, type PredictionSettings } from "@/lib/logic/prediction";
 
 export type OverrideState = "allow" | "block";
 
@@ -40,6 +42,7 @@ export interface SettingsView {
   integrations: IntegrationHealth[];
   chase: ChaseSettings;
   carriers: CarrierConnectionsView | null;
+  prediction: PredictionSettings;
   team: PersonAccess[];
   /** role → granted permissions, for every role except admin (always everything). */
   grants: Record<Exclude<StaffRole, "admin">, Permission[]>;
@@ -53,6 +56,7 @@ export async function loadSettings(): Promise<SettingsView> {
     : [[], [], []];
   const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
   const carriers = supabase ? await loadCarrierConnections(staff) : null;
+  const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
 
   const grants = Object.fromEntries(CONFIGURABLE_ROLES.map((r) => [r, [] as Permission[]])) as SettingsView["grants"];
   for (const row of roleRows) {
@@ -84,6 +88,7 @@ export async function loadSettings(): Promise<SettingsView> {
     integrations: [{ key: "email", label: "Sending email", ...emailChannelHealth() }, ...integrationHealth()],
     chase,
     carriers,
+    prediction,
     team: people,
     grants,
   };

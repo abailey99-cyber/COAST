@@ -10,6 +10,7 @@ import { hasPermission } from "@/lib/logic/permissions";
 import { allowedPoStatusChanges, validateNewPo, validateNewSupplier, type PoStatus } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission, requireStaffForAction } from "./session";
+import { refreshPredictionsForPoLater, refreshPredictionsLater } from "./predictions";
 
 export interface ActionState {
   error?: string;
@@ -85,6 +86,7 @@ export async function createOrderAction(_prev: ActionState, formData: FormData):
     if (e instanceof NotAllowedError) return { error: e.message };
     return { error: "The order couldn't be saved. Try again." };
   }
+  refreshPredictionsLater([orderId]);
   revalidatePath("/app/orders");
   redirect(`/app/orders/${orderId}`);
 }
@@ -101,6 +103,7 @@ export async function changeLineStage(lineId: string, to: string): Promise<Actio
     if (!canMoveStage(line.stage, to, line.route)) return { ok: false, error: "That stage change isn't allowed." };
     const changed = await updateLineStage(supabase, lineId, line.stage, to);
     if (!changed) return { ok: false, error: "Someone else just changed this line. Refresh and try again." };
+    refreshPredictionsLater([line.salesOrderId]);
     revalidatePath(`/app/orders/${line.salesOrderId}`);
     revalidatePath("/app/orders");
     return { ok: true };
@@ -172,6 +175,7 @@ export async function createPoAction(orderId: string, _prev: ActionState, formDa
     if (e instanceof NotAllowedError) return { error: e.message };
     return { error: "The purchase order couldn't be saved. Try again." };
   }
+  refreshPredictionsLater([orderId]);
   revalidatePath(`/app/orders/${orderId}`);
   revalidatePath("/app/purchase-orders");
   redirect(`/app/purchase-orders/${poId}`);
@@ -187,6 +191,7 @@ export async function changePoStatus(poId: string, to: string): Promise<ActionRe
     if (!allowedPoStatusChanges(from).includes(to as PoStatus)) return { ok: false, error: "That status change isn't allowed." };
     const changed = await updatePoStatus(supabase, poId, from, to as PoStatus);
     if (!changed) return { ok: false, error: "Someone else just changed this purchase order. Refresh and try again." };
+    refreshPredictionsForPoLater(supabase, poId);
     revalidatePath(`/app/purchase-orders/${poId}`);
     revalidatePath("/app/purchase-orders");
     revalidatePath("/app/orders", "layout");
@@ -258,6 +263,7 @@ export async function updateOrderAction(orderId: string, _prev: ActionState, for
     if (e instanceof NotAllowedError) return { error: e.message };
     return { error: "The changes couldn't be saved. Try again." };
   }
+  refreshPredictionsLater([orderId]);
   revalidatePath(`/app/orders/${orderId}`);
   revalidatePath("/app/orders");
   redirect(`/app/orders/${orderId}`);

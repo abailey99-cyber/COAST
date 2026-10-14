@@ -53,7 +53,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         </div>
         <div className={ui.kpi}>
           <span className={ui.kpiLabel}>At risk</span>
-          <span className={ui.kpiPending}>Tracked from Phase 4, when delivery dates are predicted.</span>
+          <span className={`${ui.kpiValue} ${data.kpis.atRisk ? ui.kpiValueWarn : ""}`}>{data.kpis.atRisk}</span>
         </div>
       </div>
 
@@ -93,6 +93,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     <th scope="col">Fulfilment</th>
                     <th scope="col">Stage</th>
                     <th scope="col">Promised</th>
+                    <th scope="col">Predicted</th>
                     <th scope="col">Status</th>
                   </tr>
                 </thead>
@@ -110,7 +111,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                       <td>{r.fulfilment}</td>
                       <td>{r.stage}</td>
                       <td>{r.promised}</td>
-                      <td><span className={`status ${STATUS_CLASS[r.status]}`}>● {r.statusLabel}</span></td>
+                      <td>
+                        {r.predicted}
+                        {r.predictedEstimate && <div className={ui.muted}>Estimate</div>}
+                      </td>
+                      <td>
+                        {r.atRisk ? <span className="status status-warn">● At risk</span> : <span className={`status ${STATUS_CLASS[r.status]}`}>● {r.statusLabel}</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -134,7 +141,11 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
               <dt>Promised</dt>
               <dd>{selected.promised}</dd>
               <dt>Predicted</dt>
-              <dd className={ui.muted}>From Phase 4</dd>
+              <dd>
+                {selected.prediction?.label ?? "Not known yet"}
+                {selected.prediction?.atRisk && <> · <span className="status status-warn">● At risk</span></>}
+                {selected.prediction?.estimate && <div className={ui.muted}>Estimate · {selected.prediction.reason}</div>}
+              </dd>
             </dl>
             <ol className={ui.timeline} aria-label="History">
               {selected.history.slice(0, 5).map((h, i) => (

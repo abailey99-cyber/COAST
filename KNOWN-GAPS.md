@@ -4,7 +4,7 @@ Everything stubbed, best-effort, unverified or deliberately deferred
 (CLAUDE.md non-negotiable 9). Updated at the end of every phase. Search the
 code for `UNVERIFIED:` for the in-code markers.
 
-_Last updated: end of Phase 3 — 14 October 2026._
+_Last updated: end of Phase 4 — 14 October 2026._
 
 ## Not built yet (by design — later phases)
 
@@ -19,12 +19,41 @@ _Last updated: end of Phase 3 — 14 October 2026._
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
 | Chases count badge | Not shown (the Review queue badge works) | Phase 6 |
-| Delivery-date prediction and the "at risk" flag (carrier ETAs are stored ready for it) | Orders → "Predicted" says Phase 4 | Phase 4 |
 | Delivery-exception records from a carrier's "problem" (spec §5.4) | The shipment shows "● Problem reported" and appears under Shipments → Needs attention; nothing is drafted yet | Phase 7 |
 | Customs documents checklist, HS codes on screen | Shipments show a customs status only | Phase 7 |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 4 (delivery dates, at risk, lead times)
+
+- **Predictions are rules, not learning.** Each line's date comes from, in
+  order: delivered → the carrier's estimate once it's heading to the
+  customer → the supplier's confirmed date → its lead time (set by hand,
+  then availability for its product code, then the supplier's typical lead
+  time) → "Not known yet". The order is its slowest line. COAST doesn't yet
+  learn from how late each supplier really is; lead-time observations and
+  supplier lateness arrive with Metrics (Phase 6).
+- **One line without any date makes the whole order "Not known yet"** (it
+  can still be flagged at risk if another line is already too late).
+- **At risk** means the latest likely date is after the promised date, or
+  the promised date has passed without delivery. Orders without a promised
+  date are never flagged.
+- **Warehouse turnaround, delivery days and estimate width are one setting
+  per company** (Settings → Delivery dates), not per customer, carrier or
+  service level.
+- **Bank holidays aren't counted out** of working days yet (decision B14).
+- **Dates are kept fresh** whenever anything about an order changes, when
+  someone opens it, and on every run of the 30-minute schedule (which must
+  be switched on, see Phase 3). Without the schedule, an unopened order's
+  estimate can be a few days stale.
+- **The history notes only meaningful changes**: risk turning on or off,
+  a new kind of date, or a date from a person, supplier or carrier moving.
+  Estimates counted from today drift daily without a history entry.
+- **Availability is one figure per product code**, not per supplier, and is
+  pasted or uploaded by hand (decision C2); there's no supplier feed.
+- **Customers don't see any of this yet** — that's Phase 5, through the
+  masking layer, and notifications on date changes come with it.
 
 ### Phase 3 (shipments and carrier tracking)
 
@@ -114,9 +143,8 @@ _Last updated: end of Phase 3 — 14 October 2026._
   a new one. Delivered and cancelled lines are locked.
 - **The Orders list shows the newest 500 orders**; search reaches older ones.
   The tiles are worked out from those 500.
-- **"At risk" isn't tracked yet** (Phase 4, delivery-date prediction), and the
-  mockup's "Auto-confirmed this week" tile is replaced by "Need a purchase
-  order" until supplier email reading exists (Phase 2).
+- **The mockup's "Auto-confirmed this week" tile is replaced by "Need a
+  purchase order"** until Metrics (Phase 6) can count it.
 - **Raising a PO moves its lines to "Awaiting supplier" straight away**, even
   while the PO is still a draft waiting for "Send to supplier".
 - **A PO for less than the full quantity doesn't track the remainder** — the

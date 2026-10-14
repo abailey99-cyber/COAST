@@ -37,11 +37,11 @@ describe("orderKpis", () => {
         order(["from_stock", "ordered"]),
         order(["direct_ship", "delivered"]),
       ]),
-    ).toEqual({ open: 3, awaitingSupplier: 2, needsPo: 1 });
+    ).toEqual({ open: 3, awaitingSupplier: 2, needsPo: 1, atRisk: 0 });
   });
 
   it("is all zero with no orders", () => {
-    expect(orderKpis([])).toEqual({ open: 0, awaitingSupplier: 0, needsPo: 0 });
+    expect(orderKpis([])).toEqual({ open: 0, awaitingSupplier: 0, needsPo: 0, atRisk: 0 });
   });
 });
 
@@ -97,5 +97,24 @@ describe("describeEvent — supplier loop", () => {
     expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "inbound", carrier: "ups", to: "delivered", source: "carrier" } }, ctx)).toBe("Inbound shipment (UPS): delivered");
     expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "outbound", carrier: "other", to: "in_transit", source: "manual" } }, ctx)).toBe("Shipment to the customer: in transit (set by hand)");
     expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "sideways", to: "teleported" } }, ctx)).toBe("Shipment updated");
+  });
+});
+
+describe("at risk (Phase 4)", () => {
+  const lines = [{ route: "direct_ship" as const, stage: "confirmed" as const }];
+  it("lists only open orders flagged at risk, and counts them", () => {
+    expect(matchesView({ lines, atRisk: true }, "at_risk")).toBe(true);
+    expect(matchesView({ lines, atRisk: null }, "at_risk")).toBe(false);
+    expect(matchesView({ lines: [{ route: "direct_ship" as const, stage: "delivered" as const }], atRisk: true }, "at_risk")).toBe(false);
+    expect(orderKpis([{ lines, atRisk: true }, { lines, atRisk: false }, { lines }]).atRisk).toBe(1);
+  });
+
+  it("describes prediction changes in plain English", () => {
+    const ctx: EventContext = { lines: new Map(), poNumbers: new Map() };
+    const d = (detail: Record<string, unknown>) => describeEvent({ kind: "prediction_changed", orderLineId: null, detail }, ctx);
+    expect(d({ from: "2026-10-16", to: "2026-10-16", source: "supplier_confirmed", at_risk: false })).toBe("Predicted delivery now Fri 16 Oct (supplier's confirmed date)");
+    expect(d({ from: "2026-10-19", to: "2026-10-21", source: "lead_time", at_risk: true, was_at_risk: false })).toBe("At risk: predicted delivery Mon 19 – Wed 21 Oct (worked out from the lead time)");
+    expect(d({ from: "2026-10-16", to: "2026-10-16", source: "manual", at_risk: false, was_at_risk: true })).toBe("Back on track: predicted delivery Fri 16 Oct (set by hand)");
+    expect(d({ from: null, to: null, source: "unknown", at_risk: null })).toBe("Predicted delivery not known yet");
   });
 });

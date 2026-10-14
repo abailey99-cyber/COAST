@@ -69,6 +69,7 @@ test.describe("supplier loop", () => {
     await page.goto("/app/review-queue");
     await openMenu(page);
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /Review queue/ })).toContainText(/\d/);
+    await page.keyboard.press("Escape");
     const item = page.getByRole("region").filter({ hasText: "4 confirmed, 5 ordered" });
     await expect(item).toBeVisible();
     await item.getByRole("textbox", { name: /quantity/ }).fill("5");

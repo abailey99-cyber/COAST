@@ -34,6 +34,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission } from "./session";
 import { pollShipment } from "./tracking-poll";
+import { refreshPredictionsLater } from "./predictions";
 
 export interface ShipmentResult {
   ok: boolean;
@@ -54,7 +55,8 @@ function failure(e: unknown, fallback: string): ShipmentResult {
   return { ok: false, error: fallback };
 }
 
-function revalidateShipment(shipmentId: string, orderId: string) {
+async function revalidateShipment(shipmentId: string, orderId: string) {
+  refreshPredictionsLater([orderId]);
   revalidatePath(`/app/shipments/${shipmentId}`);
   revalidatePath("/app/shipments");
   revalidatePath(`/app/orders/${orderId}`);
@@ -87,7 +89,7 @@ export async function addShipment(orderId: string, _prev: ShipmentResult, formDa
     // A shipment straight to the customer crosses a border if the order's address does; inbound origin isn't recorded yet.
     const international = result.value.leg !== "inbound" && isInternational(order.delivery.country, order.delivery.postcode);
     const id = await createShipment(supabase, orderId, result.value, { isInternational: international, customsStatus: international ? "unknown" : "not_required" });
-    revalidateShipment(id, orderId);
+    await revalidateShipment(id, orderId);
     const live = hasLiveAdapter(result.value.carrier) && result.value.trackingNumber;
     return {
       ok: true,
@@ -125,7 +127,7 @@ export async function checkShipmentNow(shipmentId: string): Promise<ShipmentResu
       { id: shipment.id, carrier: shipment.carrier, trackingNumber: shipment.trackingNumber, status: shipment.status, createdAt: shipment.createdAt, lastPolledAt: shipment.poll.lastPolledAt, failures: shipment.poll.failures },
       new Date(),
     );
-    revalidateShipment(shipment.id, shipment.salesOrderId);
+    await revalidateShipment(shipment.id, shipment.salesOrderId);
     switch (outcome) {
       case "updated":
         return { ok: true, message: "Checked: there's news from the carrier." };
@@ -161,7 +163,7 @@ export async function setShipmentStatus(shipmentId: string, status: string, note
       // Needs order or procurement rights as well; without them the line stays put for someone who has them.
       if (to) await updateLineStage(supabase, line.id, line.stage, to).catch(() => false);
     }
-    revalidateShipment(shipmentId, shipment.salesOrderId);
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
     return { ok: true, message: "Saved. COAST won't overwrite this status until you hand it back to the carrier." };
   } catch (e) {
     return failure(e, "The status couldn't be saved. Try again.");
@@ -175,7 +177,7 @@ export async function handShipmentBackToCarrier(shipmentId: string): Promise<Shi
     const shipment = await getShipment(supabase, shipmentId);
     if (!shipment) return { ok: false, error: "That shipment isn't available." };
     await handStatusBackToCarrier(supabase, shipmentId);
-    revalidateShipment(shipmentId, shipment.salesOrderId);
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
     return { ok: true, message: "The carrier's updates will set the status again from the next check." };
   } catch (e) {
     return failure(e, "That couldn't be saved. Try again.");
@@ -190,7 +192,7 @@ export async function setShipmentCustoms(shipmentId: string, value: string): Pro
     if (!shipment || !shipment.isInternational) return { ok: false, error: "That shipment doesn't cross a border." };
     if (value !== "carrier" && !isCustomsStatus(value)) return { ok: false, error: "Choose a customs status." };
     await setCustomsByHand(supabase, shipmentId, value === "carrier" ? null : value);
-    revalidateShipment(shipmentId, shipment.salesOrderId);
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
     return { ok: true, message: value === "carrier" ? "COAST will read customs from the carrier's updates again." : "Saved. COAST won't change it until you hand it back." };
   } catch (e) {
     return failure(e, "The customs status couldn't be saved. Try again.");
@@ -210,7 +212,7 @@ export async function changeShipmentTracking(shipmentId: string, _prev: Shipment
     const shipment = await getShipment(supabase, shipmentId);
     if (!shipment) return { ok: false, error: "That shipment isn't available." };
     await updateShipmentTracking(supabase, shipmentId, carrier, trackingNumber);
-    revalidateShipment(shipmentId, shipment.salesOrderId);
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
     return { ok: true, message: "Saved. COAST will check the new details on its next run." };
   } catch (e) {
     return failure(e, "That couldn't be saved. Try again.");

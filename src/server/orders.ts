@@ -14,6 +14,7 @@ import {
   orderStatus,
   parseRepFilter,
   stageLabel,
+  type FulfilmentRoute,
   type LineStage,
   type OrderStatus,
   type RepFilter,
@@ -23,6 +24,8 @@ import { canRaisePoFor, PO_STATUS_LABELS } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff, type StaffContext } from "./session";
 import { waitingFor, type Waiting } from "./supplier-loop";
+import { predictionForOrderPage, type LineLeadTime } from "./predictions";
+import { LEAD_TIME_SOURCE_LABELS, formatRange, type LinePrediction } from "@/lib/logic/prediction";
 import { loadOrderShipments, type OrderShipments } from "./shipments";
 
 /** Loaders for the order screens. Each checks who's asking first; RLS checks again underneath. */
@@ -43,6 +46,9 @@ export interface OrderRow {
   promised: string;
   status: OrderStatus;
   statusLabel: string;
+  predicted: string;
+  predictedEstimate: boolean;
+  atRisk: boolean;
 }
 
 export interface OrdersView {
@@ -83,7 +89,8 @@ export async function loadOrders(params: { view?: string; q?: string; rep?: stri
   const ids = q ? await searchOrderIds(supabase, q) : undefined;
   const [orders, reps] = await Promise.all([listOrders(supabase, { repId, ids }), loadReps(staff)]);
 
-  const rows = orders.filter((o) => matchesView(o, view)).map<OrderRow>((o) => {
+  const listable = orders.map((o) => ({ ...o, atRisk: o.prediction?.atRisk ?? null }));
+  const rows = listable.filter((o) => matchesView(o, view)).map<OrderRow>((o) => {
     const status = orderStatus(o.lines);
     return {
       id: o.id,
@@ -96,12 +103,15 @@ export async function loadOrders(params: { view?: string; q?: string; rep?: stri
       promised: formatIsoDate(o.promisedDate),
       status,
       statusLabel: ORDER_STATUS_LABELS[status],
+      predicted: status === "cancelled" ? "—" : (formatRange(o.prediction?.from ?? null, o.prediction?.to ?? null) ?? "Not known yet"),
+      predictedEstimate: o.prediction?.confidence === "estimate",
+      atRisk: status === "open" && o.atRisk === true,
     };
   });
 
   return {
     rows,
-    kpis: orderKpis(orders),
+    kpis: orderKpis(listable),
     view,
     q,
     repFilter,
@@ -128,6 +138,9 @@ export interface LineView {
   nextStages: { value: LineStage; label: string }[];
   canRaisePo: boolean;
   pos: { id: string; poNumber: string; status: string; supplierName: string; quantity: string; requested: string; unitCost: string | null; confirmed: string | null }[];
+  /** Supplier lines only: how long it should take, and how far through it is (spec §5.1 lead-time ticker). */
+  leadTime: { label: string; ticker: string | null; overdue: boolean; manualDays: number | null; editable: boolean } | null;
+  predicted: string | null;
 }
 
 export interface ChaseView {
@@ -165,6 +178,14 @@ export interface OrderPage {
   suppliers: Supplier[];
   chases: ChaseView[];
   shipments: OrderShipments;
+  prediction: {
+    label: string;
+    estimate: boolean;
+    reason: string;
+    atRisk: boolean | null;
+    override: { from: string; to: string | null; note: string | null } | null;
+    canOverride: boolean;
+  } | null;
   /** Lines that can have a new internal chase (no open one, not finished). */
   chaseableLines: { id: string; label: string }[];
 }
@@ -175,6 +196,10 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const order = await getOrder(supabase, id);
   if (!order) return null;
+  // Works the prediction out afresh (and saves it) whenever someone looks at the order.
+  const computed = await predictionForOrderPage(id);
+  const leadTimes = new Map((computed?.leadTimes ?? []).map((l) => [l.lineId, l]));
+  const linePredictions = new Map((computed?.prediction.lines ?? []).map((l) => [l.lineId, l]));
 
   const can = {
     edit: hasPermission(staff.permissions, "orders.edit"),
@@ -223,6 +248,8 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
         unitCost: can.seeCosts && p.unitCostMinor !== null ? formatMoney(p.unitCostMinor, order.currency) : null,
         confirmed: p.confirmedDate ? formatIsoDate(p.confirmedDate) : null,
       })),
+      leadTime: leadTimeView(l.route, leadTimes.get(l.id), hasPermission(staff.permissions, "procurement.manage")),
+      predicted: linePredictionLabel(linePredictions.get(l.id)),
     };
   });
 
@@ -249,6 +276,16 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     can,
     suppliers: suppliers.filter((s) => s.isActive),
     shipments,
+    prediction: computed
+      ? {
+          label: formatRange(computed.prediction.from, computed.prediction.to) ?? (computed.prediction.source === "unknown" && computed.prediction.reason === "Cancelled" ? "—" : "Not known yet"),
+          estimate: computed.prediction.confidence === "estimate",
+          reason: computed.prediction.reason,
+          atRisk: computed.prediction.atRisk,
+          override: computed.override,
+          canOverride: can.edit,
+        }
+      : null,
     chases: chases
       .filter((c) => c.kind === "internal")
       .map((c) => {
@@ -361,4 +398,21 @@ export async function loadOrderEdit(id: string): Promise<OrderEditPage | null> {
     reps,
     mustBeOwnRep: !hasPermission(staff.permissions, "orders.view_all"),
   };
+}
+
+function leadTimeView(route: FulfilmentRoute, lt: LineLeadTime | undefined, editable: boolean): LineView["leadTime"] {
+  if (route === "from_stock") return null;
+  const lead = lt?.lead ?? null;
+  return {
+    label: lead ? `${lead.days} working ${lead.days === 1 ? "day" : "days"} (${LEAD_TIME_SOURCE_LABELS[lead.source]})` : "Not known",
+    ticker: lt?.ticker?.label ?? null,
+    overdue: lt?.ticker?.overdue ?? false,
+    manualDays: lead?.source === "manual" ? lead.days : null,
+    editable,
+  };
+}
+
+function linePredictionLabel(p: LinePrediction | undefined): string | null {
+  if (!p || p.done) return null;
+  return formatRange(p.from, p.to) ?? "Not known yet";
 }

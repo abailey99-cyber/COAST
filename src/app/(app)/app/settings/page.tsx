@@ -8,6 +8,7 @@ import styles from "../shell.module.css";
 import { ThemeToggle } from "../ThemeToggle";
 import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
+import { PredictionSettingsForm } from "./PredictionSettingsForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
 
@@ -21,14 +22,14 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Appearance, who sees what, your team, chasing, carriers, connections and the audit log" />
+      <PageHeader title="Settings" subtitle="Appearance, who sees what, your team, chasing, delivery dates, carriers, connections and the audit log" />
 
       <section className={styles.card} aria-labelledby="appearance-title">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -96,6 +97,26 @@ export default async function SettingsPage() {
             editable={canEditSettings}
             values={{ ...chase.thresholds, dayStartHour: chase.calendar.dayStartHour, dayEndHour: chase.calendar.dayEndHour }}
           />
+        </div>
+      </details>
+
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Delivery dates</h2>
+            <span className={styles.foldMeta}>
+              Turnaround {prediction.handlingDays}d · delivery {prediction.deliveryDays}d · estimates {prediction.spreadDays}d wide (working days)
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            COAST works out each order&apos;s delivery date from the best information it has: the carrier&apos;s estimate once
+            it&apos;s on its way, the supplier&apos;s confirmed date, or the line&apos;s lead time. These are the days it adds on top.
+            Anything worked out rather than confirmed is shown as a range. An order is at risk when the latest likely date
+            is after the date promised to the customer. A date or lead time someone sets by hand is never changed.
+          </p>
+          <PredictionSettingsForm editable={canEditSettings} values={prediction} />
         </div>
       </details>
 

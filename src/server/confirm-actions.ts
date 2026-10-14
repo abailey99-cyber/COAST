@@ -1,5 +1,6 @@
 "use server";
 
+import { refreshPredictionsLater } from "./predictions";
 import { getPurchaseOrder } from "@/lib/data/procurement";
 import { validateLinkAnswer } from "@/lib/logic/supplier-response";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -56,6 +57,7 @@ export async function submitSupplierConfirmation(token: string, _prev: ConfirmSt
       linkId: view.linkId,
       includePrices: true,
     });
+    refreshPredictionsLater(po.lines.map((l) => l.orderId));
     return { done: outcome.outcome };
   } catch {
     return { error: "Your answer couldn't be saved. Please try again, or reply to the email instead." };

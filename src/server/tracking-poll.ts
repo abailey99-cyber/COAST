@@ -19,6 +19,7 @@ import { getCarrier, NO_ACTIVITY, type CarrierKey } from "@/lib/logic/carriers";
 import { applySnapshot, lineStageForShipment } from "@/lib/logic/shipments";
 import { nextPollAt, planPollRun, runAllowance, runsLeftToday } from "@/lib/logic/tracking-poll";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { refreshPredictions, sweepPredictions } from "./predictions";
 
 /**
  * Checking shipments with their carriers (spec §5.2). Runs as the system,
@@ -80,7 +81,9 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
   const finalStatus = shipment.statusSource === "manual" ? shipment.status : result.patch.status;
   await savePollState(admin, due.id, { nextPollAt: nextPollAt(finalStatus, 0, now), polledAt: now, failures: 0, error: null });
   await recordCarrierOutcome(admin, due.carrier, null);
-  return result.statusChange || result.newEvents.length > 0 ? "updated" : "unchanged";
+  const changed = result.statusChange !== null || result.newEvents.length > 0 || result.patch.estimatedFrom !== shipment.estimatedFrom || result.patch.estimatedTo !== shipment.estimatedTo;
+  if (changed) await refreshPredictions([shipment.salesOrderId], now);
+  return changed ? "updated" : "unchanged";
 }
 
 export interface PollRunSummary {
@@ -141,10 +144,12 @@ export async function runTrackingPoll(admin: SupabaseClient, now: Date = new Dat
 }
 
 /** The /api/cron/tracking-poll job. */
-export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error" } & Partial<PollRunSummary>> {
+export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error"; predictionsRefreshed?: number } & Partial<PollRunSummary>> {
   const admin = createSupabaseAdminClient();
   if (!admin) return { outcome: "error" };
   const s = await runTrackingPoll(admin);
+  // Delivery dates drift as days pass, so the same run keeps predictions fresh (Phase 4).
+  const predictionsRefreshed = await sweepPredictions(admin);
   const outcome = s.failed === 0 ? "ok" : s.failed < s.checked ? "partial" : "error";
-  return { outcome, ...s };
+  return { outcome, ...s, predictionsRefreshed };
 }

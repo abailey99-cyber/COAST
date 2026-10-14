@@ -2,11 +2,12 @@ import { loadSuppliers } from "@/server/procurement";
 import { PageHeader } from "../PageHeader";
 import ui from "../ui.module.css";
 import { AddSupplierForm } from "./AddSupplierForm";
+import { Availability } from "./Availability";
 
 export const metadata = { title: "Suppliers" };
 
 export default async function SuppliersPage() {
-  const { canSee, canCreate, suppliers } = await loadSuppliers();
+  const { canSee, canCreate, suppliers, availability } = await loadSuppliers();
 
   if (!canSee) {
     return (
@@ -15,6 +16,7 @@ export default async function SuppliersPage() {
         <section className={ui.panel}>
           <p className={ui.muted}>Your company has chosen not to show supplier names to your role. Ask an admin if you need them.</p>
         </section>
+        <Availability {...availability} />
       </>
     );
   }
@@ -53,6 +55,7 @@ export default async function SuppliersPage() {
         )}
       </section>
       {canCreate && <AddSupplierForm />}
+      <Availability {...availability} />
     </>
   );
 }

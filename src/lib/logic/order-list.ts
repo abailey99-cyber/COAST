@@ -7,12 +7,16 @@ import { ROUTE_LABELS, isFulfilmentRoute, isLineStage, orderStatus, stageLabel, 
 import { PO_STATUS_LABELS, type PoStatus } from "./purchase-orders";
 import { getCarrier, isCarrierKey } from "./carriers";
 import { SHIPMENT_STATUS_LABELS, isShipmentLeg, isShipmentStatus } from "./shipments";
+import { PREDICTION_SOURCE_LABELS, formatRange, isPredictionSource } from "./prediction";
 
-export const ORDER_VIEWS = ["open", "direct", "delivered", "all"] as const;
+const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+
+export const ORDER_VIEWS = ["open", "at_risk", "direct", "delivered", "all"] as const;
 export type OrderView = (typeof ORDER_VIEWS)[number];
 
 export const ORDER_VIEW_LABELS: Record<OrderView, string> = {
   open: "All open",
+  at_risk: "At risk",
   direct: "Direct ship",
   delivered: "Delivered",
   all: "Everything",
@@ -24,6 +28,8 @@ export function parseOrderView(value: string | undefined): OrderView {
 
 interface Listable {
   lines: readonly LineSummaryInput[];
+  /** From the order's prediction (Phase 4); null or missing = can't tell. */
+  atRisk?: boolean | null;
 }
 
 export function matchesView(order: Listable, view: OrderView): boolean {
@@ -31,6 +37,8 @@ export function matchesView(order: Listable, view: OrderView): boolean {
   switch (view) {
     case "open":
       return status === "open";
+    case "at_risk":
+      return status === "open" && order.atRisk === true;
     case "direct":
       return status === "open" && order.lines.some((l) => l.route === "direct_ship" && l.stage !== "cancelled");
     case "delivered":
@@ -44,20 +52,23 @@ export interface OrderKpis {
   open: number;
   awaitingSupplier: number;
   needsPo: number;
+  atRisk: number;
 }
 
-/** Only figures COAST can actually work out today. "At risk" and "auto-confirmed" arrive with Phases 4 and 2. */
+/** Only figures COAST can actually work out today. "Auto-confirmed this week" waits for Metrics (Phase 6). */
 export function orderKpis(orders: readonly Listable[]): OrderKpis {
   let open = 0;
   let awaitingSupplier = 0;
   let needsPo = 0;
+  let atRisk = 0;
   for (const o of orders) {
     if (orderStatus(o.lines) !== "open") continue;
     open++;
     if (o.lines.some((l) => l.stage === "po_sent")) awaitingSupplier++;
     if (o.lines.some((l) => l.stage === "ordered" && l.route !== "from_stock")) needsPo++;
+    if (o.atRisk === true) atRisk++;
   }
-  return { open, awaitingSupplier, needsPo };
+  return { open, awaitingSupplier, needsPo, atRisk };
 }
 
 // ── Order history wording ───────────────────────────────────────────────────
@@ -75,7 +86,8 @@ export type OrderEventKind =
   | "chase_chased"
   | "chase_resolved"
   | "shipment_added"
-  | "shipment_status_changed";
+  | "shipment_status_changed"
+  | "prediction_changed";
 
 const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
 const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
@@ -169,6 +181,13 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       const to = e.detail.to;
       const by = e.detail.source === "manual" ? " (set by hand)" : "";
       return isShipmentStatus(to) ? `${shipmentRef(e.detail)}: ${SHIPMENT_STATUS_LABELS[to].toLowerCase()}${by}` : `${shipmentRef(e.detail)} updated`;
+    }
+    case "prediction_changed": {
+      const when = formatRange(str(e.detail.from), str(e.detail.to));
+      const source = isPredictionSource(e.detail.source) && e.detail.source !== "unknown" ? ` (${PREDICTION_SOURCE_LABELS[e.detail.source]})` : "";
+      if (e.detail.at_risk === true && e.detail.was_at_risk !== true) return `At risk: predicted delivery ${when ?? "not known"}${source}`;
+      if (e.detail.at_risk !== true && e.detail.was_at_risk === true) return `Back on track: predicted delivery ${when ?? "not known"}${source}`;
+      return when ? `Predicted delivery now ${when}${source}` : "Predicted delivery not known yet";
     }
     case "line_stage_changed": {
       const to = e.detail.to;

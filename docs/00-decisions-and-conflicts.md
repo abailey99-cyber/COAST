@@ -382,3 +382,34 @@ digits); otherwise it shows "Carrier not known yet" under Needs attention.
 ### H7. Claim windows — DECIDED (C9)
 Settings → Carrier connections holds a claim window per carrier for each
 company, blank until set. It's used by delivery exceptions in Phase 7.
+
+## I. Build notes — Phase 4 (14 October 2026)
+
+### I1. Where a delivery date comes from — DEFAULT — CONFIRM
+Spec §4 lists the sources as manual override → supplier-confirmed date →
+supplier's typical lead time → carrier ETA. COAST uses the carrier's ETA
+**before** the supplier's date once the goods are actually heading to the
+customer, because by then the carrier knows better than anyone; before
+dispatch the carrier has nothing to say, so the spec order applies. For
+"via warehouse" lines, the inbound carrier or supplier date is when goods
+reach us, then turnaround + delivery days are added.
+
+### I2. Defaults — DEFAULT — CONFIRM
+Turnaround 1 working day, own delivery 2 working days, estimates 2 working
+days wide (Settings → Delivery dates). Lead time counts from the day the PO
+was sent (from today if it hasn't been).
+
+### I3. At risk — DEFAULT — CONFIRM
+At risk when the **latest** likely date is after the promised date (so an
+order is flagged while there's still time to act), or the promised date has
+passed undelivered. No promised date → never flagged, and the order page
+says so.
+
+### I4. Sticky values — DECIDED (non-negotiable 3)
+A delivery date (or range) set by hand on an order, and a lead time set by
+hand on a line, are never changed by COAST until someone hands them back.
+The rule lives in `src/lib/logic/prediction.ts` so no caller can skip it.
+
+### I5. Lead-time ticker
+Internal only: "Day 3 of 5", or "2 working days over its 5-day lead time",
+for supplier lines still waiting on their supplier.

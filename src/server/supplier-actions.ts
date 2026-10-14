@@ -29,6 +29,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission, requireStaffForAction, type StaffContext } from "./session";
 import { poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
 import { addSupplierShipments } from "./shipments";
+import { refreshPredictionsLater } from "./predictions";
 import { LINK_LIFETIME_DAYS, newLinkToken } from "./tokens";
 
 export interface LoopResult {
@@ -103,6 +104,7 @@ export async function sendPoToSupplier(poId: string): Promise<LoopResult> {
     const stored = redact(message, url);
     await recordEmail(supabase, { orgId: staff.orgId, kind: "po", purchaseOrderId: po.id, to: message.to, subject: message.subject, text: stored.text, html: stored.html, channel: channel.name, status: sent.status, error: sent.error });
     if (po.status === "draft") await updatePoStatus(supabase, po.id, "draft", "sent");
+    refreshPredictionsLater(po.lines.map((l) => l.orderId));
     revalidatePo(po.id);
     return {
       ok: true,
@@ -222,6 +224,7 @@ export async function pasteSupplierReply(poId: string, _prev: LoopResult, formDa
       extras: { trackingNumbers: read.trackingNumbers.map((t) => t.number), currency: score.price?.currency ?? null },
       includePrices: canSeeCosts,
     });
+    refreshPredictionsLater(po.lines.map((l) => l.orderId));
     revalidatePo(po.id);
     return result.outcome === "applied"
       ? { ok: true, message: `Read with high confidence and applied: confirmed for ${formatIsoDate(score.date)}.${result.shipmentsAdded > 0 ? ` Tracking added as ${result.shipmentsAdded === 1 ? "a shipment" : `${result.shipmentsAdded} shipments`}.` : ""}` }
@@ -264,6 +267,7 @@ export async function acceptReviewedResponse(responseId: string, _prev: LoopResu
       includePrices: canSeeCosts,
     });
     const added = await addSupplierShipments(supabase, po, response.extras.trackingNumbers ?? []);
+    refreshPredictionsLater(po.lines.map((l) => l.orderId));
     revalidatePo(po.id);
     const shipped = added > 0 ? ` ${added === 1 ? "A shipment was" : `${added} shipments were`} added from the tracking numbers.` : "";
     return { ok: true, message: (isFullyConfirmed(confirmed, check) ? `${po.poNumber} confirmed.` : `Saved. ${po.poNumber} isn't fully confirmed yet.`) + shipped };
