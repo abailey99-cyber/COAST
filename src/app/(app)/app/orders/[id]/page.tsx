@@ -4,6 +4,7 @@ import { loadOrder } from "@/server/orders";
 import { PageHeader } from "../../PageHeader";
 import ui from "../../ui.module.css";
 import { OrderChases } from "./OrderChases";
+import { OrderShipments } from "./OrderShipments";
 import { RaisePoForm } from "./RaisePoForm";
 import { StageSelect } from "./StageSelect";
 
@@ -125,6 +126,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className={ui.aside} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <OrderShipments orderId={order.id} data={page.shipments} />
         {(page.chases.length > 0 || page.chaseableLines.length > 0) && <OrderChases chases={page.chases} lines={page.chaseableLines} />}
         <aside className={ui.panel} aria-labelledby="history-title">
           <h2 id="history-title" style={{ fontSize: 16 }}>History</h2>

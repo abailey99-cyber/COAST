@@ -419,3 +419,25 @@
   font-size: 12px;
   font-weight: var(--fw-semibold);
 }
+
+/* Sidebar "Carrier connections" card (App.dc.html). */
+.carrierCard {
+  margin-top: auto;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--divider);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  text-decoration: none;
+  display: block;
+}
+
+.carrierCard:hover {
+  color: var(--text-strong);
+}
+
+.carrierCard + .userCard {
+  margin-top: 0;
+}

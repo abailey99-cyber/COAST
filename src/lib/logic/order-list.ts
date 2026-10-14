@@ -5,6 +5,8 @@
 
 import { ROUTE_LABELS, isFulfilmentRoute, isLineStage, orderStatus, stageLabel, type FulfilmentRoute, type LineSummaryInput } from "./orders";
 import { PO_STATUS_LABELS, type PoStatus } from "./purchase-orders";
+import { getCarrier, isCarrierKey } from "./carriers";
+import { SHIPMENT_STATUS_LABELS, isShipmentLeg, isShipmentStatus } from "./shipments";
 
 export const ORDER_VIEWS = ["open", "direct", "delivered", "all"] as const;
 export type OrderView = (typeof ORDER_VIEWS)[number];
@@ -71,7 +73,9 @@ export type OrderEventKind =
   | "supplier_responded"
   | "chase_opened"
   | "chase_chased"
-  | "chase_resolved";
+  | "chase_resolved"
+  | "shipment_added"
+  | "shipment_status_changed";
 
 const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
 const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
@@ -116,6 +120,14 @@ function isPoStatus(v: unknown): v is PoStatus {
   return typeof v === "string" && v in PO_STATUS_LABELS;
 }
 
+function shipmentRef(detail: Record<string, unknown>): string {
+  const carrier = isCarrierKey(detail.carrier) ? getCarrier(detail.carrier).label : null;
+  const leg = isShipmentLeg(detail.leg) ? LEG_WORDS[detail.leg] : "Shipment";
+  return carrier && detail.carrier !== "unknown" && detail.carrier !== "other" ? `${leg} (${carrier})` : leg;
+}
+
+const LEG_WORDS = { inbound: "Inbound shipment", outbound: "Shipment to the customer", direct: "Direct shipment" } as const;
+
 /** One line of plain English per history entry. Never names a supplier. */
 export function describeEvent(e: EventInput, ctx: EventContext): string {
   const line = e.orderLineId ? ctx.lines.get(e.orderLineId) : undefined;
@@ -151,6 +163,13 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       return `${poRef(e.detail.purchase_order_id, ctx)}: supplier chased`;
     case "chase_resolved":
       return e.detail.chase === "internal" ? `${lineRef}: procurement answered` : `${poRef(e.detail.purchase_order_id, ctx)}: supplier chase closed`;
+    case "shipment_added":
+      return `${shipmentRef(e.detail)} added`;
+    case "shipment_status_changed": {
+      const to = e.detail.to;
+      const by = e.detail.source === "manual" ? " (set by hand)" : "";
+      return isShipmentStatus(to) ? `${shipmentRef(e.detail)}: ${SHIPMENT_STATUS_LABELS[to].toLowerCase()}${by}` : `${shipmentRef(e.detail)} updated`;
+    }
     case "line_stage_changed": {
       const to = e.detail.to;
       const route = line?.route;

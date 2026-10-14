@@ -40,6 +40,7 @@ async function main() {
   }
 
   await seedOrders(admin, orgA, ids["sales@demo-a.coast.test"]!, ids["sales2@demo-a.coast.test"]!);
+  await seedShipments(admin, orgA);
 
   console.log("\nDemo data ready. Sign in with any address above and DEMO_USER_PASSWORD.\n");
 }
@@ -141,6 +142,34 @@ async function seedOrders(admin: Admin, orgId: string, repA: string, repA2: stri
     }
   }
   console.log(`  ✓ ${orders.length} demo orders, 3 demo suppliers`);
+}
+
+/**
+ * Demo shipments on the test carrier (Phase 3), so the Shipments screen and
+ * order pages have something to show. The next tracking poll fills in their
+ * events. Safe to run again: existing tracking numbers are skipped.
+ */
+async function seedShipments(admin: Admin, orgId: string) {
+  const plan = [
+    { so: "SO-10418", leg: "inbound", tracking: "MOCK-TRANSIT-10418" },
+    { so: "SO-10402", leg: "outbound", tracking: "MOCK-TRANSIT-10402" },
+    { so: "SO-10388", leg: "direct", tracking: "MOCK-DELIVERED-10388" },
+  ];
+  let added = 0;
+  for (const s of plan) {
+    const order = await admin.from("sales_orders").select("id").eq("org_id", orgId).eq("so_number", s.so).maybeSingle();
+    if (!order.data) continue;
+    const exists = await admin.from("shipments").select("id").eq("sales_order_id", order.data.id).eq("tracking_number", s.tracking).maybeSingle();
+    if (exists.data) continue;
+    const shipment = await must(
+      `shipment for ${s.so}`,
+      admin.from("shipments").insert({ org_id: orgId, sales_order_id: order.data.id, leg: s.leg, carrier: "mock", tracking_number: s.tracking }).select("id").single(),
+    );
+    const lines = await must<{ id: string }[]>(`lines of ${s.so}`, admin.from("order_lines").select("id").eq("sales_order_id", order.data.id));
+    for (const l of lines) await must(`shipment line for ${s.so}`, admin.from("shipment_lines").insert({ shipment_id: shipment.id, order_line_id: l.id }).select("shipment_id").single());
+    added++;
+  }
+  console.log(added ? `  ✓ ${added} demo shipments on the test carrier` : "  · demo shipments already present");
 }
 
 main().catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));

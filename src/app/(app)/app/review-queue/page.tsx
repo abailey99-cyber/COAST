@@ -39,7 +39,7 @@ export default async function ReviewQueuePage() {
                 ))}
               </ul>
             </div>
-            {item.tracking.length > 0 && <p className={ui.muted}>Tracking numbers found: {item.tracking.join(", ")} (used from Phase 3)</p>}
+            {item.tracking.length > 0 && <p className={ui.muted}>Tracking numbers found: {item.tracking.join(", ")} — added as shipments when you accept</p>}
             {item.note && <p className={ui.muted}>Supplier&apos;s note: “{item.note}”</p>}
             {item.rawText && (
               <details>

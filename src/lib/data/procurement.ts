@@ -125,6 +125,10 @@ export interface PoDetail extends Omit<PoListItem, "orders" | "lineCount"> {
     confirmedQuantity: number | null;
     confirmedUnitCostMinor: number | null;
     route: string;
+    orderLineId: string;
+    stage: string;
+    deliveryCountry: string;
+    deliveryPostcode: string;
     deliverTo: string | null;
     description: string;
     sku: string | null;
@@ -152,9 +156,11 @@ interface PoDetailRow {
     confirmed_quantity: number | string | null;
     purchase_order_line_costs: { unit_cost_minor: number; confirmed_unit_cost_minor: number | null } | null;
     order_lines: {
+      id: string;
       description: string;
       sku: string | null;
       route: string;
+      stage: string;
       sales_orders: {
         id: string;
         so_number: string;
@@ -177,7 +183,7 @@ export async function getPurchaseOrder(client: SupabaseClient, id: string): Prom
       `id, po_number, status, currency, created_at, sent_at, confirmed_at, supplier_id, suppliers(name, email),
        purchase_order_lines(id, quantity, requested_date, confirmed_date, confirmed_quantity,
          purchase_order_line_costs(unit_cost_minor, confirmed_unit_cost_minor),
-         order_lines(description, sku, route, sales_orders(id, so_number, customers(name),
+         order_lines(id, description, sku, route, stage, sales_orders(id, so_number, customers(name),
            delivery_name, delivery_line1, delivery_line2, delivery_town, delivery_postcode, delivery_country)))`,
     )
     .eq("id", id)
@@ -206,6 +212,10 @@ export async function getPurchaseOrder(client: SupabaseClient, id: string): Prom
       confirmedQuantity: pl.confirmed_quantity === null ? null : Number(pl.confirmed_quantity),
       confirmedUnitCostMinor: pl.purchase_order_line_costs?.confirmed_unit_cost_minor ?? null,
       route: pl.order_lines?.route ?? "",
+      orderLineId: pl.order_lines?.id ?? "",
+      stage: pl.order_lines?.stage ?? "",
+      deliveryCountry: so?.delivery_country ?? "",
+      deliveryPostcode: so?.delivery_postcode ?? "",
       deliverTo:
         pl.order_lines?.route === "direct_ship" && so
           ? [so.delivery_name, so.delivery_line1, so.delivery_line2, so.delivery_town, so.delivery_postcode, so.delivery_country].filter(Boolean).join(", ")

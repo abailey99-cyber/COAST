@@ -3,6 +3,7 @@ import { loadAudit } from "@/server/procurement";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
+import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
@@ -17,13 +18,13 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Who sees what, your team, connections and the audit log" />
+      <PageHeader title="Settings" subtitle="Who sees what, your team, chasing, carriers, connections and the audit log" />
 
       <details className={styles.fold}>
         <summary>
@@ -83,6 +84,29 @@ export default async function SettingsPage() {
           />
         </div>
       </details>
+
+      {carriers && (
+        <details className={styles.fold}>
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Carrier connections</h2>
+              <span className={styles.foldMeta}>
+                {carriers.carriers.filter((c) => c.status !== "unconfigured").length} of {carriers.carriers.length} set up · {carriers.lastRunLabel}
+              </span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            <p className={styles.cardText}>
+              Which carriers COAST checks for you, and whether those checks are working. Each carrier is switched on once, for
+              the whole of COAST, by adding its credentials to the hosting settings (see docs/integrations/carrier-tracking.md).
+              Carriers marked beta were built without the carrier&apos;s own documentation and need a check once a real account is
+              connected. The claim window is how long you have to claim from that carrier for damage or loss; leave it blank
+              until you know it.
+            </p>
+            <CarrierConnections carriers={carriers.carriers} editable={carriers.canEdit} />
+          </div>
+        </details>
+      )}
 
       <details className={styles.fold}>
         <summary>

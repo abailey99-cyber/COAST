@@ -29,6 +29,7 @@ import {
 } from "@/lib/logic/supplier-response";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
+import { addSupplierShipments } from "./shipments";
 
 async function client() {
   const supabase = await createSupabaseServerClient();
@@ -50,6 +51,8 @@ export function poLinesForCheck(po: PoDetail): PoLineForCheck[] {
 export interface ProcessResult {
   outcome: "applied" | "needs_review";
   reasons: string[];
+  /** Shipments added from tracking numbers in the answer (applied answers only). */
+  shipmentsAdded: number;
 }
 
 /**
@@ -78,6 +81,7 @@ export async function processSupplierAnswer(
   const decision = decide(a.source, a.confidence, discrepancies, a.extraReasons);
   const reasons = decision.action === "review" ? decision.reasons : [];
 
+  let shipmentsAdded = 0;
   const responseId = await insertResponse(db, {
     orgId: a.orgId,
     purchaseOrderId: a.po.id,
@@ -101,10 +105,11 @@ export async function processSupplierAnswer(
       fullyConfirmed: isFullyConfirmed(confirmed, check),
       includePrices: a.includePrices,
     });
+    shipmentsAdded = await addSupplierShipments(db, a.po, a.extras.trackingNumbers ?? []);
   }
   // Either way the supplier has answered, so any open chase is done.
   await resolveSupplierChases(db, a.po.id, decision.action === "apply" ? "Supplier confirmed." : "Supplier replied; waiting for review.");
-  return { outcome: decision.action === "apply" ? "applied" : "needs_review", reasons };
+  return { outcome: decision.action === "apply" ? "applied" : "needs_review", reasons, shipmentsAdded };
 }
 
 // ── PO page: everything about talking to the supplier ───────────────────────

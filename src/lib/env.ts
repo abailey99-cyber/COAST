@@ -27,7 +27,7 @@ export interface IntegrationHealth extends Health {
   label: string;
 }
 
-/** Configuration health for every integration, for the Settings screen. Never exposes values. */
+/** Configuration health for every integration except carriers (they have their own list, src/server/shipments.ts). Never exposes values. */
 export function integrationHealth(): IntegrationHealth[] {
   const env = process.env;
   const items: Array<[string, string, string[]]> = [
@@ -35,9 +35,6 @@ export function integrationHealth(): IntegrationHealth[] {
     ["cron", "Scheduled jobs", ["CRON_SECRET"]],
     ["m365", "Microsoft 365 mailbox", ["M365_TENANT_ID", "M365_CLIENT_ID", "M365_CLIENT_SECRET", "M365_MAILBOX"]],
     ["netsuite", "NetSuite order sync", ["NETSUITE_ACCOUNT_ID", "NETSUITE_CLIENT_ID", "NETSUITE_CERTIFICATE_ID", "NETSUITE_PRIVATE_KEY"]],
-    ["dhl", "DHL Express", ["DHL_API_KEY"]],
-    ["fedex", "FedEx and TNT", ["FEDEX_CLIENT_ID", "FEDEX_CLIENT_SECRET"]],
-    ["ups", "UPS", ["UPS_CLIENT_ID", "UPS_CLIENT_SECRET"]],
   ];
   return items.map(([key, label, required]) => ({ key, label, ...configHealth(label, required, env) }));
 }

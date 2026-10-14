@@ -34,6 +34,20 @@ Lint rules stop the layers reaching past each other. For example, pure logic
 can't touch the database or read the clock, and pages can't query the
 database directly.
 
+## Carrier tracking
+
+Shipments are checked with their carriers by `/api/cron/tracking-poll`,
+every 30 minutes once the GitHub Actions schedule is switched on (see
+`.github/workflows/tracking-poll.yml`). Nothing is connected until a carrier's
+credentials are added (`.env.example`). For development, tracking numbers
+starting `MOCK-` use a test carrier: `MOCK-TRANSIT-1`, `MOCK-DELIVERED-1`,
+`MOCK-CUSTOMS-1`, `MOCK-EXCEPTION-1`, `MOCK-NOTFOUND-1`, `MOCK-DOWN-1`. To run
+the check by hand locally:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tracking-poll
+```
+
 ## Demo sign-ins (development only)
 
 After `npm run db:seed-demo`, sign in with any of these and the

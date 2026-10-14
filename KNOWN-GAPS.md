@@ -4,13 +4,13 @@ Everything stubbed, best-effort, unverified or deliberately deferred
 (CLAUDE.md non-negotiable 9). Updated at the end of every phase. Search the
 code for `UNVERIFIED:` for the in-code markers.
 
-_Last updated: end of Phase 2 — 14 October 2026._
+_Last updated: end of Phase 3 — 14 October 2026._
 
 ## Not built yet (by design — later phases)
 
 | Item | Where it shows | Arrives |
 |---|---|---|
-| Chases screen (all chases in one place), Shipments, Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N". Chases themselves work, on each order and PO | Phases 3–6 |
+| Chases screen (all chases in one place), Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N". Chases themselves work, on each order and PO | Phase 6 |
 | Home "what needs attention today" | Home shows a welcome and what's ready | Phase 6 |
 | Track an order (tracking code) | Sign-in "Track an order" tab says tracking isn't open yet | Phase 5 |
 | Customer tracking page | `/track` says tracking isn't open yet | Phase 5 |
@@ -18,12 +18,62 @@ _Last updated: end of Phase 2 — 14 October 2026._
 | Marketing site (How it works, Integrations, Pricing, register interest) | Home is a one-section holding page; the header shows only "Sign in"; the footer shows only the copyright line. "Register interest" isn't linked anywhere until the form exists | Any time — separate slot |
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
-| Carrier connections card in the sidebar | Not shown | Phase 3 |
 | Chases count badge | Not shown (the Review queue badge works) | Phase 6 |
-| Recording each scheduled-job run for health screens | `/api/cron/ping` only checks the secret | First real job, Phase 2/3 |
+| Delivery-date prediction and the "at risk" flag (carrier ETAs are stored ready for it) | Orders → "Predicted" says Phase 4 | Phase 4 |
+| Delivery-exception records from a carrier's "problem" (spec §5.4) | The shipment shows "● Problem reported" and appears under Shipments → Needs attention; nothing is drafted yet | Phase 7 |
+| Customs documents checklist, HS codes on screen | Shipments show a customs status only | Phase 7 |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 3 (shipments and carrier tracking)
+
+- **No carrier is connected yet, and none has been tested against a real
+  account.** DHL, FedEx (and TNT through it), UPS and Royal Mail are built
+  from each carrier's published documentation and marked `UNVERIFIED:` in
+  code. Add a carrier's credentials (`.env.example`, docs/integrations/carrier-tracking.md)
+  and watch Settings → Carrier connections after the first run. Royal Mail is
+  shown as **beta**.
+- **DPD, Evri and Yodel don't check anything yet.** They have no public
+  tracking API, so COAST won't send a key to a guessed address. With a key
+  set they show "Beta: … waits for their integration pack". Shipments with
+  them are updated by hand.
+- **The tracking schedule needs switching on.** It's a GitHub Actions job
+  (`.github/workflows/tracking-poll.yml`, every 30 minutes) because Vercel's
+  free plan only runs daily jobs. It does nothing until the repository secrets
+  `COAST_APP_URL` and `CRON_SECRET` are set. GitHub pauses schedules on
+  repositories with no activity for 60 days. Until then, "Check now" on a
+  shipment works.
+- **DHL's free tier is small**: 250 checks a day for the whole of COAST,
+  one every 5 seconds. COAST spreads them over the day, checks moving
+  parcels first, and keeps 10% back for "Check now". Busy use will need
+  DHL's paid tier.
+- **One tracking call per shipment.** FedEx can look up 30 numbers in one
+  call; batching isn't built.
+- **No carrier webhooks** (spec §11 recommends them where available).
+  Polling only for now; DHL, FedEx and UPS all offer push notifications
+  worth adding once accounts exist.
+- **UPS gives scan times in local time with no time zone.** COAST stores them
+  as UTC, so a UK scan can be an hour out in summer, and a scan abroad by
+  more.
+- **"Out for delivery" and customs status are read from the carrier's
+  words**, because no carrier publishes a code for either. When nothing
+  mentions customs, an international shipment says "Not known" rather than
+  guessing. Staff can set either by hand; a hand-set value sticks until
+  handed back.
+- **Inbound shipments don't know where they come from**, so they're never
+  marked international. Supplier countries arrive with customs (Phase 7).
+- **Inbound deliveries stop at "In transit to us"**: goods-in confirming
+  receipt arrives in Phase 6. Until then, move the line on by hand.
+- **The test carrier** (tracking numbers starting `MOCK-`) invents tracking
+  for development and tests. It's hidden when `COAST_ENV=production`.
+- **A shipment is for one order.** One consignment covering several orders
+  is added once per order.
+- **Supplier links don't ask for a tracking number.** Tracking numbers in a
+  pasted email become shipments when the answer is applied or accepted.
+- **Every staff member can see each carrier's overall health and today's
+  check count** (it's shared by every company on COAST). No company's
+  shipments are visible to another.
 
 ### Phase 2 (supplier communication)
 
@@ -132,5 +182,5 @@ the audit log is written by the database itself (F1).
   roles. It needs rewording to say each company sets its own, with defaults.
 - **Postcode on "Track an order"** (Phase 5): per decision E4 the code alone is
   enough; the mockup's postcode box will be left out unless wanted.
-- **DHL free tier** (Phase 3): 250 calls/day covers only a handful of active DHL shipments at 15–30 minute polling. A daily call budget will prioritise; real volumes likely need DHL's paid tier.
-- **Vercel Cron** (Phase 2): the free plan runs scheduled jobs once a day. The 5–15 minute jobs need Vercel Pro or GitHub Actions' scheduler.
+- **DHL free tier**: see Phase 3 above — handled with a daily budget; real volumes likely need DHL's paid tier.
+- **Vercel Cron**: handled with a GitHub Actions schedule (Phase 3). Vercel Pro would also do.

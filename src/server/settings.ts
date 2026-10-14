@@ -18,6 +18,7 @@ import {
 import type { StaffRole } from "@/lib/logic/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
+import { loadCarrierConnections, type CarrierConnectionsView } from "./shipments";
 
 export type OverrideState = "allow" | "block";
 
@@ -38,6 +39,7 @@ export interface SettingsView {
   canManagePermissions: boolean;
   integrations: IntegrationHealth[];
   chase: ChaseSettings;
+  carriers: CarrierConnectionsView | null;
   team: PersonAccess[];
   /** role → granted permissions, for every role except admin (always everything). */
   grants: Record<Exclude<StaffRole, "admin">, Permission[]>;
@@ -50,6 +52,7 @@ export async function loadSettings(): Promise<SettingsView> {
     ? await Promise.all([listStaffInOrg(supabase), listRolePermissions(supabase), listPersonOverrides(supabase)])
     : [[], [], []];
   const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
+  const carriers = supabase ? await loadCarrierConnections(staff) : null;
 
   const grants = Object.fromEntries(CONFIGURABLE_ROLES.map((r) => [r, [] as Permission[]])) as SettingsView["grants"];
   for (const row of roleRows) {
@@ -80,6 +83,7 @@ export async function loadSettings(): Promise<SettingsView> {
     canManagePermissions: staff.role === "admin",
     integrations: [{ key: "email", label: "Sending email", ...emailChannelHealth() }, ...integrationHealth()],
     chase,
+    carriers,
     team: people,
     grants,
   };

@@ -90,4 +90,12 @@ describe("describeEvent — supplier loop", () => {
     expect(describeEvent({ kind: "chase_chased", orderLineId: null, detail: { chase: "supplier", purchase_order_id: "p1" } }, ctx)).toBe("Purchase order PO-5001: supplier chased");
     expect(describeEvent({ kind: "chase_resolved", orderLineId: "l1", detail: { chase: "internal" } }, ctx)).toBe("Line 1: procurement answered");
   });
+
+  it("describes shipments without a tracking number or supplier name", () => {
+    expect(describeEvent({ kind: "shipment_added", orderLineId: null, detail: { leg: "direct", carrier: "dhl" } }, ctx)).toBe("Direct shipment (DHL Express) added");
+    expect(describeEvent({ kind: "shipment_added", orderLineId: null, detail: { leg: "outbound", carrier: "unknown" } }, ctx)).toBe("Shipment to the customer added");
+    expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "inbound", carrier: "ups", to: "delivered", source: "carrier" } }, ctx)).toBe("Inbound shipment (UPS): delivered");
+    expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "outbound", carrier: "other", to: "in_transit", source: "manual" } }, ctx)).toBe("Shipment to the customer: in transit (set by hand)");
+    expect(describeEvent({ kind: "shipment_status_changed", orderLineId: null, detail: { leg: "sideways", to: "teleported" } }, ctx)).toBe("Shipment updated");
+  });
 });

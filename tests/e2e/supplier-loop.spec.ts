@@ -104,11 +104,16 @@ test.describe("supplier loop", () => {
       .toBe("This link has been replaced");
 
     await page.reload();
-    await page.getByLabel("Supplier's email").fill(`Subject: RE: Purchase order ${poNumber}\n\nHi, confirmed — delivery Friday 6th November.\nThanks`);
+    await page.getByLabel("Supplier's email").fill(`Subject: RE: Purchase order ${poNumber}\n\nHi, confirmed — delivery Friday 6th November.\nUPS 1Z999AA10123456784\nThanks`);
     await page.getByRole("button", { name: "Read this email" }).click();
-    await expect(page.getByText(/Read with high confidence and applied: confirmed for Fri 6 Nov/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Read with high confidence and applied: confirmed for Fri 6 Nov\. Tracking added as a shipment\./)).toBeVisible({ timeout: 15_000 });
     await page.reload();
     await expect(page.getByText("● Confirmed")).toBeVisible();
+    // Phase 3: the tracking number became a direct shipment on the order, with the carrier recognised.
+    await page.goto(`/app/orders/${order.orderId}`);
+    const shipments = page.getByRole("region", { name: "Shipments" });
+    await expect(shipments.getByRole("link", { name: "1Z999AA10123456784" })).toBeVisible();
+    await expect(shipments.getByText("· UPS · Direct from supplier")).toBeVisible();
   });
 
   test("procurement chases a quiet supplier", async ({ browser }) => {

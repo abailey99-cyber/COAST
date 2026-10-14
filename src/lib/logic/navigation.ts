@@ -30,7 +30,7 @@ export interface Section {
 }
 
 /** The build phase most recently finished. Sections from this phase or earlier are real screens. */
-export const BUILT_THROUGH_PHASE = 2;
+export const BUILT_THROUGH_PHASE = 3;
 
 export function isSectionBuilt(section: Section): boolean {
   return section.phase <= BUILT_THROUGH_PHASE;

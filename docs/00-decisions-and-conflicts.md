@@ -328,3 +328,57 @@ fresh link included). Anyone with "Chase procurement" (sales, sales managers,
 procurement by default) asks procurement about a line from the order page;
 procurement (or whoever asked) answers and closes it. A supplier's answer
 closes any open supplier chase.
+
+## H. Build notes — Phase 3 (14 October 2026)
+
+### H1. One shipment belongs to one order, on one leg — DECIDED
+A shipment carries one or more lines of one order, on one of three legs:
+**inbound** (supplier → our warehouse, for "via warehouse" lines),
+**to the customer** (from stock, or onward from the warehouse) and **direct
+from supplier** (direct-ship lines). Shipments from a supplier (inbound and
+direct) are hidden from anyone without "Supplier names", because a tracking
+number can lead to the supplier (E1, masking). A new permission, **"Add and
+update shipments"**, is on for procurement by default; everyone who can see
+an order sees its shipments.
+
+### H2. Statuses and line stages — DECIDED
+Six shipment statuses: booked (not collected), in transit, out for delivery,
+delivered, problem, not known yet. Carrier statuses map onto these; DHL's
+"out for delivery" is read from its wording. A shipment moving pulls its
+lines forward (never back): in transit → "In transit", delivered →
+"Delivered"; inbound shipments stop at "In transit to us" until goods-in
+(Phase 6). A status or customs status set by hand sticks until someone hands
+it back to the carrier (non-negotiable 3).
+
+### H3. Customs — DEFAULT — CONFIRM
+A shipment to the customer is international if the delivery address is
+outside GB, or in Northern Ireland (BT postcodes, decision C6). Customs status
+is read from carrier wording (latest customs mention wins) and is "Not known"
+when nothing says. Every organisation is assumed to be UK-based.
+
+### H4. Polling — DECIDED (B12, carrier guide)
+One job, `/api/cron/tracking-poll`, every 30 minutes, run by GitHub Actions
+(Vercel's free plan only allows daily jobs). Checks get rarer as a parcel
+settles: 30 minutes when out for delivery, 1 hour for a problem, 2 hours in
+transit, 4 hours when booked or unknown; delivered stops. Failures back off
+from 30 minutes, doubling, up to a day. DHL's 250 a day are spread across the
+day's runs, with 10% kept for "Check now"; a run makes at most 9 DHL calls
+(one per 5 seconds) to finish inside a minute. Every run is logged
+(`cron_runs`) and shown in Settings → Carrier connections.
+
+### H5. Carriers without public APIs — DECIDED
+DPD, Evri and Yodel publish no tracking API. Rather than send a company's key
+to a guessed address, COAST lists them as beta and doesn't call them until
+their integration packs arrive. Royal Mail's portal is semi-public, so its
+adapter is built best-effort and shown as beta.
+
+### H6. Tracking numbers from suppliers become shipments — DECIDED
+When a supplier's pasted reply is applied (or accepted from the review
+queue), each tracking number in it becomes a shipment on the PO's lines,
+per order. The carrier is filled in only when the number's shape is
+unmistakable (UPS `1Z…`, Royal Mail `…GB`, DHL 10 digits, FedEx 12/15/20/22
+digits); otherwise it shows "Carrier not known yet" under Needs attention.
+
+### H7. Claim windows — DECIDED (C9)
+Settings → Carrier connections holds a claim window per carrier for each
+company, blank until set. It's used by delivery exceptions in Phase 7.

@@ -28,6 +28,7 @@ import { confirmedLines, isFullyConfirmed, validateLinkAnswer, type SupplierAnsw
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission, requireStaffForAction, type StaffContext } from "./session";
 import { poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
+import { addSupplierShipments } from "./shipments";
 import { LINK_LIFETIME_DAYS, newLinkToken } from "./tokens";
 
 export interface LoopResult {
@@ -223,7 +224,7 @@ export async function pasteSupplierReply(poId: string, _prev: LoopResult, formDa
     });
     revalidatePo(po.id);
     return result.outcome === "applied"
-      ? { ok: true, message: `Read with high confidence and applied: confirmed for ${formatIsoDate(score.date)}.` }
+      ? { ok: true, message: `Read with high confidence and applied: confirmed for ${formatIsoDate(score.date)}.${result.shipmentsAdded > 0 ? ` Tracking added as ${result.shipmentsAdded === 1 ? "a shipment" : `${result.shipmentsAdded} shipments`}.` : ""}` }
       : { ok: true, message: `Sent to the review queue: ${result.reasons.join(" ")}` };
   } catch (e) {
     return failure(e, "The email couldn't be read. Try again.");
@@ -262,8 +263,10 @@ export async function acceptReviewedResponse(responseId: string, _prev: LoopResu
       fullyConfirmed: isFullyConfirmed(confirmed, check),
       includePrices: canSeeCosts,
     });
+    const added = await addSupplierShipments(supabase, po, response.extras.trackingNumbers ?? []);
     revalidatePo(po.id);
-    return { ok: true, message: isFullyConfirmed(confirmed, check) ? `${po.poNumber} confirmed.` : `Saved. ${po.poNumber} isn't fully confirmed yet.` };
+    const shipped = added > 0 ? ` ${added === 1 ? "A shipment was" : `${added} shipments were`} added from the tracking numbers.` : "";
+    return { ok: true, message: (isFullyConfirmed(confirmed, check) ? `${po.poNumber} confirmed.` : `Saved. ${po.poNumber} isn't fully confirmed yet.`) + shipped };
   } catch (e) {
     return failure(e, "That couldn't be saved. Try again.");
   }

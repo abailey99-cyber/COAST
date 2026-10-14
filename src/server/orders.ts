@@ -23,6 +23,7 @@ import { canRaisePoFor, PO_STATUS_LABELS } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff, type StaffContext } from "./session";
 import { waitingFor, type Waiting } from "./supplier-loop";
+import { loadOrderShipments, type OrderShipments } from "./shipments";
 
 /** Loaders for the order screens. Each checks who's asking first; RLS checks again underneath. */
 
@@ -163,6 +164,7 @@ export interface OrderPage {
   can: { edit: boolean; changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean; chase: boolean };
   suppliers: Supplier[];
   chases: ChaseView[];
+  shipments: OrderShipments;
   /** Lines that can have a new internal chase (no open one, not finished). */
   chaseableLines: { id: string; label: string }[];
 }
@@ -183,12 +185,13 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     chase: hasPermission(staff.permissions, "chases.internal"),
   };
 
-  const [events, team, suppliers, chases, settings] = await Promise.all([
+  const [events, team, suppliers, chases, settings, shipments] = await Promise.all([
     listOrderEvents(supabase, id),
     listStaffInOrg(supabase),
     can.raisePo ? listSuppliers(supabase) : Promise.resolve([] as Supplier[]),
     listChases(supabase, { orderId: id }),
     getChaseSettings(supabase),
+    loadOrderShipments(staff, supabase, id, order.lines),
   ]);
   const now = new Date();
   const names = new Map(team.map((p) => [p.id, p.fullName]));
@@ -245,6 +248,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     })),
     can,
     suppliers: suppliers.filter((s) => s.isActive),
+    shipments,
     chases: chases
       .filter((c) => c.kind === "internal")
       .map((c) => {
