@@ -145,7 +145,7 @@ export function OrderCustomer({ orderId, panel }: { orderId: string; panel: Orde
         <details style={{ borderTop: "1px solid var(--divider)", paddingTop: 10 }}>
           <summary className={ui.strong} style={{ fontSize: 14, cursor: "pointer" }}>COAST accounts · {panel.linkedAccounts.length}</summary>
           <p className={ui.muted} style={{ margin: "8px 0", fontSize: 13 }}>
-            People you've vouched for at this customer. Their free COAST account shows all your orders for this customer
+            People you&apos;ve vouched for at this customer. Their free COAST account shows all your orders for this customer
             automatically, alongside deliveries from other businesses that use COAST.
           </p>
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
@@ -190,7 +190,7 @@ function InviteForm({ orderId }: { orderId: string }) {
     <div style={{ marginTop: 10 }}>
       <form action={action} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div className={ui.strong} style={{ fontSize: 14 }}>Invite someone</div>
-        <p className={ui.muted} style={{ margin: 0, fontSize: 13 }}>Your orders for this customer — this one, the last year's and every new one — will appear in their COAST account automatically.</p>
+        <p className={ui.muted} style={{ margin: 0, fontSize: 13 }}>Your orders for this customer — this one, the last year&apos;s and every new one — will appear in their COAST account automatically.</p>
         <label htmlFor="inv-name" className={ui.label}>Their name</label>
         <input id="inv-name" name="name" maxLength={120} className={ui.input} />
         <label htmlFor="inv-email" className={ui.label}>Their email</label>
