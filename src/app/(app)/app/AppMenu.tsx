@@ -8,9 +8,10 @@ import { activeSectionKey } from "@/lib/logic/navigation";
 import styles from "./shell.module.css";
 
 /**
- * The staff app's main menu: the COAST lockup is the button. Its mark turns
- * a quarter-turn as the menu drops down, and back as it closes. Closes on
- * Escape, on a click outside, and when you go to another page.
+ * The staff app's main menu: three lines that turn from horizontal to
+ * vertical as the menu drops down, and back as it closes. Closes on Escape,
+ * on a click outside, and when you go to another page. The COAST lockup sits
+ * beside it and goes Home.
  */
 export function AppMenu({
   sections,
@@ -66,11 +67,18 @@ export function AppMenu({
           setOpenedAt(pathname);
         }}
       >
-        <Lockup />
+        <span className={styles.burger} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
         {waiting > 0 && !open && (
           <span className={styles.navBadge} aria-hidden="true">{waiting}</span>
         )}
       </button>
+      <Link href="/app/home" className={styles.homeLink} aria-label="COAST home">
+        <Lockup />
+      </Link>
       <div id={menuId} className={styles.menuPanel} hidden={!open}>
         <ul className={styles.navList}>
           {sections.map((s) => (
