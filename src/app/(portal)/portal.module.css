@@ -463,3 +463,25 @@
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* "Add to my COAST account" in the tracking page banner. */
+.heroAction {
+  margin-top: 10px;
+}
+
+.heroAdded {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.heroLink {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+}
+
+.heroLink:hover {
+  color: var(--coast-accent-soft);
+}

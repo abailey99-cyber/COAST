@@ -64,23 +64,27 @@ export function UpdatesForm({
   );
 }
 
-/** "Add to my COAST account" for a signed-in customer. */
+/** Shown in the page banner once the order is in the customer's COAST account. */
+export function InAccount({ message = "In your COAST account" }: { message?: string }) {
+  return (
+    <span className={styles.heroAdded} role="status">
+      <span className={`${styles.pill} ${styles.pillOk}`}>✓ {message}</span>
+      <Link href="/portal" className={styles.heroLink}>All my deliveries</Link>
+    </span>
+  );
+}
+
+/** "Add to my COAST account" for a signed-in customer: one click, no form. */
 export function AddToAccount({ code }: { code: string }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<AccountResult | null>(null);
-  if (result?.ok) {
-    return (
-      <p className={styles.ok} role="status" style={{ textAlign: "center" }}>
-        ✓ {result.message} <Link href="/portal">All my deliveries</Link>
-      </p>
-    );
-  }
+  if (result?.ok) return <InAccount message="Added to your COAST account" />;
   return (
-    <div className={styles.form}>
-      <button type="button" className="btn btn-secondary" disabled={pending} onClick={() => startTransition(async () => setResult(await addThisOrder(code)))}>
+    <span className={styles.heroAdded}>
+      <button type="button" className="btn btn-primary" disabled={pending} onClick={() => startTransition(async () => setResult(await addThisOrder(code)))}>
         {pending ? "Adding…" : "Add to my COAST account"}
       </button>
-      {result?.error && <p className={styles.error} role="alert">{result.error}</p>}
-    </div>
+      {result?.error && <span className={styles.helpError} role="alert">{result.error}</span>}
+    </span>
   );
 }

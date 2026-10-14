@@ -189,9 +189,12 @@ test.describe("customer portal", () => {
   });
 
   test("a customer creates a free account from a tracking page, and adds orders with one click", async ({ browser }) => {
+    test.setTimeout(60_000); // three journeys in one: sign up, one click, sign in and add
     const page = await (await browser.newContext()).newPage();
     await page.goto(`/track/${code}`);
     await expect(page.getByRole("heading", { name: "Track all your deliveries in one place" })).toBeVisible();
+    // The add button sits at the top of the page; signed out, it goes to sign in (with create-an-account there too).
+    await expect(page.getByRole("banner").getByRole("link", { name: "Add to my COAST account" })).toHaveAttribute("href", `/portal/sign-in?add=${code}`);
     await expect(page.getByRole("link", { name: "Get COAST for your business" })).toBeVisible();
     await page.getByRole("link", { name: "Create a free account" }).click();
     await expect(page).toHaveURL(/\/portal\/sign-up\?add=/);
@@ -220,12 +223,25 @@ test.describe("customer portal", () => {
     const otherCode = (await service.from("sales_orders").select("tracking_code").eq("id", other.orderId).single()).data!.tracking_code;
     await page.goto(`/track/${otherCode}`);
     await page.getByRole("button", { name: "Add to my COAST account" }).click();
-    await expect(page.getByText("✓ Added to your COAST account.")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("✓ Added to your COAST account")).toBeVisible({ timeout: 15_000 });
     await page.goto("/portal");
     await expect(page.getByRole("link", { name: other.soNumber })).toBeVisible();
     await expect(page.getByText("Sam Self")).toBeVisible();
     // Self-made accounts aren't vouched for, so nothing is added automatically.
     await expect(page.getByText("● Adds your orders automatically")).toHaveCount(0);
+
+    // Signed out, the top button signs them in and brings them back with the order added.
+    await page.getByRole("button", { name: "Sign out" }).click();
+    const third = await createTestOrder(service, CUSTOMER, [{ description: "Sign-in-and-add item", quantity: 1, route: "from_stock" }]);
+    const thirdCode = (await service.from("sales_orders").select("tracking_code").eq("id", third.orderId).single()).data!.tracking_code;
+    await page.goto(`/track/${thirdCode}`);
+    await page.getByRole("banner").getByRole("link", { name: "Add to my COAST account" }).click();
+    await expect(page).toHaveURL(/\/portal\/sign-in\?add=/);
+    await page.getByLabel("Email").fill(SELF_EMAIL);
+    await page.getByLabel("Password").fill(pw);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(new RegExp(`/track/${thirdCode}\\?added=1$`), { timeout: 15_000 });
+    await expect(page.getByRole("banner").getByText("✓ In your COAST account")).toBeVisible();
   });
 
   test("a business owner registers interest from a tracking page", async ({ browser }) => {

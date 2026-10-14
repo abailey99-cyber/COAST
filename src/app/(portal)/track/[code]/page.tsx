@@ -7,7 +7,7 @@ import { formatRange } from "@/lib/logic/prediction";
 import { loadTrackingPage } from "@/server/customer-view";
 import { getCustomerSession } from "@/server/customer-session";
 import styles from "../../portal.module.css";
-import { AddToAccount, MessageForm, UpdatesForm } from "./CustomerForms";
+import { AddToAccount, InAccount, MessageForm, UpdatesForm } from "./CustomerForms";
 
 // Each tracking page is private to whoever holds the code.
 export const metadata: Metadata = { title: "Order tracking", robots: { index: false, follow: false }, referrer: "no-referrer" };
@@ -83,6 +83,16 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
           <div className={styles.heroStatus}>
             <span className={`${styles.pill} ${PILL[v.status.tone]}`}>● {v.status.label}</span>
             <span>Last updated {formatDateTime(new Date(v.lastUpdated))}</span>
+          </div>
+          {/* Top left, where it's seen first: keep this order with all their others. */}
+          <div className={styles.heroAction}>
+            {signedIn && page.inAccount ? (
+              <InAccount />
+            ) : signedIn ? (
+              <AddToAccount code={page.code} />
+            ) : (
+              <Link href={`/portal/sign-in?add=${page.code}`} className="btn btn-primary">Add to my COAST account</Link>
+            )}
           </div>
         </div>
       </header>
@@ -181,13 +191,6 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
               />
             </section>
 
-            {signedIn && (page.inAccount ? (
-              <p className={styles.ok} style={{ textAlign: "center" }}>
-                ✓ In your COAST account · <Link href="/portal">All my deliveries</Link>
-              </p>
-            ) : (
-              <AddToAccount code={page.code} />
-            ))}
           </div>
         </div>
 
