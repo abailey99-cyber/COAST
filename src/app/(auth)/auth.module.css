@@ -1,0 +1,135 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--coast-deep-sea);
+}
+
+.header {
+  max-width: var(--width-marketing);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plainLink {
+  text-decoration: none;
+}
+
+.back {
+  font-size: 14px;
+  color: var(--coast-accent-soft);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: #ffffff;
+}
+
+.main {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px var(--gutter) 64px;
+  background: transparent;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-size: 28px;
+}
+
+.lede {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--coast-sea-mist);
+}
+
+.tab {
+  height: 44px;
+  border-radius: var(--radius-control);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--coast-deep-sea);
+  color: #ffffff;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.smallLink {
+  font-size: 13px;
+}
+
+.foot {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .header {
+    padding: 16px;
+  }
+
+  .main {
+    padding: 16px 16px 48px;
+  }
+
+  .card {
+    padding: 24px 20px;
+  }
+}

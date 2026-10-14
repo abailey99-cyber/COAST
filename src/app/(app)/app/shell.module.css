@@ -1,0 +1,227 @@
+/* Staff app shell — App.dc.html. Dark by default; data-theme on .shell. */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sidebar {
+  flex: 1 1 220px;
+  max-width: 260px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--divider);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.brand {
+  padding: 0 4px;
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.navItem:hover {
+  color: var(--text-strong);
+  background: var(--selected);
+}
+
+.navItem[aria-current="page"] {
+  background: var(--selected);
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+.userCard {
+  margin-top: auto;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.userName {
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+
+.signOut {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--link);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 24px;
+}
+
+.main {
+  flex: 999 1 640px;
+  min-width: 0;
+  padding: 28px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pageTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pageTitle {
+  font-size: 26px;
+}
+
+.pageSubtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pageActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.themeToggle {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.themeToggle button {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+/* Light selected → Deep Sea; Dark selected → Tide Teal Deep (mockup). White text on both passes AA. */
+.themeToggle button[aria-pressed="true"]:first-child {
+  background: var(--coast-deep-sea);
+  color: #ffffff;
+}
+
+.themeToggle button[aria-pressed="true"]:last-child {
+  background: var(--coast-tide-teal-deep);
+  color: #ffffff;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cardTitle {
+  font-size: 16px;
+}
+
+.cardText {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 520px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  padding: 10px 12px;
+}
+
+.table td {
+  border-top: 1px solid var(--divider);
+  padding: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .sidebar {
+    max-width: none;
+    flex-basis: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--divider);
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .navList {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .main {
+    padding: 20px 16px;
+  }
+}

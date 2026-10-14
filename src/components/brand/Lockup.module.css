@@ -1,0 +1,50 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* Clear space: at least the dot's diameter (handoff §3). */
+  padding: 4px;
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.name {
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-wordmark);
+  color: var(--text-strong);
+}
+
+.sub {
+  letter-spacing: var(--ls-wordmark-sub);
+  color: var(--eyebrow);
+}
+
+.nav .name { font-size: 19px; }
+.nav .sub { font-size: 10px; }
+.large .name { font-size: 28px; }
+.large .sub { font-size: 12px; }
+
+/* Which mark shows: the ring is navy on light, white on dark. */
+.markDark { display: none; }
+
+:global([data-theme="dark"]) .lockup[data-tone="auto"] .markLight,
+:global(.band-dark) .lockup[data-tone="auto"] .markLight,
+.lockup[data-tone="dark"] .markLight {
+  display: none;
+}
+
+:global([data-theme="dark"]) .lockup[data-tone="auto"] .markDark,
+:global(.band-dark) .lockup[data-tone="auto"] .markDark,
+.lockup[data-tone="dark"] .markDark {
+  display: block;
+}
+
+.lockup[data-tone="dark"] .name { color: #ffffff; }
+.lockup[data-tone="dark"] .sub { color: var(--coast-accent-soft); }
+
+.lockup[data-tone="light"] .markLight { display: block; }
+.lockup[data-tone="light"] .markDark { display: none; }

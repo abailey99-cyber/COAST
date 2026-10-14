@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="COAST mark">
+  <path d="M50 60 L118 40 L118 80 Z" fill="#1F8A9C" fill-opacity="0.3"/>
+  <path d="M88.1 38 A44 44 0 1 0 88.1 82" fill="none" stroke="#0E2A3B" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="50" cy="60" r="12" fill="#1F8A9C"/>
+</svg>

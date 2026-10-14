@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+playwright-report/
+test-results/
+coverage/
+
+# env — real values never committed (.env.example is the template)
+.env
+.env.local
+.env.*.local
+
+# supabase CLI working files
+supabase/.temp/
+supabase/.branches/
+
+# misc
+.DS_Store
+Thumbs.db
+*.log
+.vercel

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>COAST orders dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F6F80}a:hover{color:#0E2A3B}
+</style>
+</helmet>
+<div style="min-height: 1000px; background: {{t.bg}}; font-family: 'Sora', sans-serif; color: {{t.text}}; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Main" style="flex: 1 1 220px; max-width: 260px; background: {{t.side}}; border-right: 1px solid {{t.divider}}; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+<svg width="36" height="36" viewBox="0 0 120 120" aria-hidden="true">
+<path d="M50 60 L118 40 L118 80 Z" fill="{{accent}}" fill-opacity="0.5"></path>
+<path d="M88.1 38 A44 44 0 1 0 88.1 82" fill="none" stroke="{{t.ring}}" stroke-width="10" stroke-linecap="round"></path>
+<circle cx="50" cy="60" r="13" fill="{{accent}}"></circle>
+</svg>
+<div style="display: flex; flex-direction: column"><div style="font-size: 18px; font-weight: 700; letter-spacing: 0.1em; color: {{t.strong}}">COAST</div><div style="font-size: 10px; letter-spacing: 0.32em; color: {{t.soft}}">VISIBILITY</div></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="#" style="padding: 12px; border-radius: 10px; background: {{t.selected}}; color: {{t.strong}}; text-decoration: none; font-size: 14px; font-weight: 600">Orders</a>
+<a href="#" style="padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Purchase orders</a>
+<a href="#" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Review queue <span style="background: #1A7584; color: #FFFFFF; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600">3</span></a>
+<a href="#" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Chases <span style="background: {{t.warnBg}}; color: {{t.warnText}}; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600">5</span></a>
+<a href="#" style="padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Shipments</a>
+<a href="#" style="padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Suppliers</a>
+<a href="#" style="padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Metrics</a>
+<a href="#" style="padding: 12px; border-radius: 10px; color: {{t.text2}}; text-decoration: none; font-size: 14px">Settings</a>
+</div>
+<div style="margin-top: auto; padding: 12px; border-radius: 10px; background: {{t.raised}}; font-size: 12px; color: {{t.text2}}; line-height: 1.6">Carrier connections<br><span style="color: {{t.ok}}">● 7 healthy</span>  <span style="color: {{t.warn}}">● 1 check</span></div>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; padding: 28px 36px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700; color: {{t.strong}}">Orders</h1>
+<div style="font-size: 13px; color: {{t.muted}}">Every order from PO to doorstep · demo data</div>
+</div>
+<div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center">
+<div role="group" aria-label="Theme" style="display: flex; padding: 4px; border-radius: 12px; background: {{t.surface}}; border: 1px solid {{t.border}}">
+<button aria-pressed="{{isLight}}" onClick="{{setLight}}" style="height: 36px; padding: 0 14px; border-radius: 9px; border: 0; background: {{lightBtnBg}}; color: {{lightBtnText}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Light</button>
+<button aria-pressed="{{isDark}}" onClick="{{setDark}}" style="height: 36px; padding: 0 14px; border-radius: 9px; border: 0; background: {{darkBtnBg}}; color: {{darkBtnText}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Dark</button>
+</div>
+<label for="search" style="position: absolute; left: -9999px">Search orders</label>
+<input id="search" type="search" placeholder="Search order, customer, PO, tracking…" style="width: 280px; max-width: 100%; height: 44px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.strong}}; padding: 0 14px; font-family: inherit; font-size: 14px; box-sizing: border-box">
+<button style="height: 44px; padding: 0 18px; border-radius: 10px; border: 0; background: #1A7584; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600">New order</button>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px">
+<div style="background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><div style="font-size: 13px; color: {{t.muted}}">Open orders</div><div style="font-size: 32px; font-weight: 700; color: {{t.strong}}">148</div></div>
+<div style="background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><div style="font-size: 13px; color: {{t.muted}}">At risk</div><div style="font-size: 32px; font-weight: 700; color: {{t.warn}}">9</div></div>
+<div style="background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><div style="font-size: 13px; color: {{t.muted}}">Awaiting supplier</div><div style="font-size: 32px; font-weight: 700; color: {{t.strong}}">23</div></div>
+<div style="background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px"><div style="font-size: 13px; color: {{t.muted}}">Auto-confirmed this week</div><div style="font-size: 32px; font-weight: 700; color: {{t.soft}}">61%</div></div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-label="Order list" style="flex: 999 1 560px; min-width: 0; background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 8px 0">
+<div style="display: flex; gap: 8px; padding: 12px 20px; flex-wrap: wrap">
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: {{t.selected}}; color: {{t.strong}}; font-family: inherit; font-size: 13px; font-weight: 600">All open</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.border}}; background: transparent; color: {{t.text2}}; font-family: inherit; font-size: 13px">At risk</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.border}}; background: transparent; color: {{t.text2}}; font-family: inherit; font-size: 13px">Direct ship</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.border}}; background: transparent; color: {{t.text2}}; font-family: inherit; font-size: 13px">Delivered</button>
+</div>
+<div style="overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px">
+<thead><tr style="color: {{t.muted}}; text-align: left"><th style="padding: 10px 20px; font-weight: 600">Order</th><th style="padding: 10px 12px; font-weight: 600">Customer</th><th style="padding: 10px 12px; font-weight: 600">Fulfilment</th><th style="padding: 10px 12px; font-weight: 600">Stage</th><th style="padding: 10px 12px; font-weight: 600">Predicted</th><th style="padding: 10px 20px; font-weight: 600">Status</th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+<tr style="border-top: 1px solid {{t.divider}}; background: {{r.bg}}"><td style="padding: 14px 20px; font-weight: 600; color: {{t.strong}}">{{r.so}}</td><td style="padding: 14px 12px">{{r.cust}}</td><td style="padding: 14px 12px">{{r.ful}}</td><td style="padding: 14px 12px">{{r.stage}}</td><td style="padding: 14px 12px">{{r.date}}</td><td style="padding: 14px 20px"><span style="color: {{r.color}}">● {{r.status}}</span></td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<aside aria-label="Selected order" style="flex: 1 1 300px; background: {{t.surface}}; border: 1px solid {{t.cardBorder}}; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center"><div style="font-size: 16px; font-weight: 700; color: {{t.strong}}">SO-10421</div><span style="font-size: 12px; color: {{t.ok}}">● On track</span></div>
+<div style="font-size: 13px; color: {{t.muted}}">Predicted delivery <span style="color: {{t.strong}}; font-weight: 600">Thu 16 Oct</span></div>
+<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; font-size: 13px">
+<li style="display: flex; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{accent}}; margin-top: 4px; flex-shrink: 0"></span><div><div style="color: {{t.strong}}">Supplier confirmed 16 Oct</div><div style="color: {{t.muted}}">Magic link · high confidence · 10:42</div></div></li>
+<li style="display: flex; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{accent}}; margin-top: 4px; flex-shrink: 0"></span><div><div style="color: {{t.strong}}">PO emailed to supplier</div><div style="color: {{t.muted}}">Automatic · Mon 09:15</div></div></li>
+<li style="display: flex; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{t.border}}; margin-top: 4px; flex-shrink: 0"></span><div><div style="color: {{t.strong}}">Order created</div><div style="color: {{t.muted}}">Mon 09:14</div></div></li>
+</ol>
+<div style="border-top: 1px solid {{t.divider}}; padding-top: 14px; font-size: 13px; color: {{t.muted}}; line-height: 1.5">Customer view shows: <span style="color: {{t.strong}}">“Confirmed — arriving Thursday 16 October.”</span> No supplier name or PO.</div>
+<button style="height: 44px; border-radius: 10px; border: 1px solid {{t.border}}; background: transparent; color: {{t.strong}}; font-family: inherit; font-size: 14px; font-weight: 600">Copy customer tracking link</button>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F8A9C","options":["#1F8A9C","#E07A3F","#2E6FD8","#3BA37A"]},"startTheme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const theme = (this.state && this.state.theme) || this.props.startTheme || 'dark';
+const dark = {
+bg: '#0A1F2C', side: '#0E2A3B', surface: '#0E2A3B', raised: '#12344A', selected: '#173B4F',
+divider: '#1B4258', border: '#24506A', cardBorder: '#0E2A3B', text: '#E6EEF0', text2: '#C9D6DA',
+muted: '#9FB4BC', strong: '#FFFFFF', soft: '#8FD0DA', ring: '#FFFFFF',
+ok: '#7FE0A8', warn: '#FFC37A', bad: '#FF9C8A', neutral: '#9FB4BC',
+warnBg: '#6B3A1E', warnText: '#FFD3B5', rowSel: '#12344A'
+};
+const light = {
+bg: '#F4F6F5', side: '#FFFFFF', surface: '#FFFFFF', raised: '#F4F6F5', selected: '#E3F1F3',
+divider: '#E3E9EB', border: '#C9D6DA', cardBorder: '#E3E9EB', text: '#0E2A3B', text2: '#3D5A66',
+muted: '#5E7884', strong: '#0E2A3B', soft: '#1F6F80', ring: '#0E2A3B',
+ok: '#2C7A4E', warn: '#9A5A12', bad: '#B23A26', neutral: '#5E7884',
+warnBg: '#FCE7D6', warnText: '#8A4513', rowSel: '#F0F7F8'
+};
+const t = theme === 'light' ? light : dark;
+const base = [
+{ so: 'SO-10421', cust: '[Customer A]', ful: 'Direct ship', stage: 'Supplier confirmed', date: '16 Oct', status: 'On track', k: 'ok', sel: true },
+{ so: 'SO-10418', cust: '[Customer B]', ful: 'Via warehouse', stage: 'In transit to us', date: '14–15 Oct', status: 'On track', k: 'ok' },
+{ so: 'SO-10409', cust: '[Customer C]', ful: 'Direct ship', stage: 'Awaiting supplier', date: 'w/c 20 Oct', status: 'At risk', k: 'warn' },
+{ so: 'SO-10402', cust: '[Customer D]', ful: 'From stock', stage: 'Out for delivery', date: 'Today', status: 'On track', k: 'ok' },
+{ so: 'SO-10396', cust: '[Customer E]', ful: 'Via warehouse', stage: 'Discrepancy · qty', date: '17 Oct', status: 'Review', k: 'bad' },
+{ so: 'SO-10388', cust: '[Customer F]', ful: 'Direct ship', stage: 'Delivered', date: '10 Oct', status: 'Delivered', k: 'neutral' }
+];
+const rows = base.map((r) => ({ ...r, color: t[r.k], bg: r.sel ? t.rowSel : 'transparent' }));
+const isLight = theme === 'light';
+return {
+accent: this.props.accent ?? '#1F8A9C',
+t, rows,
+isLight: isLight ? 'true' : 'false',
+isDark: isLight ? 'false' : 'true',
+lightBtnBg: isLight ? '#0E2A3B' : 'transparent',
+lightBtnText: isLight ? '#FFFFFF' : t.text2,
+darkBtnBg: isLight ? 'transparent' : '#1A7584',
+darkBtnText: isLight ? t.text2 : '#FFFFFF',
+setLight: () => this.setState({ theme: 'light' }),
+setDark: () => this.setState({ theme: 'dark' })
+};
+}
+}
+</script>
+</body>
+</html>

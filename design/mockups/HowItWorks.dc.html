@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How COAST works</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F5}
+a{color:#1F6F80}a:hover{color:#0E2A3B}
+</style>
+</helmet>
+<div style="font-family: 'Sora', sans-serif; color: #0E2A3B; background: #F4F6F5">
+
+<header style="background: #0E2A3B">
+<div style="max-width: 1200px; margin: 0 auto; padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between">
+<a href="Website.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none">
+<svg width="40" height="40" viewBox="0 0 120 120" aria-hidden="true">
+<path d="M50 60 L118 40 L118 80 Z" fill="{{accent}}" fill-opacity="0.5"></path>
+<path d="M88.1 38 A44 44 0 1 0 88.1 82" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="50" cy="60" r="12" fill="{{accent}}"></circle>
+</svg>
+<span style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: #FFFFFF">COAST</span><span style="font-size: 10px; letter-spacing: 0.32em; color: #8FD0DA">VISIBILITY</span></span>
+</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 26px; align-items: center; font-size: 15px">
+<a href="HowItWorks.dc.html" style="color: #FFFFFF; text-decoration: none; font-weight: 600">How it works</a>
+<a href="Integrations.dc.html" style="color: #C9D6DA; text-decoration: none">Integrations</a>
+<a href="Pricing.dc.html" style="color: #C9D6DA; text-decoration: none">Pricing</a>
+<a href="SignIn.dc.html" style="color: #C9D6DA; text-decoration: none">Sign in</a>
+<a href="Website.dc.html#interest" style="display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 10px; background: #1A7584; color: #FFFFFF; text-decoration: none; font-weight: 600">Register interest</a>
+</nav>
+</div>
+<div style="max-width: 1200px; margin: 0 auto; padding: 48px 24px 72px; display: flex; flex-direction: column; gap: 16px">
+<div style="font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: #8FD0DA">How it works</div>
+<h1 style="margin: 0; font-size: clamp(2.2rem, 4vw, 3.2rem); line-height: 1.1; color: #FFFFFF; max-width: 800px">One order, followed from purchase order to doorstep.</h1>
+<p style="margin: 0; font-size: 17px; line-height: 1.6; color: #C9D6DA; max-width: 680px">COAST sits alongside your ERP and follows every order through each handoff: you to supplier, supplier to warehouse or straight to your customer, and carrier to doorstep. Here's exactly what happens at each step, what runs automatically, and where a person stays in control.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px">
+<a href="#phase-1" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; background: #173B4F; color: #FFFFFF; text-decoration: none; font-size: 14px">1 · Order &amp; PO</a>
+<a href="#phase-2" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; background: #173B4F; color: #FFFFFF; text-decoration: none; font-size: 14px">2 · Supplier response</a>
+<a href="#phase-3" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; background: #173B4F; color: #FFFFFF; text-decoration: none; font-size: 14px">3 · On the move</a>
+<a href="#phase-4" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px; background: #173B4F; color: #FFFFFF; text-decoration: none; font-size: 14px">4 · Delivered &amp; learning</a>
+</div>
+</div>
+</header>
+
+<section aria-label="Three ways to fulfil" style="max-width: 1200px; margin: 0 auto; padding: 64px 24px 16px; display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-size: 24px">It starts with how each line is fulfilled</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #3D5A66; max-width: 760px">Every order line is tagged with how it will reach the customer. COAST uses this to pick the right stages to track, so a stock item isn't left waiting for a supplier that doesn't exist.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px"><div style="font-size: 17px; font-weight: 600">From stock</div><div style="font-size: 14px; color: #3D5A66; line-height: 1.6">Already on your shelves. COAST tracks it from dispatch to delivery.</div><div style="font-size: 12px; color: #5E7884">Picked → Dispatched → In transit → Delivered</div></div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px"><div style="font-size: 17px; font-weight: 600">Via your warehouse</div><div style="font-size: 14px; color: #3D5A66; line-height: 1.6">Bought in, received by you, then sent on. COAST tracks both legs of the journey.</div><div style="font-size: 12px; color: #5E7884">PO → Confirmed → Inbound → Received → Dispatched → Delivered</div></div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px"><div style="font-size: 17px; font-weight: 600">Direct from supplier</div><div style="font-size: 14px; color: #3D5A66; line-height: 1.6">The supplier ships straight to your customer, with the supplier's identity masked throughout.</div><div style="font-size: 12px; color: #5E7884">PO → Confirmed → Dispatched → In transit → Delivered</div></div>
+</div>
+</section>
+
+<sc-for list="{{phases}}" as="p" hint-placeholder-count="4">
+<section id="{{p.id}}" aria-label="{{p.title}}" style="max-width: 1200px; margin: 0 auto; padding: 56px 24px 8px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 52px; height: 52px; border-radius: 14px; background: #0E2A3B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; flex-shrink: 0">{{p.n}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px"><div style="font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: #1F6F80">Phase {{p.n}}</div><h2 style="margin: 0; font-size: clamp(1.6rem, 2.6vw, 2.1rem)">{{p.title}}</h2></div>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0 0 0 26px; border-left: 2px solid #C9D6DA; display: flex; flex-direction: column; gap: 18px">
+<sc-for list="{{p.steps}}" as="s" hint-placeholder-count="3">
+<li style="position: relative; background: #FFFFFF; border-radius: 16px; padding: 24px 26px; display: flex; flex-direction: column; gap: 12px">
+<span style="position: absolute; left: -36px; top: 28px; width: 18px; height: 18px; border-radius: 50%; background: {{accent}}; border: 4px solid #F4F6F5; box-sizing: border-box"></span>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center">
+<div style="display: flex; align-items: baseline; gap: 12px"><span style="font-size: 14px; font-weight: 700; color: #1F6F80">Step {{s.num}}</span><h3 style="margin: 0; font-size: 19px; font-weight: 600">{{s.title}}</h3></div>
+<span style="font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px; background: {{s.chipBg}}; color: {{s.chipText}}">{{s.mode}}</span>
+</div>
+<p style="margin: 0; font-size: 15px; line-height: 1.65; color: #3D5A66">{{s.body}}</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: #5E7884"><span><span style="font-weight: 600; color: #0E2A3B">Who:</span> {{s.who}}</span><span><span style="font-weight: 600; color: #0E2A3B">Customer sees:</span> {{s.sees}}</span></div>
+</li>
+</sc-for>
+</ol>
+</section>
+</sc-for>
+
+<section aria-label="Confidence" style="max-width: 1200px; margin: 0 auto; padding: 80px 24px 24px">
+<div style="background: #0E2A3B; border-radius: 24px; padding: 48px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 10px"><div style="font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: #8FD0DA">How COAST decides</div><h2 style="margin: 0; font-size: clamp(1.7rem, 2.8vw, 2.2rem); color: #FFFFFF">Automatic when it's sure. Your call when it isn't.</h2><p style="margin: 0; font-size: 15px; line-height: 1.6; color: #C9D6DA; max-width: 720px">Every piece of information records where it came from and how confident COAST is in it. The rules are fixed and traceable, so you can always see why something happened.</p></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px">
+<div style="background: #12344A; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px"><div style="font-size: 13px; font-weight: 700; color: #7FE0A8">● High confidence → applied automatically</div><ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; color: #E6EEF0"><li>Supplier confirms through the magic link</li><li>Email matches a known supplier template</li><li>A tracking number is detected</li><li>A single, clear delivery date</li></ul></div>
+<div style="background: #12344A; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 10px"><div style="font-size: 13px; font-weight: 700; color: #FFC37A">● Medium or low → sent to the review queue</div><ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; color: #E6EEF0"><li>Vague wording like "ASAP" or "end of month"</li><li>A date range rather than a date</li><li>Conflicting details in one email</li><li>Nothing changes until someone accepts, edits or rejects</li></ul></div>
+</div>
+</div>
+</section>
+
+<section aria-label="Who sees what" style="max-width: 1200px; margin: 0 auto; padding: 72px 24px 24px; display: flex; flex-direction: column; gap: 22px">
+<h2 style="margin: 0; font-size: clamp(1.7rem, 2.8vw, 2.2rem)">Who sees what</h2>
+<div style="background: #FFFFFF; border-radius: 16px; overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px">
+<thead><tr style="text-align: left; background: #0E2A3B; color: #FFFFFF"><th style="padding: 14px 20px; font-weight: 600">Role</th><th style="padding: 14px 16px; font-weight: 600">Orders</th><th style="padding: 14px 16px; font-weight: 600">Supplier names &amp; POs</th><th style="padding: 14px 16px; font-weight: 600">Costs</th><th style="padding: 14px 20px; font-weight: 600">Settings &amp; team</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #E3E9EB"><td style="padding: 14px 20px; font-weight: 600">Admin</td><td style="padding: 14px 16px">All</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 20px">Yes</td></tr>
+<tr style="border-top: 1px solid #E3E9EB"><td style="padding: 14px 20px; font-weight: 600">Procurement</td><td style="padding: 14px 16px">All</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 20px">No</td></tr>
+<tr style="border-top: 1px solid #E3E9EB"><td style="padding: 14px 20px; font-weight: 600">Sales</td><td style="padding: 14px 16px">Their orders</td><td style="padding: 14px 16px">No</td><td style="padding: 14px 16px">No</td><td style="padding: 14px 20px">No</td></tr>
+<tr style="border-top: 1px solid #E3E9EB"><td style="padding: 14px 20px; font-weight: 600">Director</td><td style="padding: 14px 16px">All, read-only</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 16px">Yes</td><td style="padding: 14px 20px">View only</td></tr>
+<tr style="border-top: 1px solid #E3E9EB; background: #F0F7F8"><td style="padding: 14px 20px; font-weight: 600">Customer</td><td style="padding: 14px 16px">Their own</td><td style="padding: 14px 16px">Never</td><td style="padding: 14px 16px">Never</td><td style="padding: 14px 20px">No</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5E7884">Customer masking is enforced in the data layer. A customer screen can't request supplier information, so there's nothing to accidentally display.</p>
+</section>
+
+<section aria-label="Get started" style="max-width: 1200px; margin: 0 auto; padding: 64px 24px 88px">
+<div style="background: #FFFFFF; border-radius: 24px; padding: 44px 48px; display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 8px"><h2 style="margin: 0; font-size: 28px">See it with your own orders</h2><p style="margin: 0; font-size: 16px; color: #3D5A66">Register interest and we'll walk you through COAST.</p></div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px"><a href="Website.dc.html#interest" style="display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 12px; background: #1A7584; color: #FFFFFF; text-decoration: none; font-weight: 600">Register interest</a><a href="Integrations.dc.html" style="display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 12px; border: 1px solid #C9D6DA; color: #0E2A3B; text-decoration: none; font-weight: 600">See integrations</a></div>
+</div>
+</section>
+
+<footer style="border-top: 1px solid #D5DEE1">
+<div style="max-width: 1200px; margin: 0 auto; padding: 28px 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; font-size: 14px; color: #3D5A66">
+<div>© 2026 COAST Visibility Ltd</div>
+<div style="display: flex; gap: 24px"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Contact</a></div>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F8A9C","options":["#1F8A9C","#E07A3F","#2E6FD8","#3BA37A"]},"$preview":{"width":1440,"height":3600}}'>
+class Component extends DCLogic {
+renderVals() {
+const chip = {
+auto: { bg: '#E3F4EA', text: '#2C7A4E' },
+person: { bg: '#FCEBD8', text: '#8A4513' },
+mixed: { bg: '#E3F1F3', text: '#1F6F80' }
+};
+const S = (num, title, body, kind, mode, who, sees) => ({ num, title, body, mode, who, sees, chipBg: chip[kind].bg, chipText: chip[kind].text });
+const phases = [
+{ id: 'phase-1', n: 1, title: 'Order and purchase order', steps: [
+S(1, 'The order comes in', 'A sales order is added with the customer, lines, quantities, prices and currency, and each line is tagged by how it will be fulfilled. Today that is entered in COAST; NetSuite sync is in development so orders arrive automatically.', 'mixed', 'Manual today · automatic soon', 'Sales or procurement', 'Order received'),
+S(2, 'The PO goes to the supplier', 'As soon as a line has a supplier and a PO number, COAST creates the purchase order and emails it. The email asks for a delivery date in plain English and includes a dedicated reply address and a no-login confirmation link.', 'auto', 'Automatic', 'COAST, procurement oversees', 'Order received')
+]},
+{ id: 'phase-2', n: 2, title: 'The supplier responds', steps: [
+S(3, 'Replies are captured', 'Suppliers can confirm in two ways. They can use the link to enter a date or a range per line on any device, or they can reply by email, including automated acknowledgements from no-reply addresses. COAST watches the inbox and matches each email to the right PO by reply address, PO number or the supplier’s own reference.', 'auto', 'Automatic', 'Supplier', 'Awaiting confirmation · estimate shown as a range'),
+S(4, 'COAST reads and scores it', 'COAST pulls out the confirmed date, quantity, price and any tracking number, then scores how sure it is. High-confidence information updates the order on its own. Anything vaguer goes to the review queue for a person to accept, edit or reject.', 'mixed', 'Automatic + review queue', 'COAST, procurement reviews', 'Nothing changes until confirmed'),
+S(5, 'Mismatches are flagged', 'If the supplier’s quantity, price, product code or date doesn’t match the order, that line is flagged. Partial confirmations are flagged too, for example when some units are confirmed and the rest are on back order. Nothing is accepted silently.', 'person', 'You decide', 'Procurement', 'Last confirmed date is kept')
+]},
+{ id: 'phase-3', n: 3, title: 'On the move', steps: [
+S(6, 'Tracking numbers become live shipments', 'When a tracking number turns up, whether by email, link or manual entry, COAST creates a shipment and starts polling the carrier for updates. For direct shipments the customer only ever sees “dispatched”, never who sent it or from where.', 'auto', 'Automatic', 'COAST', 'Dispatched · carrier updates'),
+S(7, 'The delivery date keeps itself current', 'Every new piece of information, from a supplier ETA to dispatch to carrier movement, recalculates the predicted delivery date. If it slips past the promised date, the order is marked at risk and the line holding it up is highlighted.', 'auto', 'Automatic', 'COAST, sales see at-risk orders', 'Updated delivery date'),
+S(8, 'Quiet suppliers and carriers get chased', 'Timers watch every PO and shipment. If a supplier hasn’t acknowledged within their agreed window, or a carrier update stalls, an escalating chase starts automatically, and every chase and its outcome is logged.', 'auto', 'Automatic', 'COAST, procurement steps in if needed', 'No change; chasing is internal')
+]},
+{ id: 'phase-4', n: 4, title: 'Delivered, and getting smarter', steps: [
+S(9, 'The customer gets an honest answer throughout', 'From the first estimate to the final delivery, the customer portal and tracking link show the predicted date, a plain-English stage and the latest genuine update. Unconfirmed dates are shown as ranges, never dressed up as certain.', 'auto', 'Automatic', 'Customer', 'Delivered'),
+S(10, 'Every order feeds the metrics', 'Response rates, how much was handled automatically versus reviewed, how often people overrode a suggestion, supplier response times and, over time, which suppliers reliably run late. These are the numbers that make the next order go smoother.', 'auto', 'Automatic', 'Procurement, admin and directors', 'Nothing; metrics are internal')
+]}
+];
+return { accent: this.props.accent ?? '#1F8A9C', phases };
+}
+}
+</script>
+</body>
+</html>

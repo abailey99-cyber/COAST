@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Order tracking</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F5}
+a{color:#1F6F80}a:hover{color:#0E2A3B}
+</style>
+</helmet>
+<div style="font-family: 'Sora', sans-serif; color: #0E2A3B; background: #F4F6F5; min-height: 1200px">
+
+<header style="background: #0E2A3B">
+<div style="max-width: 960px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="width: 40px; height: 40px; border-radius: 10px; border: 1px dashed #5E8597; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #9FB4BC">LOGO</div>
+<div style="font-size: 17px; font-weight: 600; color: #FFFFFF">[Your company]</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9FB4BC">Tracking by
+<svg width="18" height="18" viewBox="0 0 120 120" aria-hidden="true">
+<path d="M50 60 L118 40 L118 80 Z" fill="{{accent}}" fill-opacity="0.5"></path>
+<path d="M88.1 38 A44 44 0 1 0 88.1 82" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"></path>
+<circle cx="50" cy="60" r="14" fill="{{accent}}"></circle>
+</svg>
+<span style="font-weight: 700; letter-spacing: 0.1em; color: #FFFFFF">COAST</span></div>
+</div>
+<div style="max-width: 960px; margin: 0 auto; padding: 32px 24px 56px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 14px; color: #9FB4BC">Order SO-10421 · placed Mon 6 October</div>
+<h1 style="margin: 0; font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 700; color: #FFFFFF; line-height: 1.15">Arriving Thursday 16 October</h1>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center"><span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: #173B4F; color: #7FE0A8; font-size: 13px; font-weight: 600">● Confirmed · on track</span><span style="font-size: 13px; color: #9FB4BC">Last updated today, 10:42</span></div>
+</div>
+</header>
+
+<main style="max-width: 960px; margin: -28px auto 0; padding: 0 24px 64px; display: flex; flex-direction: column; gap: 20px">
+
+<section aria-label="Progress" style="background: #FFFFFF; border-radius: 18px; padding: 28px; box-shadow: 0 1px 2px rgba(14,42,59,0.06), 0 8px 24px rgba(14,42,59,0.06); display: flex; flex-direction: column; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<div style="height: 8px; border-radius: 4px; background: {{accent}}"></div>
+<div style="height: 8px; border-radius: 4px; background: {{accent}}"></div>
+<div style="height: 8px; border-radius: 4px; background: {{accent}}"></div>
+<div style="height: 8px; border-radius: 4px; background: #D5DEE1"></div>
+<div style="height: 8px; border-radius: 4px; background: #D5DEE1"></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; font-size: 13px; color: #3D5A66">
+<span>Ordered</span><span>Confirmed</span><span style="color: #0E2A3B; font-weight: 600">Dispatched</span><span>In transit</span><span>Delivered</span>
+</div>
+<div style="background: #F4F6F5; border-radius: 12px; padding: 16px 18px; font-size: 15px; line-height: 1.6">Your order has been dispatched and is on schedule for delivery on Thursday 16 October.</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section aria-label="Updates" style="flex: 999 1 420px; min-width: 0; background: #FFFFFF; border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Updates</h2>
+<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px">
+<li style="display: flex; gap: 14px"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{accent}}; margin-top: 4px; flex-shrink: 0"></span><div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span style="font-size: 15px; font-weight: 600">Dispatched</span><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #1F6F80; background: #E3F1F3; padding: 3px 8px; border-radius: 999px">CARRIER · DHL EXPRESS</span></div><div style="font-size: 13px; color: #3D5A66">Today, 10:42 · Tracking 12 3456 7890</div></div></li>
+<li style="display: flex; gap: 14px"><span style="width: 12px; height: 12px; border-radius: 50%; background: {{accent}}; margin-top: 4px; flex-shrink: 0"></span><div style="display: flex; flex-direction: column; gap: 4px"><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span style="font-size: 15px; font-weight: 600">Delivery date confirmed: 16 October</span><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #3D5A66; background: #EDF1F2; padding: 3px 8px; border-radius: 999px">SHIPPER UPDATE</span></div><div style="font-size: 13px; color: #3D5A66">Wed 8 October, 14:05</div></div></li>
+<li style="display: flex; gap: 14px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #9FB4BC; margin-top: 4px; flex-shrink: 0"></span><div style="display: flex; flex-direction: column; gap: 4px"><div style="font-size: 15px; font-weight: 600">Estimated 14–17 October</div><div style="font-size: 13px; color: #3D5A66">Mon 6 October, 16:20 · shown as a range until confirmed</div></div></li>
+<li style="display: flex; gap: 14px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #9FB4BC; margin-top: 4px; flex-shrink: 0"></span><div style="display: flex; flex-direction: column; gap: 4px"><div style="font-size: 15px; font-weight: 600">Order received</div><div style="font-size: 13px; color: #3D5A66">Mon 6 October, 09:14</div></div></li>
+</ol>
+</section>
+
+<aside style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 20px">
+<section aria-label="Order details" style="background: #FFFFFF; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">In this order</h2>
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span>[Product line 1]</span><span style="color: #3D5A66">× 12</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span>[Product line 2]</span><span style="color: #3D5A66">× 12</span></div>
+<div style="border-top: 1px solid #E3E9EB; padding-top: 14px; display: flex; flex-direction: column; gap: 4px"><div style="font-size: 13px; color: #3D5A66">Delivering to</div><div style="font-size: 14px; line-height: 1.5">[Delivery address]</div></div>
+</section>
+<section aria-label="Help" style="background: #0E2A3B; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 16px; font-weight: 700; color: #FFFFFF">Questions about this order?</div>
+<div style="font-size: 14px; color: #C9D6DA; line-height: 1.5">Your account manager is [Rep name].</div>
+<a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; background: {{accent}}; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600">Send a message</a>
+</section>
+<a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; border: 1px solid #C9D6DA; color: #0E2A3B; text-decoration: none; font-size: 14px; font-weight: 600; background: #FFFFFF">View all my orders</a>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F8A9C","options":["#1F8A9C","#E07A3F","#2E6FD8","#3BA37A"]},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#1F8A9C' };
+}
+}
+</script>
+</body>
+</html>

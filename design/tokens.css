@@ -1,0 +1,116 @@
+/*
+ * COAST design tokens — single source of truth for colour, type, radius.
+ * Derived from docs/02-design-handoff.md (sections 4–6) and the theme objects
+ * inside design/mockups/App.dc.html. If the two ever disagree, the handoff wins.
+ *
+ * Usage: import once in the root layout. Components reference var(--…) only —
+ * never hard-coded hex. Theme is set with data-theme="dark" | "light" on <html>.
+ *   - Internal web app:        dark by default, user toggle (persist per user)
+ *   - Customer tracking page:  light, Deep Sea header
+ *   - Marketing site:          light, with dark hero / feature bands (.band-dark)
+ */
+
+:root {
+  /* ── Brand core ─────────────────────────────── */
+  --coast-deep-sea:       #0E2A3B;  /* logo ring, headings, dark surfaces      */
+  --coast-tide-teal:      #1F8A9C;  /* accents ONLY — never under white text   */
+  --coast-tide-teal-deep: #1A7584;  /* filled buttons/badges with white text   */
+  --coast-sea-mist:       #F4F6F5;  /* light page background                   */
+  --coast-accent-soft:    #8FD0DA;  /* eyebrows / sublabels on dark            */
+
+  /* ── Typography ─────────────────────────────── */
+  --font-sans: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fw-regular: 400;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fs-body: 1rem;              /* 15–18px range; 16px default             */
+  --lh-body: 1.6;
+  --fs-h1-marketing: clamp(2.2rem, 4vw, 3.8rem);
+  --lh-heading: 1.1;
+  --fs-eyebrow: 13px;
+  --ls-eyebrow: 0.2em;
+  --ls-wordmark: 0.08em;        /* "COAST"                                 */
+  --ls-wordmark-sub: 0.42em;    /* "VISIBILITY"                            */
+
+  /* ── Radius ─────────────────────────────────── */
+  --radius-control: 10px;       /* buttons, inputs: 10–12px                */
+  --radius-card: 16px;          /* cards: 14–18px                          */
+  --radius-panel: 22px;         /* large feature panels: 20–24px           */
+  --radius-pill: 999px;
+
+  /* ── Sizing ─────────────────────────────────── */
+  --control-h: 44px;            /* app minimum; marketing 48–52px          */
+  --control-h-marketing: 50px;
+  --width-marketing: 1200px;
+  --width-customer: 960px;
+  --gutter: 24px;               /* 16px on phone widths                    */
+}
+
+/* ── Light theme (website, customer page, light app mode) ─────────────── */
+:root,
+[data-theme="light"] {
+  --bg: #F4F6F5;
+  --surface: #FFFFFF;
+  --surface-raised: #F4F6F5;
+  --selected: #E3F1F3;
+  --row-selected: #F0F7F8;
+  --divider: #E3E9EB;
+  --border: #C9D6DA;
+  --text: #0E2A3B;
+  --text-strong: #0E2A3B;
+  --text-secondary: #3D5A66;
+  --text-muted: #5E7884;
+  --link: #1F6F80;
+  --link-hover: #0E2A3B;
+  --logo-ring: #0E2A3B;
+  --eyebrow: #1A7584;
+
+  --status-ok: #2C7A4E;        /* On track                 */
+  --status-warn: #9A5A12;      /* At risk / estimate       */
+  --status-bad: #B23A26;       /* Review / discrepancy     */
+  --status-neutral: #3D5A66;   /* Delivered / neutral      */
+  --warn-bg: #FCE7D6;
+  --warn-text: #8A4513;
+
+  --btn-primary-bg: #1A7584;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-border: #C9D6DA;
+
+  --badge-carrier-bg: #E3F1F3;  /* CARRIER · <NAME>          */
+  --badge-carrier-text: #1A7584;
+  --badge-shipper-bg: #EDF1F2;  /* SHIPPER UPDATE            */
+  --badge-shipper-text: #3D5A66;
+}
+
+/* ── Dark theme (internal app default, marketing hero/feature bands) ──── */
+[data-theme="dark"],
+.band-dark {
+  --bg: #0A1F2C;
+  --surface: #0E2A3B;
+  --surface-raised: #12344A;
+  --selected: #173B4F;
+  --row-selected: #12344A;
+  --divider: #1B4258;
+  --border: #24506A;
+  --text: #E6EEF0;
+  --text-strong: #FFFFFF;
+  --text-secondary: #C9D6DA;
+  --text-muted: #9FB4BC;
+  --link: #8FD0DA;
+  --link-hover: #FFFFFF;
+  --logo-ring: #FFFFFF;        /* beam opacity rises to 0.5 on dark */
+  --eyebrow: #8FD0DA;
+
+  --status-ok: #7FE0A8;
+  --status-warn: #FFC37A;
+  --status-bad: #FF9C8A;
+  --status-neutral: #9FB4BC;
+  --warn-bg: #6B3A1E;
+  --warn-text: #FFD3B5;
+
+  --btn-primary-bg: #1A7584;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-border: #3D6A80;
+}
+
+/* Status is never colour alone — always render "● <Label>". */
