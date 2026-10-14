@@ -41,3 +41,14 @@ After `npm run db:seed-demo`, sign in with any of these and the
 
 `admin@`, `procurement@`, `salesmanager@`, `sales@`, `sales2@`, `director@`, `goodsin@` + `demo-a.coast.test`,
 and `admin@demo-b.coast.test` (a second organisation, for isolation tests).
+
+## If the local app shows a strange error
+
+Errors like "Jest worker encountered child process exceptions" or "Module
+not found" for a file that exists come from the local development server's
+cache, not from COAST. Stop the server (Ctrl+C in its terminal), delete the
+`.next` folder, and run `npm run dev` again. This never happens on Vercel,
+which builds fresh every time.
+
+Automated test builds use their own `.next-test` folder
+(`NEXT_DIST_DIR=.next-test`), so they can run while `npm run dev` is open.

@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { supabasePublicConfig } from "@/lib/env";
+import { fetchWithTimeout } from "./fetch";
 
 /**
  * A Supabase client acting as the signed-in user, so every query runs
@@ -14,6 +15,7 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient | nul
   const cookieStore = await cookies();
 
   return createServerClient(config.url, config.anonKey, {
+    global: { fetch: fetchWithTimeout },
     cookies: {
       getAll() {
         return cookieStore.getAll();

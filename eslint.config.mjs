@@ -27,6 +27,7 @@ const config = [
   {
     ignores: [
       ".next/**",
+      ".next-test/**",
       "node_modules/**",
       "design/**",
       "docs/**",

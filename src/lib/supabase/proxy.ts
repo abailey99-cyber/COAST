@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabasePublicConfig } from "@/lib/env";
+import { fetchWithTimeout } from "./fetch";
 
 /**
  * Runs on every page request: refreshes the Supabase session cookie and
@@ -13,6 +14,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   if (!config) return response;
 
   const supabase = createServerClient(config.url, config.anonKey, {
+    global: { fetch: fetchWithTimeout },
     cookies: {
       getAll() {
         return request.cookies.getAll();
