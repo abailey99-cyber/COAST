@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createTestOrder, deleteTestCustomer, e2eEnabled, serviceClient, sessionFile, type DemoUser, type TestOrder } from "./demo-users";
+import { createTestOrder, deleteTestCustomer, e2eEnabled, openMenu, serviceClient, sessionFile, type DemoUser, type TestOrder } from "./demo-users";
 
 // Phase 2 end to end, on throwaway orders: send a PO, the supplier confirms
 // through the no-login link, the mismatch goes to review, procurement
@@ -67,6 +67,7 @@ test.describe("supplier loop", () => {
 
     // Back to procurement: the review queue.
     await page.goto("/app/review-queue");
+    await openMenu(page);
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /Review queue/ })).toContainText(/\d/);
     const item = page.getByRole("region").filter({ hasText: "4 confirmed, 5 ordered" });
     await expect(item).toBeVisible();

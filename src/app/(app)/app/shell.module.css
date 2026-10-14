@@ -3,24 +3,79 @@
 .shell {
   min-height: 100vh;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   background: var(--bg);
   color: var(--text);
 }
 
-.sidebar {
-  flex: 1 1 220px;
-  max-width: 260px;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--divider);
-  padding: 24px 16px;
+/* Top bar: the COAST lockup opens the main menu. */
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
-  flex-direction: column;
-  gap: 28px;
+  align-items: center;
+  padding: 10px 24px;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--divider);
 }
 
-.brand {
-  padding: 0 4px;
+.menuRoot {
+  position: relative;
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 2px 8px 2px 2px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--selected);
+}
+
+/* The supplied mark, turned a quarter-turn while the menu is open (never redrawn). */
+.menuButton img {
+  transition: transform 260ms ease;
+}
+
+.menuButton[aria-expanded="true"] img {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuButton img {
+    transition: none;
+  }
+}
+
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--divider);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.28);
+}
+
+.menuPanel[hidden] {
+  display: none;
 }
 
 .navList {
@@ -56,7 +111,6 @@
 }
 
 .userCard {
-  margin-top: auto;
   padding: 12px;
   border-radius: var(--radius-control);
   background: var(--surface-raised);
@@ -88,8 +142,11 @@
 }
 
 .main {
-  flex: 999 1 640px;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
   padding: 28px 36px;
   display: flex;
   flex-direction: column;
@@ -207,18 +264,8 @@
 }
 
 @media (max-width: 760px) {
-  .sidebar {
-    max-width: none;
-    flex-basis: 100%;
-    border-right: 0;
-    border-bottom: 1px solid var(--divider);
-    padding: 16px;
-    gap: 16px;
-  }
-
-  .navList {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .topBar {
+    padding: 8px 16px;
   }
 
   .main {
@@ -410,7 +457,7 @@
   color: var(--status-ok);
 }
 
-/* Count badge in the sidebar (mockup: Tide Teal Deep with white text). */
+/* Count badge in the menu (mockup: Tide Teal Deep with white text). */
 .navBadge {
   background: var(--coast-tide-teal-deep);
   color: #ffffff;
@@ -420,10 +467,8 @@
   font-weight: var(--fw-semibold);
 }
 
-/* Sidebar "Carrier connections" card (App.dc.html). */
+/* Menu "Carrier connections" card (App.dc.html). */
 .carrierCard {
-  margin-top: auto;
-  margin-bottom: 10px;
   padding: 10px 12px;
   border-radius: var(--radius-control);
   border: 1px solid var(--divider);
@@ -438,6 +483,3 @@
   color: var(--text-strong);
 }
 
-.carrierCard + .userCard {
-  margin-top: 0;
-}

@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { sessionFile, type DemoUser } from "./demo-users";
+import { openMenu, sessionFile, type DemoUser } from "./demo-users";
 
 // Signs in as each demo role and checks the sidebar matches the default permissions (decisions B9, E1–E3).
 // Needs the dev database and demo users (npm run db:seed-demo); skipped otherwise.
@@ -42,6 +42,7 @@ test.describe("signed-in roles", () => {
   for (const role of ROLES) {
     test(`${role.label} sees exactly their sections`, async ({ browser }) => {
       const page = await as(browser, role.email);
+      await openMenu(page);
       await expect(page.getByText(`${role.label} · [Demo Org A]`)).toBeVisible();
       const items = page.getByRole("navigation", { name: "Main" }).getByRole("list").getByRole("link");
       await expect(items).toHaveText(role.nav);
@@ -75,6 +76,7 @@ test.describe("signed-in roles", () => {
 
     const salesPage = await as(browser, "sales@demo-a.coast.test");
     const nav = salesPage.getByRole("navigation", { name: "Main" });
+    await openMenu(salesPage);
     await expect(nav.getByRole("link", { name: "Suppliers" })).toBeVisible();
 
     // Put it back.
@@ -85,6 +87,7 @@ test.describe("signed-in roles", () => {
     await expect(adminPage.getByRole("checkbox", { name: "Suppliers for Sales", exact: true })).not.toBeChecked();
     await expect(adminPage.getByText("✓ Saved")).toBeVisible();
     await salesPage.reload();
+    await openMenu(salesPage);
     await expect(nav.getByRole("link", { name: "Suppliers" })).toHaveCount(0);
   });
 
@@ -122,6 +125,7 @@ test.describe("signed-in roles", () => {
 
     const repPage = await as(browser, "sales2@demo-a.coast.test");
     const nav = repPage.getByRole("navigation", { name: "Main" });
+    await openMenu(repPage);
     await expect(nav.getByRole("link", { name: "Chases" })).toHaveCount(0);
 
     // Things the manager doesn't have can't be handed out.
@@ -139,11 +143,13 @@ test.describe("signed-in roles", () => {
     await expect(rep2.getByText("✓ Saved")).toBeVisible();
     await expect(rep2Summary.getByText("1 individual change")).toHaveCount(0);
     await repPage.reload();
+    await openMenu(repPage);
     await expect(nav.getByRole("link", { name: "Chases" })).toBeVisible();
   });
 
-  test("the theme toggle switches and is remembered", async ({ browser }) => {
+  test("the theme switch in Settings changes the theme and is remembered", async ({ browser }) => {
     const page = await as(browser, "admin@demo-a.coast.test");
+    await page.goto("/app/settings");
     const shell = page.locator("[data-app-theme]");
     await expect(shell).toHaveAttribute("data-theme", "dark");
     await page.getByRole("button", { name: "Light" }).click();
@@ -154,8 +160,28 @@ test.describe("signed-in roles", () => {
     await page.screenshot({ path: "test-results/screens/home-dark.png", fullPage: true });
   });
 
+  test("the COAST logo opens and closes the menu", async ({ browser }) => {
+    const page = await as(browser, "procurement@demo-a.coast.test");
+    const nav = page.getByRole("navigation", { name: "Main" });
+    const button = page.getByRole("button", { name: "Open menu" });
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(nav.getByRole("link", { name: "Orders", exact: true })).toBeHidden();
+    await button.click();
+    await expect(page.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    // Choosing a page closes it.
+    await button.click();
+    await nav.getByRole("link", { name: "Orders", exact: true }).click();
+    await expect(page).toHaveURL(/\/app\/orders/);
+    await expect(page.getByRole("button", { name: "Open menu" })).toHaveAttribute("aria-expanded", "false");
+    // The theme switch lives in Settings now, not on every page.
+    await expect(page.getByRole("group", { name: "Theme" })).toHaveCount(0);
+  });
+
   test("signing out ends the session", async ({ browser }) => {
     const page = await as(browser, "sales@demo-a.coast.test");
+    await openMenu(page);
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/sign-in/);
     await page.goto("/app/home");

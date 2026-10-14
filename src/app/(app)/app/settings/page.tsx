@@ -1,8 +1,11 @@
+import { cookies } from "next/headers";
 import { HEALTH_LABELS, type HealthStatus } from "@/lib/logic/health";
+import { THEME_COOKIE, parseTheme } from "@/lib/logic/theme";
 import { loadAudit } from "@/server/procurement";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
+import { ThemeToggle } from "../ThemeToggle";
 import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PermissionMatrix } from "./PermissionMatrix";
@@ -21,10 +24,21 @@ export default async function SettingsPage() {
   const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Who sees what, your team, chasing, carriers, connections and the audit log" />
+      <PageHeader title="Settings" subtitle="Appearance, who sees what, your team, chasing, carriers, connections and the audit log" />
+
+      <section className={styles.card} aria-labelledby="appearance-title">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h2 id="appearance-title" className={styles.cardTitle}>Appearance</h2>
+            <p className={styles.cardText}>Light or dark, just for you. Remembered on this device.</p>
+          </div>
+          <ThemeToggle initial={theme} />
+        </div>
+      </section>
 
       <details className={styles.fold}>
         <summary>

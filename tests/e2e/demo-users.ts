@@ -88,3 +88,8 @@ export async function deleteTestCustomer(service: SupabaseClient, customerName: 
   }
   await service.from("customers").delete().in("id", custIds);
 }
+
+/** Opens the main menu (the COAST logo at the top). */
+export async function openMenu(page: import("@playwright/test").Page): Promise<void> {
+  await page.getByRole("button", { name: "Open menu" }).click();
+}

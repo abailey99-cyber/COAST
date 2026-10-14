@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { Lockup } from "@/components/brand/Lockup";
 import { canAccessSection, visibleSections } from "@/lib/logic/navigation";
 import { hasPermission } from "@/lib/logic/permissions";
 import { ROLE_LABELS } from "@/lib/logic/roles";
@@ -10,7 +9,7 @@ import { signOut } from "@/server/auth-actions";
 import { requireStaff } from "@/server/session";
 import { carrierSummary } from "@/server/shipments";
 import { reviewQueueCount } from "@/server/supplier-loop";
-import { SidebarNav } from "./SidebarNav";
+import { AppMenu } from "./AppMenu";
 import styles from "./shell.module.css";
 
 // Every staff page depends on who is signed in — never prerender one.
@@ -28,11 +27,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className={styles.shell} data-theme={theme} data-app-theme>
       <a className="skip-link" href="#main">Skip to content</a>
-      <nav aria-label="Main" className={styles.sidebar}>
-        <div className={styles.brand}>
-          <Lockup />
-        </div>
-        <SidebarNav sections={sections} />
+      <nav aria-label="Main" className={styles.topBar}>
+        <AppMenu sections={sections}>
         {carriers && carriers.healthy + carriers.check > 0 && (
           <Link href="/app/settings" className={styles.carrierCard}>
             <div className={styles.userName}>Carrier connections</div>
@@ -49,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <button type="submit" className={styles.signOut}>Sign out</button>
           </form>
         </div>
+        </AppMenu>
       </nav>
       <main id="main" className={styles.main}>
         {children}
