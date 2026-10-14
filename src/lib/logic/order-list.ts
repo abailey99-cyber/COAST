@@ -102,7 +102,8 @@ export type OrderEventKind =
   | "prediction_changed"
   | "customer_message"
   | "staff_reply"
-  | "customer_notified";
+  | "customer_notified"
+  | "goods_received";
 
 const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
 const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
@@ -210,6 +211,11 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       return "Replied to the customer";
     case "customer_notified":
       return `Customer emailed${typeof e.detail.topic === "string" ? `: ${NOTIFIED_WORDS[e.detail.topic] ?? "an update"}` : ""}${e.detail.status === "logged" ? " (logged — email isn't connected yet)" : ""}`;
+    case "goods_received": {
+      const q = typeof e.detail.quantity === "number" ? e.detail.quantity : Number(e.detail.quantity);
+      const what = e.detail.condition === "damaged" ? "arrived damaged" : e.detail.condition === "wrong_item" ? "the wrong item arrived" : e.detail.condition === "short" ? `${Number.isFinite(q) ? q : "some"} arrived (fewer than expected)` : `${Number.isFinite(q) ? q : "all"} checked in`;
+      return `${lineRef}: ${what}`;
+    }
     case "line_stage_changed": {
       const to = e.detail.to;
       const route = line?.route;

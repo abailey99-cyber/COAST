@@ -4,23 +4,48 @@ Everything stubbed, best-effort, unverified or deliberately deferred
 (CLAUDE.md non-negotiable 9). Updated at the end of every phase. Search the
 code for `UNVERIFIED:` for the in-code markers.
 
-_Last updated: end of Phase 5 — 14 October 2026._
+_Last updated: end of Phase 6 — 14 October 2026._
 
 ## Not built yet (by design — later phases)
 
 | Item | Where it shows | Arrives |
 |---|---|---|
-| Chases screen (all chases in one place), Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N". Chases themselves work, on each order and PO | Phase 6 |
-| Home "what needs attention today" | Home shows a welcome and what's ready | Phase 6 |
 | Marketing site (How it works, Integrations, Pricing, register interest) | Home is a one-section holding page; the header shows only "Sign in"; the footer shows only the copyright line. "Register interest" isn't linked anywhere until the form exists | Any time — separate slot |
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
-| Chases count badge | Not shown (the Review queue badge works) | Phase 6 |
 | Delivery-exception records from a carrier's "problem" (spec §5.4) | The shipment shows "● Problem reported" and appears under Shipments → Needs attention; nothing is drafted yet | Phase 7 |
 | Customs documents checklist, HS codes on screen | Shipments show a customs status only | Phase 7 |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 6 (Home, Updates, Chases, Metrics, Goods-in)
+
+- **Metrics cover the last 180 days** and are worked out each time the page
+  opens (fine for now; large volumes will want stored daily figures). Where
+  there isn't enough data, a figure says so rather than showing 0%.
+- **"Delivered on time" needs a delivery date**: orders marked delivered by
+  hand with no delivered shipment aren't measured.
+- **Real lead times** are measured from the PO being sent to goods being
+  checked in (warehouse) or the direct shipment being delivered. COAST shows
+  them next to what the supplier claims; it doesn't yet feed them back into
+  delivery-date predictions automatically.
+- **Delivery-problem rates** by supplier and carrier arrive with delivery
+  exceptions (Phase 7). Damaged or wrong items checked in at goods-in are
+  recorded and show under Updates → Just the problems meanwhile.
+- **Goods-in staff can't see orders**; they work from a narrow "due in" list
+  (SO number, customer, item, PO and supplier, expected date, parcels). A
+  damaged or wrong delivery leaves the line waiting for good stock; there's
+  no returns flow yet (Phase 7).
+- **Chases lists** unsent and unconfirmed POs, open supplier and internal
+  chases, supplier answers to review, unread customer messages, delivery
+  problems, customs holds and shipments with no carrier. Sales-side waits
+  ("waiting on the customer") aren't tracked yet.
+- **The Updates feed** reads the order history the database writes on every
+  change, so it can't drift. Carrier scans appear as status changes, not
+  every single scan.
+- **Home** shows what's overdue, at risk, waiting for review, due in, and
+  recent problems — each only if your role can see that area.
 
 ### Phase 5 (customer page, messages, updates, accounts)
 
@@ -30,7 +55,7 @@ _Last updated: end of Phase 5 — 14 October 2026._
   their set-password link once on screen so staff can pass it on.
 - **Staff hear about customer messages on the Orders list and the order**
   ("● 1 new message"); the email to the rep (or procurement, with no rep) is
-  logged, not sent. A proper "needs attention" list is Home (Phase 6).
+  logged, not sent. They also show on Home and the Chases screen.
 - **One standing link for all of a customer's orders** (spec §5.5) isn't
   built; customer accounts cover it. **Tracking codes don't expire**; staff
   can issue a new one, which stops the old one at once.

@@ -9,6 +9,7 @@ import { signOut } from "@/server/auth-actions";
 import { requireStaff } from "@/server/session";
 import { carrierSummary } from "@/server/shipments";
 import { reviewQueueCount } from "@/server/supplier-loop";
+import { overdueCount } from "@/server/insight";
 import { AppMenu } from "./AppMenu";
 import styles from "./shell.module.css";
 
@@ -20,9 +21,13 @@ export const metadata: Metadata = { title: { default: "COAST", template: "%s · 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireStaff();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  const reviewCount = await reviewQueueCount(canAccessSection(staff.permissions, "review-queue") && hasPermission(staff.permissions, "supplier.identity.view"));
-  const carriers = canAccessSection(staff.permissions, "settings") ? await carrierSummary() : null;
-  const sections = visibleSections(staff.permissions).map(({ key, label, href }) => ({ key, label, href, badge: key === "review-queue" && reviewCount > 0 ? reviewCount : undefined }));
+  const [reviewCount, carriers, overdue] = await Promise.all([
+    reviewQueueCount(canAccessSection(staff.permissions, "review-queue") && hasPermission(staff.permissions, "supplier.identity.view")),
+    canAccessSection(staff.permissions, "settings") ? carrierSummary() : Promise.resolve(null),
+    overdueCount(staff),
+  ]);
+  const badgeFor = (key: string) => (key === "review-queue" && reviewCount > 0 ? reviewCount : key === "chases" && overdue > 0 ? overdue : undefined);
+  const sections = visibleSections(staff.permissions).map(({ key, label, href }) => ({ key, label, href, badge: badgeFor(key) }));
 
   return (
     <div className={styles.shell} data-theme={theme} data-app-theme>

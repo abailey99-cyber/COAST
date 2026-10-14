@@ -448,3 +448,26 @@ daily summary. All per company in Settings → Customer page.
 Staff invite a customer from the order (permission "Talk to customers", on
 for procurement, sales and sales managers). A customer login can never be a
 staff login. Customers add further orders with their tracking codes.
+
+## K. Build notes — Phase 6 (14 October 2026)
+
+### K1. Customers can create their own account — DECIDED (product owner, 14 October 2026)
+A tracking code from one of their orders is the proof that they deal with
+the business, and decides which customer the account belongs to. Email
+confirmation waits for real email (Phase 8).
+
+### K2. Goods-in sees a narrow view — DEFAULT — CONFIRM
+Warehouse staff don't get "everyone's orders". Two database functions give
+them exactly what check-in needs (what's due, from whom, for which order)
+and record check-ins, checking `goods_in.check` themselves. A full, good
+delivery moves the line to Received and closes the inbound parcel; short,
+damaged or wrong deliveries are recorded and leave the line waiting.
+
+### K3. What counts as "waiting" and as a "problem" — DEFAULT — CONFIRM
+Waiting (Chases): unsent POs and answers to review (on procurement),
+unconfirmed POs (on the supplier, from when it was sent or last chased),
+internal chases (on procurement), unread customer messages (on us), delivery
+problems and customs holds (on the carrier). One escalation engine, Settings
+→ Chasing thresholds. Problems (Updates, Home): an order turning at risk, a
+delivery problem, a supplier answer needing review, a customer message, a
+bad check-in, a cancelled PO, a supplier being chased.
