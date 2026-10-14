@@ -115,8 +115,15 @@ test.describe("orders", () => {
     await expect(page.getByText("● Draft")).toBeVisible();
     await expect(page.getByText("£57.50")).toBeVisible(); // 5 × £11.50
 
+    // Manual status changes live in a fold-out (sending by email is the main route since Phase 2).
+    const byHand = async () => {
+      const details = page.locator("details").filter({ has: page.locator("summary", { hasText: "Change the status by hand" }) });
+      if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
+    };
+    await byHand();
     await page.getByRole("button", { name: "Mark as sent" }).click();
     await expect(page.getByText("● Sent")).toBeVisible();
+    await byHand();
     await page.getByRole("button", { name: "Mark as confirmed by supplier" }).click();
     await expect(page.getByText("● Confirmed")).toBeVisible();
 
@@ -154,7 +161,7 @@ test.describe("orders", () => {
 
     await expect(page).toHaveURL(/\/app\/orders\/[0-9a-f-]{36}$/, { timeout: 15_000 });
     await expect(page.getByText("Fri 20 Nov")).toBeVisible();
-    await expect(page.getByText("E2E test widget, blue")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Lines" }).getByText("E2E test widget, blue")).toBeVisible();
     await expect(page.getByRole("region", { name: "Lines" }).getByRole("row", { name: /E2E extra item/ })).toContainText("To pick");
     await expect(page.getByText("Order details changed (promised date)")).toBeVisible();
     await expect(page.getByText("Line 1 changed (description)")).toBeVisible();

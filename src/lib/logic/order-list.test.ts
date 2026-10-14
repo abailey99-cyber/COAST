@@ -78,3 +78,16 @@ describe("describeEvent — edits", () => {
     expect(describeEvent({ kind: "order_updated", orderLineId: null, detail: {} }, ctx)).toBe("Order details changed");
   });
 });
+
+describe("describeEvent — supplier loop", () => {
+  const ctx: EventContext = { lines: new Map([["l1", { lineNo: 1, route: "direct_ship" as const }]]), poNumbers: new Map([["p1", "PO-5001"]]) };
+  it("describes emails, answers and chases without naming the supplier", () => {
+    expect(describeEvent({ kind: "po_emailed", orderLineId: null, detail: { purchase_order_id: "p1", email: "po", status: "logged" } }, ctx)).toBe(
+      "Purchase order PO-5001: email to the supplier written (logged — email isn't connected yet)",
+    );
+    expect(describeEvent({ kind: "supplier_responded", orderLineId: null, detail: { source: "link", status: "applied" } }, ctx)).toBe("Supplier answered via the confirmation link — applied automatically");
+    expect(describeEvent({ kind: "chase_opened", orderLineId: "l1", detail: { chase: "internal" } }, ctx)).toBe("Line 1: procurement asked for an update");
+    expect(describeEvent({ kind: "chase_chased", orderLineId: null, detail: { chase: "supplier", purchase_order_id: "p1" } }, ctx)).toBe("Purchase order PO-5001: supplier chased");
+    expect(describeEvent({ kind: "chase_resolved", orderLineId: "l1", detail: { chase: "internal" } }, ctx)).toBe("Line 1: procurement answered");
+  });
+});

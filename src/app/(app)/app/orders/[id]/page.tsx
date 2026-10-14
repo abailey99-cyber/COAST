@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadOrder } from "@/server/orders";
 import { PageHeader } from "../../PageHeader";
 import ui from "../../ui.module.css";
+import { OrderChases } from "./OrderChases";
 import { RaisePoForm } from "./RaisePoForm";
 import { StageSelect } from "./StageSelect";
 
@@ -98,6 +99,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                                 <span className={ui.muted}>
                                   · {p.supplierName} · {p.status}
                                   {p.unitCost ? ` · ${p.unitCost} each` : ""}
+                                  {p.confirmed ? ` · confirmed for ${p.confirmed}` : ""}
                                 </span>
                               </div>
                             ))
@@ -122,7 +124,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
 
-        <aside className={`${ui.panel} ${ui.aside}`} aria-labelledby="history-title">
+        <div className={ui.aside} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {(page.chases.length > 0 || page.chaseableLines.length > 0) && <OrderChases chases={page.chases} lines={page.chaseableLines} />}
+        <aside className={ui.panel} aria-labelledby="history-title">
           <h2 id="history-title" style={{ fontSize: 16 }}>History</h2>
           {history.length === 0 ? (
             <p className={ui.muted}>Nothing yet.</p>
@@ -140,6 +144,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </ol>
           )}
         </aside>
+        </div>
       </div>
     </>
   );

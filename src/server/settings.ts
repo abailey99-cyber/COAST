@@ -1,7 +1,11 @@
 import "server-only";
 import { listPersonOverrides, listRolePermissions } from "@/lib/data/permissions";
 import { listStaffInOrg, type StaffProfile } from "@/lib/data/staff";
+import { emailChannelHealth } from "@/lib/email/channel";
+import { getChaseSettings, type ChaseSettings } from "@/lib/data/supplier-loop";
 import { integrationHealth, type IntegrationHealth } from "@/lib/env";
+import { DEFAULT_THRESHOLDS } from "@/lib/logic/escalation";
+import { DEFAULT_CALENDAR } from "@/lib/logic/working-time";
 import {
   CONFIGURABLE_ROLES,
   canManagePersonAccess,
@@ -33,6 +37,7 @@ export interface SettingsView {
   canEditSettings: boolean;
   canManagePermissions: boolean;
   integrations: IntegrationHealth[];
+  chase: ChaseSettings;
   team: PersonAccess[];
   /** role → granted permissions, for every role except admin (always everything). */
   grants: Record<Exclude<StaffRole, "admin">, Permission[]>;
@@ -44,6 +49,7 @@ export async function loadSettings(): Promise<SettingsView> {
   const [team, roleRows, overrideRows] = supabase
     ? await Promise.all([listStaffInOrg(supabase), listRolePermissions(supabase), listPersonOverrides(supabase)])
     : [[], [], []];
+  const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
 
   const grants = Object.fromEntries(CONFIGURABLE_ROLES.map((r) => [r, [] as Permission[]])) as SettingsView["grants"];
   for (const row of roleRows) {
@@ -72,7 +78,8 @@ export async function loadSettings(): Promise<SettingsView> {
   return {
     canEditSettings: hasPermission(staff.permissions, "settings.edit"),
     canManagePermissions: staff.role === "admin",
-    integrations: integrationHealth(),
+    integrations: [{ key: "email", label: "Sending email", ...emailChannelHealth() }, ...integrationHealth()],
+    chase,
     team: people,
     grants,
   };

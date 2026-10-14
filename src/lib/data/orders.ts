@@ -81,6 +81,7 @@ export interface PoLink {
   requestedDate: string | null;
   /** null when not set, or when the viewer can't see costs (RLS returns nothing). */
   unitCostMinor: number | null;
+  confirmedDate: string | null;
 }
 
 export interface OrderLineDetail {
@@ -132,6 +133,7 @@ interface DetailRow {
       id: string;
       quantity: number | string;
       requested_date: string | null;
+      confirmed_date: string | null;
       purchase_orders: { id: string; po_number: string; status: PoStatus; suppliers: { name: string } | null } | null;
       purchase_order_line_costs: { unit_cost_minor: number } | null;
     }[];
@@ -146,7 +148,7 @@ export async function getOrder(client: SupabaseClient, id: string): Promise<Orde
        delivery_name, delivery_line1, delivery_line2, delivery_town, delivery_postcode, delivery_country,
        customers(name), staff_users(full_name),
        order_lines(id, line_no, sku, description, quantity, unit_price_minor, route, stage,
-         purchase_order_lines(id, quantity, requested_date,
+         purchase_order_lines(id, quantity, requested_date, confirmed_date,
            purchase_orders(id, po_number, status, suppliers(name)),
            purchase_order_line_costs(unit_cost_minor)))`,
     )
@@ -197,6 +199,7 @@ export async function getOrder(client: SupabaseClient, id: string): Promise<Orde
                   quantity: Number(pl.quantity),
                   requestedDate: pl.requested_date,
                   unitCostMinor: pl.purchase_order_line_costs?.unit_cost_minor ?? null,
+                  confirmedDate: pl.confirmed_date,
                 },
               ]
             : [],

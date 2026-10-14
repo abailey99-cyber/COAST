@@ -3,6 +3,7 @@ import { loadAudit } from "@/server/procurement";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
+import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
 
@@ -16,7 +17,7 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, integrations, team, grants }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
 
@@ -59,6 +60,27 @@ export default async function SettingsPage() {
             COAST admin does it.
           </p>
           <TeamAccess people={team} />
+        </div>
+      </details>
+
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Chasing</h2>
+            <span className={styles.foldMeta}>
+              Overdue after {chase.thresholds.amberHours}h · very overdue after {chase.thresholds.redHours}h · needs attention after {chase.thresholds.alertHours}h (working hours)
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            How long something can wait on someone — a supplier confirming a PO, procurement answering a chase — before COAST
+            flags it. Counted in working hours: Monday to Friday, within the working day. Bank holidays aren&apos;t counted out yet.
+          </p>
+          <ChaseSettingsForm
+            editable={canEditSettings}
+            values={{ ...chase.thresholds, dayStartHour: chase.calendar.dayStartHour, dayEndHour: chase.calendar.dayEndHour }}
+          />
         </div>
       </details>
 

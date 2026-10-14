@@ -18,10 +18,11 @@ export default defineConfig({
   },
   projects: [
     // Signs each demo user in once and saves the session (Supabase limits sign-ins).
-    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
+    // One retry: a sign-in occasionally takes longer than usual on the hosted dev project.
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"] }, retries: 1 },
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
     // Signed-in tests run once, at desktop size.
-    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /(roles|orders)\.spec\.ts/ },
+    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /(roles|orders|supplier-loop)\.spec\.ts/ },
   ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,

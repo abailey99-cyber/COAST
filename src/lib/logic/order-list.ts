@@ -59,7 +59,22 @@ export function orderKpis(orders: readonly Listable[]): OrderKpis {
 }
 
 // ── Order history wording ───────────────────────────────────────────────────
-export type OrderEventKind = "order_created" | "line_stage_changed" | "po_raised" | "po_status_changed" | "order_updated" | "line_added" | "line_updated";
+export type OrderEventKind =
+  | "order_created"
+  | "line_stage_changed"
+  | "po_raised"
+  | "po_status_changed"
+  | "order_updated"
+  | "line_added"
+  | "line_updated"
+  | "po_emailed"
+  | "supplier_responded"
+  | "chase_opened"
+  | "chase_chased"
+  | "chase_resolved";
+
+const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
+const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
 
 const FIELD_LABELS: Record<string, string> = {
   customer: "customer",
@@ -120,6 +135,22 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       return `${lineRef} added`;
     case "line_updated":
       return `${lineRef} changed${fieldList(e.detail)}`;
+    case "po_emailed": {
+      const what = e.detail.email === "po_chase" ? "chase" : "email";
+      const logged = e.detail.status === "logged" ? " (logged — email isn't connected yet)" : "";
+      return `${poRef(e.detail.purchase_order_id, ctx)}: ${what} to the supplier written${logged}`;
+    }
+    case "supplier_responded": {
+      const via = SOURCE_WORDS[String(e.detail.source)] ?? "a reply";
+      const outcome = OUTCOME_WORDS[String(e.detail.status)] ?? "received";
+      return `Supplier answered via ${via} — ${outcome}`;
+    }
+    case "chase_opened":
+      return e.detail.chase === "internal" ? `${lineRef}: procurement asked for an update` : `${poRef(e.detail.purchase_order_id, ctx)}: supplier chase started`;
+    case "chase_chased":
+      return `${poRef(e.detail.purchase_order_id, ctx)}: supplier chased`;
+    case "chase_resolved":
+      return e.detail.chase === "internal" ? `${lineRef}: procurement answered` : `${poRef(e.detail.purchase_order_id, ctx)}: supplier chase closed`;
     case "line_stage_changed": {
       const to = e.detail.to;
       const route = line?.route;

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Lockup } from "@/components/brand/Lockup";
-import { visibleSections } from "@/lib/logic/navigation";
+import { canAccessSection, visibleSections } from "@/lib/logic/navigation";
+import { hasPermission } from "@/lib/logic/permissions";
 import { ROLE_LABELS } from "@/lib/logic/roles";
 import { THEME_COOKIE, parseTheme } from "@/lib/logic/theme";
 import { signOut } from "@/server/auth-actions";
 import { requireStaff } from "@/server/session";
+import { reviewQueueCount } from "@/server/supplier-loop";
 import { SidebarNav } from "./SidebarNav";
 import styles from "./shell.module.css";
 
@@ -17,7 +19,8 @@ export const metadata: Metadata = { title: { default: "COAST", template: "%s · 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireStaff();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  const sections = visibleSections(staff.permissions).map(({ key, label, href }) => ({ key, label, href }));
+  const reviewCount = await reviewQueueCount(canAccessSection(staff.permissions, "review-queue") && hasPermission(staff.permissions, "supplier.identity.view"));
+  const sections = visibleSections(staff.permissions).map(({ key, label, href }) => ({ key, label, href, badge: key === "review-queue" && reviewCount > 0 ? reviewCount : undefined }));
 
   return (
     <div className={styles.shell} data-theme={theme} data-app-theme>

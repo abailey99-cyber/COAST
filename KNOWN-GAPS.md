@@ -4,13 +4,13 @@ Everything stubbed, best-effort, unverified or deliberately deferred
 (CLAUDE.md non-negotiable 9). Updated at the end of every phase. Search the
 code for `UNVERIFIED:` for the in-code markers.
 
-_Last updated: end of Phase 1 — 14 October 2026._
+_Last updated: end of Phase 2 — 14 October 2026._
 
 ## Not built yet (by design — later phases)
 
 | Item | Where it shows | Arrives |
 |---|---|---|
-| Review queue, Chases, Shipments, Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N" | Phases 2–7 |
+| Chases screen (all chases in one place), Shipments, Goods-in, Updates, Metrics | Placeholder pages saying "Not built yet · Phase N". Chases themselves work, on each order and PO | Phases 3–6 |
 | Home "what needs attention today" | Home shows a welcome and what's ready | Phase 6 |
 | Track an order (tracking code) | Sign-in "Track an order" tab says tracking isn't open yet | Phase 5 |
 | Customer tracking page | `/track` says tracking isn't open yet | Phase 5 |
@@ -19,11 +19,43 @@ _Last updated: end of Phase 1 — 14 October 2026._
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
 | Carrier connections card in the sidebar | Not shown | Phase 3 |
-| Review queue / Chases count badges | Not shown | Phases 2 and 6 |
+| Chases count badge | Not shown (the Review queue badge works) | Phase 6 |
 | Recording each scheduled-job run for health screens | `/api/cron/ping` only checks the secret | First real job, Phase 2/3 |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 2 (supplier communication)
+
+- **Emails aren't actually sent.** COAST writes every PO and chase email and
+  logs it (PO page → Emails), and shows the confirmation link once so you can
+  send it yourself. Real sending arrives with Microsoft 365 (Phase 8).
+- **Supplier replies aren't picked up automatically** — paste them in on the
+  PO page. Reading the shared mailbox arrives with Microsoft 365 (Phase 8).
+- **No reusable per-supplier email templates yet** (spec §5.1: "a supplier's
+  format can skip the review queue once proven"). Every non-certain read goes
+  to review. Worth adding once real supplier emails show which formats repeat.
+- **SKU mismatches aren't detected** from emails or links — the supplier
+  can't change the product code on the link, and email product codes are too
+  varied to compare reliably. Quantity, price, currency, date and "can't
+  supply" are detected.
+- **A partly-accepted answer leaves the PO "sent"** (e.g. one line can't be
+  supplied). Staff then cancel or re-source that line by hand.
+- **The public confirmation page has no rate limit yet** (Phase 9). Its codes
+  are 256 random bits, so guessing one isn't practical.
+- **Chasing a supplier makes a new link and revokes the old one**, so the link
+  in the first email stops working after a chase. The page says so and points
+  them to the newest email.
+- **Escalation ignores bank holidays** (decisions B14) — the engine accepts a
+  holiday list; it isn't filled in yet.
+- **No notifications yet** — nobody is alerted when something turns red or a
+  chase is raised; it shows on the PO, the order and the Review queue badge.
+  Notifications arrive with Phase 5/6.
+- **Accepting a review answer is slow-ish** (a dozen round trips to the hosted
+  database, occasionally over 15 seconds in tests). Worth profiling in Phase 9.
+- **The development project's sign-in limit is raised** to 120 per 5 minutes
+  for the automated tests (`supabase/config.toml`). A production project
+  should keep Supabase's default.
 
 ### Phase 1 (orders and procurement)
 
@@ -36,10 +68,7 @@ _Last updated: end of Phase 1 — 14 October 2026._
   mockup's "Auto-confirmed this week" tile is replaced by "Need a purchase
   order" until supplier email reading exists (Phase 2).
 - **Raising a PO moves its lines to "Awaiting supplier" straight away**, even
-  while the PO is a draft. From Phase 2 POs are emailed when raised, so the
-  gap closes; until then the PO page reminds you to send it yourself.
-- **POs aren't emailed** — staff send them and mark them sent/confirmed by hand
-  (Phase 2; real sending needs Microsoft 365, Phase 8).
+  while the PO is still a draft waiting for "Send to supplier".
 - **A PO for less than the full quantity doesn't track the remainder** — the
   line can't get a second PO for the rest yet.
 - **No customer sites or contacts yet** — the delivery address is typed on each
@@ -65,8 +94,8 @@ _Last updated: end of Phase 1 — 14 October 2026._
   allows a few emails an hour and comes from a Supabase address. Fine for
   development; production needs custom SMTP (or Microsoft 365, Phase 8).
 - **Database security tests and signed-in browser tests run on your computer, not in CI.**
-  `tests/rls/*.test.ts` (37 tests) and the signed-in browser tests
-  (`tests/e2e/roles.spec.ts`, `orders.spec.ts`) sign in as the demo users
+  `tests/rls/*.test.ts` (45 tests) and the signed-in browser tests
+  (`roles`, `orders` and `supplier-loop` specs) sign in as the demo users
   against the Supabase development project. They skip themselves when the
   database isn't configured, which includes CI for now. To run them in CI,
   add the dev project's keys and `DEMO_USER_PASSWORD` as GitHub secrets (or

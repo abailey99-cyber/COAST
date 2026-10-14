@@ -39,6 +39,7 @@ export const PERMISSIONS = [
   { key: "audit.view", group: "Data", label: "Audit log", description: "See the full record of who changed what, and when." },
   { key: "orders.edit", group: "Actions", label: "Create and edit orders", description: "Create orders and change their details." },
   { key: "procurement.manage", group: "Actions", label: "Manage suppliers and POs", description: "Create suppliers and purchase orders, chase suppliers, resolve discrepancies." },
+  { key: "chases.internal", group: "Actions", label: "Chase procurement", description: "Ask procurement for an update on an order line." },
   { key: "goods_in.check", group: "Actions", label: "Check in deliveries", description: "Record deliveries arriving at the warehouse." },
   { key: "settings.edit", group: "Actions", label: "Change company settings", description: "Change company settings such as chase timings. (Team and role permissions stay admin-only.)" },
   { key: "people.manage_sales", group: "Actions", label: "Manage sales reps’ access", description: "Give or take away permissions for individual sales reps — only ones they have themselves." },
@@ -65,6 +66,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "costs.view",
     "orders.edit",
     "procurement.manage",
+    "chases.internal",
     "goods_in.check",
   ],
   // E1: sales see all orders, supplier names and costs unless the company switches them off.
@@ -78,6 +80,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "orders.view_all",
     "supplier.identity.view",
     "costs.view",
+    "chases.internal",
   ],
   // E7: a sales manager is a sales rep who can also set individual reps’ access.
   sales_manager: [
@@ -89,6 +92,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "orders.view_all",
     "supplier.identity.view",
     "costs.view",
+    "chases.internal",
     "people.manage_sales",
   ],
   // E3: directors see everything, change nothing — unless an admin allows it.

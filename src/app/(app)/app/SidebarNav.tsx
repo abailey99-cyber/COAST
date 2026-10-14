@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { activeSectionKey } from "@/lib/logic/navigation";
 import styles from "./shell.module.css";
 
-export function SidebarNav({ sections }: { sections: { key: string; label: string; href: string }[] }) {
+export function SidebarNav({ sections }: { sections: { key: string; label: string; href: string; badge?: number }[] }) {
   const active = activeSectionKey(usePathname());
   return (
     <ul className={styles.navList}>
@@ -13,6 +13,12 @@ export function SidebarNav({ sections }: { sections: { key: string; label: strin
         <li key={s.key}>
           <Link href={s.href} className={styles.navItem} aria-current={active === s.key ? "page" : undefined}>
             {s.label}
+            {s.badge ? (
+              <span className={styles.navBadge}>
+                {s.badge}
+                <span className="visually-hidden"> waiting</span>
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}

@@ -45,8 +45,8 @@ export function RaisePoForm({ orderId, currency, canEnterCosts, suppliers, lines
     >
       <h2 id="po-title" style={{ fontSize: 16 }}>Raise a purchase order</h2>
       <p className={ui.muted}>
-        The PO is saved as a draft. Sending it to the supplier by email arrives in Phase 2 — until then, send it yourself and mark it
-        as sent.
+        The PO is saved as a draft. On the next page, send it to the supplier — COAST writes the email and a confirmation link they
+        can use without logging in.
       </p>
       {state.error && <p className="notice notice-error" role="alert">{state.error}</p>}
       <div className={ui.grid2}>

@@ -7,6 +7,8 @@ import { hasPermission } from "@/lib/logic/permissions";
 import { PO_STATUS_LABELS, allowedPoStatusChanges, type PoStatus } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
+import { getChaseSettings } from "@/lib/data/supplier-loop";
+import { waitingFor } from "./supplier-loop";
 
 async function client() {
   const supabase = await createSupabaseServerClient();
@@ -27,10 +29,17 @@ export async function loadSuppliers() {
 export async function loadPurchaseOrders() {
   const staff = await requireStaff({ section: "purchase-orders" });
   const canSee = hasPermission(staff.permissions, "supplier.identity.view");
-  const pos = canSee ? await listPurchaseOrders(await client()) : [];
+  const supabase = await client();
+  const [pos, settings] = canSee ? await Promise.all([listPurchaseOrders(supabase), getChaseSettings(supabase)]) : [[], null];
+  const now = new Date();
   return {
     canSee,
-    pos: pos.map((p) => ({ ...p, statusLabel: PO_STATUS_LABELS[p.status], created: formatDateTime(new Date(p.createdAt)) })),
+    pos: pos.map((p) => ({
+      ...p,
+      statusLabel: PO_STATUS_LABELS[p.status],
+      created: formatDateTime(new Date(p.createdAt)),
+      waiting: p.status === "sent" && settings ? waitingFor(p.sentAt ?? p.createdAt, now, settings) : null,
+    })),
   };
 }
 

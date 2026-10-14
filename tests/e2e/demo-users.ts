@@ -44,3 +44,47 @@ export async function resetDemoPermissions(): Promise<void> {
 
 export const e2eEnabled =
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.DEMO_USER_PASSWORD) && process.env.COAST_ENV !== "production";
+
+export interface TestOrder {
+  orderId: string;
+  soNumber: string;
+  lineIds: string[];
+}
+
+/** A throwaway order for [Demo Org A], so tests never change the demo orders. */
+export async function createTestOrder(service: SupabaseClient, customerName: string, lines: { description: string; quantity: number; route: string }[]): Promise<TestOrder> {
+  const orgId = await demoOrgId(service);
+  let { data: cust } = await service.from("customers").select("id").eq("org_id", orgId).eq("name", customerName).maybeSingle();
+  if (!cust) cust = (await service.from("customers").insert({ org_id: orgId, name: customerName }).select("id").single()).data;
+  const { data: rep } = await service.from("staff_users").select("id").eq("email", "sales@demo-a.coast.test").single();
+  const { data: order, error } = await service
+    .from("sales_orders")
+    .insert({ org_id: orgId, customer_id: cust!.id, sales_rep_id: rep!.id, currency: "GBP", delivery_name: `${customerName} Goods In`, delivery_line1: "3 Test Way", delivery_town: "Newark", delivery_postcode: "NG24 1AB", delivery_country: "GB" })
+    .select("id, so_number")
+    .single();
+  if (error) throw new Error(`Couldn't create test order: ${error.message}`);
+  const lineIds: string[] = [];
+  for (const [i, l] of lines.entries()) {
+    const { data } = await service.from("order_lines").insert({ sales_order_id: order!.id, line_no: i + 1, description: l.description, quantity: l.quantity, unit_price_minor: 1500, route: l.route }).select("id").single();
+    lineIds.push(data!.id);
+  }
+  return { orderId: order!.id, soNumber: order!.so_number, lineIds };
+}
+
+/** Removes everything a test made for a customer: POs (and their emails, links, answers, chases), orders, the customer. */
+export async function deleteTestCustomer(service: SupabaseClient, customerName: string): Promise<void> {
+  const orgId = await demoOrgId(service);
+  const { data: cust } = await service.from("customers").select("id").eq("org_id", orgId).eq("name", customerName);
+  const custIds = (cust ?? []).map((c) => c.id);
+  if (!custIds.length) return;
+  const { data: orders } = await service.from("sales_orders").select("id").in("customer_id", custIds);
+  const orderIds = (orders ?? []).map((o) => o.id);
+  if (orderIds.length) {
+    const { data: lines } = await service.from("order_lines").select("id").in("sales_order_id", orderIds);
+    const { data: pols } = await service.from("purchase_order_lines").select("purchase_order_id").in("order_line_id", (lines ?? []).map((l) => l.id));
+    const poIds = [...new Set((pols ?? []).map((p) => p.purchase_order_id))];
+    if (poIds.length) await service.from("purchase_orders").delete().in("id", poIds);
+    await service.from("sales_orders").delete().in("id", orderIds);
+  }
+  await service.from("customers").delete().in("id", custIds);
+}

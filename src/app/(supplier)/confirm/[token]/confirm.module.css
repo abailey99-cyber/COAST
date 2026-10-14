@@ -1,0 +1,150 @@
+/* Supplier confirmation page: light, Deep Sea header (like the customer page). */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.header {
+  background: var(--coast-deep-sea);
+}
+
+.headerInner {
+  max-width: var(--width-customer);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.buyer {
+  color: #ffffff;
+  font-weight: var(--fw-bold);
+  font-size: 18px;
+}
+
+.powered {
+  color: var(--coast-accent-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.main {
+  max-width: var(--width-customer);
+  margin: 0 auto;
+  padding: 24px var(--gutter) 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.eyebrow {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  font-weight: var(--fw-semibold);
+  color: var(--eyebrow);
+}
+
+.title {
+  font-size: 28px;
+}
+
+.subtitle {
+  font-size: 20px;
+}
+
+.lede {
+  color: var(--text-secondary);
+}
+
+.line {
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lineTitle {
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+  padding: 0 4px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: var(--fw-regular);
+}
+
+.deliver {
+  font-size: 14px;
+  background: var(--selected);
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  min-height: 32px;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--coast-tide-teal-deep);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.textarea {
+  height: auto;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.error {
+  color: var(--status-bad);
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+}
+
+.footnote {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .headerInner,
+  .main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .card {
+    padding: 18px;
+  }
+}

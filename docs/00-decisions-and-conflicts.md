@@ -288,3 +288,43 @@ people allowed to see them.
 ### F3. Tracking codes exist from Phase 1
 Every order gets its random tracking code (E4) when it's created, so codes
 printed or emailed before Phase 5 still work once the tracking page opens.
+
+---
+
+## G. Build notes — Phase 2 (14 October 2026)
+
+### G1. Confirmation links — DECIDED
+- A link is 256 random bits; only its SHA-256 hash is stored. It expires
+  after **30 days** and staff can revoke it. One live link per PO: making a
+  new one (or chasing) revokes the old.
+- Because the code is never stored, staff see a new link **once**, on
+  screen, with a Copy button. Stored copies of emails show the link as hidden.
+- The supplier's page shows only the supplier-safe projection (spec §7.1):
+  lines, quantities, requested dates, the PO price, and the delivery address
+  for direct-ship lines. Never the customer's price, margin or notes.
+- Link answers are structured, so they apply automatically when they match
+  the PO exactly; any difference (quantity, price, later date, can't supply)
+  goes to the review queue.
+
+### G2. Reading supplier emails — DECIDED (B15 honoured)
+Deterministic rules: dates in UK formats, PO numbers, prices and currencies,
+tracking numbers (UPS by shape, others only when labelled), and wording that
+confirms, says "can't/delayed", or mentions a partial delivery. The quoted
+original email is ignored. High confidence (applied automatically) only when
+it's about this PO, clearly confirms, gives exactly one date, nothing negative
+or partial, and the PO has one line. Everything else goes to review with the
+reasons shown and the values pre-filled.
+
+### G3. Escalation — DECIDED (B14 default kept)
+One engine (`src/lib/logic/escalation.ts`). Working hours: Monday–Friday,
+09:00–17:00 UK time by default, adjustable per company in Settings → Chasing,
+with defaults of 8 / 16 / 24 working hours (one, two and three working days)
+for overdue / very overdue / needs attention. Bank holidays can be passed in
+later without changing callers.
+
+### G4. Chasing
+Procurement chases a supplier from the PO (a chase email is written and a
+fresh link included). Anyone with "Chase procurement" (sales, sales managers,
+procurement by default) asks procurement about a line from the order page;
+procurement (or whoever asked) answers and closes it. A supplier's answer
+closes any open supplier chase.

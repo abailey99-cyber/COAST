@@ -409,3 +409,13 @@
   font-weight: var(--fw-semibold);
   color: var(--status-ok);
 }
+
+/* Count badge in the sidebar (mockup: Tide Teal Deep with white text). */
+.navBadge {
+  background: var(--coast-tide-teal-deep);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}

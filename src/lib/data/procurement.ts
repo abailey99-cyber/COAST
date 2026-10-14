@@ -67,6 +67,7 @@ export interface PoListItem {
   currency: Currency;
   supplierName: string;
   createdAt: string;
+  sentAt: string | null;
   orders: { id: string; soNumber: string }[];
   lineCount: number;
 }
@@ -77,6 +78,7 @@ interface PoListRow {
   status: PoStatus;
   currency: string;
   created_at: string;
+  sent_at: string | null;
   suppliers: { name: string } | null;
   purchase_order_lines: { order_lines: { sales_orders: { id: string; so_number: string } | null } | null }[];
 }
@@ -84,7 +86,7 @@ interface PoListRow {
 export async function listPurchaseOrders(client: SupabaseClient): Promise<PoListItem[]> {
   const { data, error } = await client
     .from("purchase_orders")
-    .select("id, po_number, status, currency, created_at, suppliers(name), purchase_order_lines(order_lines(sales_orders(id, so_number)))")
+    .select("id, po_number, status, currency, created_at, sent_at, suppliers(name), purchase_order_lines(order_lines(sales_orders(id, so_number)))")
     .order("created_at", { ascending: false })
     .limit(500)
     .returns<PoListRow[]>();
@@ -102,6 +104,7 @@ export async function listPurchaseOrders(client: SupabaseClient): Promise<PoList
       currency: isCurrency(p.currency) ? p.currency : "GBP",
       supplierName: p.suppliers?.name ?? "",
       createdAt: p.created_at,
+      sentAt: p.sent_at,
       orders: [...orders].map(([id, soNumber]) => ({ id, soNumber })),
       lineCount: p.purchase_order_lines?.length ?? 0,
     };
@@ -110,11 +113,19 @@ export async function listPurchaseOrders(client: SupabaseClient): Promise<PoList
 
 export interface PoDetail extends Omit<PoListItem, "orders" | "lineCount"> {
   supplierEmail: string | null;
+  supplierId: string;
+  sentAt: string | null;
+  confirmedAt: string | null;
   lines: {
     id: string;
     quantity: number;
     requestedDate: string | null;
     unitCostMinor: number | null;
+    confirmedDate: string | null;
+    confirmedQuantity: number | null;
+    confirmedUnitCostMinor: number | null;
+    route: string;
+    deliverTo: string | null;
     description: string;
     sku: string | null;
     orderId: string;
@@ -129,13 +140,33 @@ interface PoDetailRow {
   status: PoStatus;
   currency: string;
   created_at: string;
+  sent_at: string | null;
+  confirmed_at: string | null;
+  supplier_id: string;
   suppliers: { name: string; email: string | null } | null;
   purchase_order_lines: {
     id: string;
     quantity: number | string;
     requested_date: string | null;
-    purchase_order_line_costs: { unit_cost_minor: number } | null;
-    order_lines: { description: string; sku: string | null; sales_orders: { id: string; so_number: string; customers: { name: string } | null } | null } | null;
+    confirmed_date: string | null;
+    confirmed_quantity: number | string | null;
+    purchase_order_line_costs: { unit_cost_minor: number; confirmed_unit_cost_minor: number | null } | null;
+    order_lines: {
+      description: string;
+      sku: string | null;
+      route: string;
+      sales_orders: {
+        id: string;
+        so_number: string;
+        customers: { name: string } | null;
+        delivery_name: string;
+        delivery_line1: string;
+        delivery_line2: string | null;
+        delivery_town: string;
+        delivery_postcode: string;
+        delivery_country: string;
+      } | null;
+    } | null;
   }[];
 }
 
@@ -143,9 +174,11 @@ export async function getPurchaseOrder(client: SupabaseClient, id: string): Prom
   const { data, error } = await client
     .from("purchase_orders")
     .select(
-      `id, po_number, status, currency, created_at, suppliers(name, email),
-       purchase_order_lines(id, quantity, requested_date, purchase_order_line_costs(unit_cost_minor),
-         order_lines(description, sku, sales_orders(id, so_number, customers(name))))`,
+      `id, po_number, status, currency, created_at, sent_at, confirmed_at, supplier_id, suppliers(name, email),
+       purchase_order_lines(id, quantity, requested_date, confirmed_date, confirmed_quantity,
+         purchase_order_line_costs(unit_cost_minor, confirmed_unit_cost_minor),
+         order_lines(description, sku, route, sales_orders(id, so_number, customers(name),
+           delivery_name, delivery_line1, delivery_line2, delivery_town, delivery_postcode, delivery_country)))`,
     )
     .eq("id", id)
     .maybeSingle<PoDetailRow>();
@@ -158,18 +191,32 @@ export async function getPurchaseOrder(client: SupabaseClient, id: string): Prom
     currency: isCurrency(data.currency) ? data.currency : "GBP",
     supplierName: data.suppliers?.name ?? "",
     supplierEmail: data.suppliers?.email ?? null,
+    supplierId: data.supplier_id,
+    sentAt: data.sent_at,
+    confirmedAt: data.confirmed_at,
     createdAt: data.created_at,
-    lines: (data.purchase_order_lines ?? []).map((pl) => ({
+    lines: (data.purchase_order_lines ?? []).map((pl) => {
+      const so = pl.order_lines?.sales_orders;
+      return {
       id: pl.id,
       quantity: Number(pl.quantity),
       requestedDate: pl.requested_date,
       unitCostMinor: pl.purchase_order_line_costs?.unit_cost_minor ?? null,
+      confirmedDate: pl.confirmed_date,
+      confirmedQuantity: pl.confirmed_quantity === null ? null : Number(pl.confirmed_quantity),
+      confirmedUnitCostMinor: pl.purchase_order_line_costs?.confirmed_unit_cost_minor ?? null,
+      route: pl.order_lines?.route ?? "",
+      deliverTo:
+        pl.order_lines?.route === "direct_ship" && so
+          ? [so.delivery_name, so.delivery_line1, so.delivery_line2, so.delivery_town, so.delivery_postcode, so.delivery_country].filter(Boolean).join(", ")
+          : null,
       description: pl.order_lines?.description ?? "",
       sku: pl.order_lines?.sku ?? null,
       orderId: pl.order_lines?.sales_orders?.id ?? "",
       soNumber: pl.order_lines?.sales_orders?.so_number ?? "",
       customerName: pl.order_lines?.sales_orders?.customers?.name ?? "",
-    })),
+      };
+    }),
   };
 }
 

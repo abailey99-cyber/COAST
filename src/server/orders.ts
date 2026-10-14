@@ -1,6 +1,7 @@
 import "server-only";
 import { listOrderEvents, getOrder, listOrders, searchOrderIds, type OrderDetail } from "@/lib/data/orders";
 import { listSuppliers, type Supplier } from "@/lib/data/procurement";
+import { getChaseSettings, listChases } from "@/lib/data/supplier-loop";
 import { listStaffInOrg } from "@/lib/data/staff";
 import { formatDateTime, formatIsoDate, formatMoney, formatQuantity } from "@/lib/logic/format";
 import { describeEvent, matchesView, orderKpis, parseOrderView, type OrderKpis, type OrderView } from "@/lib/logic/order-list";
@@ -21,6 +22,7 @@ import { hasPermission } from "@/lib/logic/permissions";
 import { canRaisePoFor, PO_STATUS_LABELS } from "@/lib/logic/purchase-orders";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff, type StaffContext } from "./session";
+import { waitingFor, type Waiting } from "./supplier-loop";
 
 /** Loaders for the order screens. Each checks who's asking first; RLS checks again underneath. */
 
@@ -124,7 +126,21 @@ export interface LineView {
   stageLabel: string;
   nextStages: { value: LineStage; label: string }[];
   canRaisePo: boolean;
-  pos: { id: string; poNumber: string; status: string; supplierName: string; quantity: string; requested: string; unitCost: string | null }[];
+  pos: { id: string; poNumber: string; status: string; supplierName: string; quantity: string; requested: string; unitCost: string | null; confirmed: string | null }[];
+}
+
+export interface ChaseView {
+  id: string;
+  lineLabel: string;
+  note: string | null;
+  openedBy: string;
+  opened: string;
+  open: boolean;
+  waiting: Waiting | null;
+  resolvedBy: string | null;
+  resolved: string | null;
+  reply: string | null;
+  canResolve: boolean;
 }
 
 export interface HistoryItem {
@@ -144,8 +160,11 @@ export interface OrderPage {
   createdAt: string;
   lines: LineView[];
   history: HistoryItem[];
-  can: { edit: boolean; changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean };
+  can: { edit: boolean; changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean; chase: boolean };
   suppliers: Supplier[];
+  chases: ChaseView[];
+  /** Lines that can have a new internal chase (no open one, not finished). */
+  chaseableLines: { id: string; label: string }[];
 }
 
 export async function loadOrder(id: string): Promise<OrderPage | null> {
@@ -161,13 +180,17 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     raisePo: hasPermission(staff.permissions, "procurement.manage") && hasPermission(staff.permissions, "supplier.identity.view"),
     seeSuppliers: hasPermission(staff.permissions, "supplier.identity.view"),
     seeCosts: hasPermission(staff.permissions, "costs.view"),
+    chase: hasPermission(staff.permissions, "chases.internal"),
   };
 
-  const [events, team, suppliers] = await Promise.all([
+  const [events, team, suppliers, chases, settings] = await Promise.all([
     listOrderEvents(supabase, id),
     listStaffInOrg(supabase),
     can.raisePo ? listSuppliers(supabase) : Promise.resolve([] as Supplier[]),
+    listChases(supabase, { orderId: id }),
+    getChaseSettings(supabase),
   ]);
+  const now = new Date();
   const names = new Map(team.map((p) => [p.id, p.fullName]));
   const poNumbers = new Map(order.lines.flatMap((l) => l.poLinks.map((p) => [p.purchaseOrderId, p.poNumber] as const)));
   const lineMap = new Map(order.lines.map((l) => [l.id, { lineNo: l.lineNo, route: l.route }]));
@@ -195,6 +218,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
         quantity: formatQuantity(p.quantity),
         requested: formatIsoDate(p.requestedDate),
         unitCost: can.seeCosts && p.unitCostMinor !== null ? formatMoney(p.unitCostMinor, order.currency) : null,
+        confirmed: p.confirmedDate ? formatIsoDate(p.confirmedDate) : null,
       })),
     };
   });
@@ -221,6 +245,29 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     })),
     can,
     suppliers: suppliers.filter((s) => s.isActive),
+    chases: chases
+      .filter((c) => c.kind === "internal")
+      .map((c) => {
+        const line = order.lines.find((l) => l.id === c.orderLineId);
+        return {
+          id: c.id,
+          lineLabel: line ? `Line ${line.lineNo} · ${line.description}` : "A line",
+          note: c.note,
+          openedBy: c.openedBy ? (names.get(c.openedBy) ?? "Someone") : "COAST",
+          opened: formatDateTime(new Date(c.openedAt)),
+          open: c.status === "open",
+          waiting: c.status === "open" ? waitingFor(c.openedAt, now, settings) : null,
+          resolvedBy: c.resolvedBy ? (names.get(c.resolvedBy) ?? "Someone") : null,
+          resolved: c.resolvedAt ? formatDateTime(new Date(c.resolvedAt)) : null,
+          reply: c.resolutionNote,
+          canResolve: c.status === "open" && (hasPermission(staff.permissions, "procurement.manage") || c.openedBy === staff.id),
+        };
+      }),
+    chaseableLines: can.chase
+      ? order.lines
+          .filter((l) => l.stage !== "delivered" && l.stage !== "cancelled" && !chases.some((c) => c.kind === "internal" && c.status === "open" && c.orderLineId === l.id))
+          .map((l) => ({ id: l.id, label: `Line ${l.lineNo} · ${l.description}` }))
+      : [],
   };
 }
 

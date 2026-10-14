@@ -5,12 +5,14 @@ import ui from "../ui.module.css";
 
 export const metadata = { title: "Purchase orders" };
 
+const LEVEL_CLASS = { none: "status-neutral", amber: "status-warn", red: "status-bad", alert: "status-bad" } as const;
+
 export default async function PurchaseOrdersPage() {
   const { canSee, pos } = await loadPurchaseOrders();
 
   return (
     <>
-      <PageHeader title="Purchase orders" subtitle="Raised from an order's lines. Sending them by email arrives in Phase 2." />
+      <PageHeader title="Purchase orders" subtitle="Raised from an order's lines, sent to suppliers, chased until confirmed." />
       <section className={ui.listCard} aria-label="Purchase orders">
         {!canSee ? (
           <p className={ui.empty}>Your company has chosen not to show supplier details to your role. Ask an admin if you need them.</p>
@@ -27,6 +29,7 @@ export default async function PurchaseOrdersPage() {
                   <th scope="col">Lines</th>
                   <th scope="col">Created</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Waiting</th>
                 </tr>
               </thead>
               <tbody>
@@ -45,6 +48,13 @@ export default async function PurchaseOrdersPage() {
                     <td>{p.lineCount}</td>
                     <td>{p.created}</td>
                     <td><span className="status status-neutral">● {p.statusLabel}</span></td>
+                    <td>
+                      {p.waiting ? (
+                        <span className={`status ${LEVEL_CLASS[p.waiting.level]}`}>● {p.waiting.label} · {p.waiting.wait}</span>
+                      ) : (
+                        <span className={ui.muted}>—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
