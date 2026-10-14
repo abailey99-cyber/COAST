@@ -17,6 +17,9 @@ coverage/
 .env.local
 .env.*.local
 
+# private local notes (e.g. DEMO-LOGINS.local.md) — never commit
+*.local.md
+
 # supabase CLI working files
 supabase/.temp/
 supabase/.branches/
