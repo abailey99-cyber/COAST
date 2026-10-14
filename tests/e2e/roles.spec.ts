@@ -1,6 +1,4 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
-import { CONFIGURABLE_ROLES, DEFAULT_PERMISSIONS } from "../../src/lib/logic/permissions";
 import { sessionFile, type DemoUser } from "./demo-users";
 
 // Signs in as each demo role and checks the sidebar matches the default permissions (decisions B9, E1–E3).
@@ -22,19 +20,6 @@ test.describe("signed-in roles", () => {
   test.skip(!enabled, "Dev database or DEMO_USER_PASSWORD not configured");
   test.describe.configure({ mode: "serial" });
 
-  // Start from the default permissions, whatever an earlier failed run left behind.
-  test.beforeAll(async () => {
-    const service = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: { persistSession: false },
-    });
-    const { data: org } = await service.from("organisations").select("id").eq("slug", "demo-org-a").single();
-    const { data: people } = await service.from("staff_users").select("id").eq("org_id", org!.id);
-    await service.from("staff_permission_overrides").delete().in("user_id", people!.map((p) => p.id));
-    await service.from("role_permissions").delete().eq("org_id", org!.id);
-    const rows = CONFIGURABLE_ROLES.flatMap((role) => DEFAULT_PERMISSIONS[role].map((permission) => ({ org_id: org!.id, role, permission, granted_by: null })));
-    const { error } = await service.from("role_permissions").insert(rows);
-    if (error) throw new Error(`Couldn't reset permissions: ${error.message}`);
-  });
 
   /** A page already signed in as a demo user (saved session from auth.setup.ts). */
   async function as(browser: Browser, email: DemoUser): Promise<Page> {

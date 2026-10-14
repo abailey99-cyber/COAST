@@ -1,0 +1,231 @@
+import "server-only";
+import { listOrderEvents, getOrder, listOrders, searchOrderIds, type OrderDetail } from "@/lib/data/orders";
+import { listSuppliers, type Supplier } from "@/lib/data/procurement";
+import { listStaffInOrg } from "@/lib/data/staff";
+import { formatDateTime, formatIsoDate, formatMoney, formatQuantity } from "@/lib/logic/format";
+import { describeEvent, matchesView, orderKpis, parseOrderView, type OrderKpis, type OrderView } from "@/lib/logic/order-list";
+import {
+  ORDER_STATUS_LABELS,
+  ROUTE_LABELS,
+  allowedNextStages,
+  orderFulfilmentLabel,
+  orderStageLabel,
+  orderStatus,
+  parseRepFilter,
+  stageLabel,
+  type LineStage,
+  type OrderStatus,
+  type RepFilter,
+} from "@/lib/logic/orders";
+import { hasPermission } from "@/lib/logic/permissions";
+import { canRaisePoFor, PO_STATUS_LABELS } from "@/lib/logic/purchase-orders";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireStaff, type StaffContext } from "./session";
+
+/** Loaders for the order screens. Each checks who's asking first; RLS checks again underneath. */
+
+export interface Rep {
+  id: string;
+  name: string;
+}
+
+export interface OrderRow {
+  id: string;
+  soNumber: string;
+  customerName: string;
+  customerReference: string | null;
+  salesRepName: string | null;
+  fulfilment: string;
+  stage: string;
+  promised: string;
+  status: OrderStatus;
+  statusLabel: string;
+}
+
+export interface OrdersView {
+  rows: OrderRow[];
+  kpis: OrderKpis;
+  view: OrderView;
+  q: string;
+  repFilter: RepFilter;
+  reps: Rep[];
+  canSeeAllOrders: boolean;
+  canCreate: boolean;
+  truncated: boolean;
+}
+
+async function client() {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) throw new Error("The database isn't connected.");
+  return supabase;
+}
+
+/** People who can be a sales rep on an order. */
+async function loadReps(staff: StaffContext): Promise<Rep[]> {
+  const team = await listStaffInOrg(await client());
+  const reps = team.filter((p) => p.isActive && (p.role === "sales" || p.role === "sales_manager")).map((p) => ({ id: p.id, name: p.fullName }));
+  if (!reps.some((r) => r.id === staff.id) && (staff.role === "sales" || staff.role === "sales_manager")) reps.unshift({ id: staff.id, name: staff.fullName });
+  return reps;
+}
+
+export async function loadOrders(params: { view?: string; q?: string; rep?: string }): Promise<OrdersView> {
+  const staff = await requireStaff({ section: "orders" });
+  const supabase = await client();
+  const canSeeAllOrders = hasPermission(staff.permissions, "orders.view_all");
+  const repFilter = canSeeAllOrders ? parseRepFilter(params.rep, staff.role) : "mine";
+  const view = parseOrderView(params.view);
+  const q = (params.q ?? "").trim().slice(0, 100);
+
+  const repId = repFilter === "mine" ? staff.id : repFilter === "all" ? undefined : repFilter.repId;
+  const ids = q ? await searchOrderIds(supabase, q) : undefined;
+  const [orders, reps] = await Promise.all([listOrders(supabase, { repId, ids }), loadReps(staff)]);
+
+  const rows = orders.filter((o) => matchesView(o, view)).map<OrderRow>((o) => {
+    const status = orderStatus(o.lines);
+    return {
+      id: o.id,
+      soNumber: o.soNumber,
+      customerName: o.customerName,
+      customerReference: o.customerReference,
+      salesRepName: o.salesRepName,
+      fulfilment: orderFulfilmentLabel(o.lines),
+      stage: orderStageLabel(o.lines),
+      promised: formatIsoDate(o.promisedDate),
+      status,
+      statusLabel: ORDER_STATUS_LABELS[status],
+    };
+  });
+
+  return {
+    rows,
+    kpis: orderKpis(orders),
+    view,
+    q,
+    repFilter,
+    reps,
+    canSeeAllOrders,
+    canCreate: hasPermission(staff.permissions, "orders.edit"),
+    truncated: orders.length >= 500,
+  };
+}
+
+// ── One order ───────────────────────────────────────────────────────────────
+
+export interface LineView {
+  id: string;
+  lineNo: number;
+  sku: string | null;
+  description: string;
+  quantity: string;
+  quantityValue: number;
+  unitPrice: string;
+  route: string;
+  stage: LineStage;
+  stageLabel: string;
+  nextStages: { value: LineStage; label: string }[];
+  canRaisePo: boolean;
+  pos: { id: string; poNumber: string; status: string; supplierName: string; quantity: string; requested: string; unitCost: string | null }[];
+}
+
+export interface HistoryItem {
+  id: number;
+  text: string;
+  who: string;
+  when: string;
+}
+
+export interface OrderPage {
+  order: Omit<OrderDetail, "lines">;
+  statusLabel: string;
+  status: OrderStatus;
+  fulfilment: string;
+  stage: string;
+  promised: string;
+  createdAt: string;
+  lines: LineView[];
+  history: HistoryItem[];
+  can: { changeStage: boolean; raisePo: boolean; seeSuppliers: boolean; seeCosts: boolean };
+  suppliers: Supplier[];
+}
+
+export async function loadOrder(id: string): Promise<OrderPage | null> {
+  const staff = await requireStaff({ section: "orders" });
+  const supabase = await client();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const order = await getOrder(supabase, id);
+  if (!order) return null;
+
+  const can = {
+    changeStage: hasPermission(staff.permissions, "orders.edit") || hasPermission(staff.permissions, "procurement.manage"),
+    raisePo: hasPermission(staff.permissions, "procurement.manage") && hasPermission(staff.permissions, "supplier.identity.view"),
+    seeSuppliers: hasPermission(staff.permissions, "supplier.identity.view"),
+    seeCosts: hasPermission(staff.permissions, "costs.view"),
+  };
+
+  const [events, team, suppliers] = await Promise.all([
+    listOrderEvents(supabase, id),
+    listStaffInOrg(supabase),
+    can.raisePo ? listSuppliers(supabase) : Promise.resolve([] as Supplier[]),
+  ]);
+  const names = new Map(team.map((p) => [p.id, p.fullName]));
+  const poNumbers = new Map(order.lines.flatMap((l) => l.poLinks.map((p) => [p.purchaseOrderId, p.poNumber] as const)));
+  const lineMap = new Map(order.lines.map((l) => [l.id, { lineNo: l.lineNo, route: l.route }]));
+
+  const lines: LineView[] = order.lines.map((l) => {
+    const onLivePo = l.poLinks.some((p) => p.status !== "cancelled");
+    return {
+      id: l.id,
+      lineNo: l.lineNo,
+      sku: l.sku,
+      description: l.description,
+      quantity: formatQuantity(l.quantity),
+      quantityValue: l.quantity,
+      unitPrice: l.unitPriceMinor === null ? "—" : formatMoney(l.unitPriceMinor, order.currency),
+      route: ROUTE_LABELS[l.route],
+      stage: l.stage,
+      stageLabel: stageLabel(l.stage, l.route),
+      nextStages: can.changeStage ? allowedNextStages(l.stage, l.route).map((s) => ({ value: s, label: stageLabel(s, l.route) })) : [],
+      canRaisePo: can.raisePo && canRaisePoFor({ id: l.id, route: l.route, stage: l.stage, quantity: l.quantity, onLivePo }),
+      pos: l.poLinks.map((p) => ({
+        id: p.purchaseOrderId,
+        poNumber: p.poNumber,
+        status: PO_STATUS_LABELS[p.status],
+        supplierName: p.supplierName,
+        quantity: formatQuantity(p.quantity),
+        requested: formatIsoDate(p.requestedDate),
+        unitCost: can.seeCosts && p.unitCostMinor !== null ? formatMoney(p.unitCostMinor, order.currency) : null,
+      })),
+    };
+  });
+
+  const summaryLines = order.lines.map((l) => ({ route: l.route, stage: l.stage }));
+  const status = orderStatus(summaryLines);
+  const { lines: _lines, ...rest } = order;
+  void _lines;
+
+  return {
+    order: rest,
+    status,
+    statusLabel: ORDER_STATUS_LABELS[status],
+    fulfilment: orderFulfilmentLabel(summaryLines),
+    stage: orderStageLabel(summaryLines),
+    promised: formatIsoDate(order.promisedDate),
+    createdAt: formatDateTime(new Date(order.createdAt)),
+    lines,
+    history: events.map((e) => ({
+      id: e.id,
+      text: describeEvent(e, { lines: lineMap, poNumbers }),
+      who: e.actorId ? (names.get(e.actorId) ?? "Someone") : "COAST",
+      when: formatDateTime(new Date(e.createdAt)),
+    })),
+    can,
+    suppliers: suppliers.filter((s) => s.isActive),
+  };
+}
+
+export async function loadNewOrderForm(): Promise<{ reps: Rep[]; defaultRepId: string | null }> {
+  const staff = await requireStaff({ section: "orders" });
+  if (!hasPermission(staff.permissions, "orders.edit")) throw new Error("not allowed");
+  const reps = await loadReps(staff);
+  return { reps, defaultRepId: reps.some((r) => r.id === staff.id) ? staff.id : null };
+}

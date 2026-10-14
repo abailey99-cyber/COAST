@@ -21,7 +21,7 @@ export default defineConfig({
     { name: "setup", testMatch: /auth\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
     // Signed-in tests run once, at desktop size.
-    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /roles\.spec\.ts/ },
+    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /(roles|orders)\.spec\.ts/ },
   ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,

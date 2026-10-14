@@ -29,6 +29,13 @@ export interface Section {
   permission: Permission | null;
 }
 
+/** The build phase most recently finished. Sections from this phase or earlier are real screens. */
+export const BUILT_THROUGH_PHASE = 1;
+
+export function isSectionBuilt(section: Section): boolean {
+  return section.phase <= BUILT_THROUGH_PHASE;
+}
+
 /** Sidebar order. Home is first for every role (spec §5.6). */
 export const SECTIONS: readonly Section[] = [
   { key: "home", label: "Home", href: "/app/home", phase: 6, permission: null },

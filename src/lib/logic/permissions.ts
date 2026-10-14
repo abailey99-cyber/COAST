@@ -36,6 +36,7 @@ export const PERMISSIONS = [
   { key: "orders.view_all", group: "Data", label: "Everyone's orders", description: "See every order, not just the ones assigned to them." },
   { key: "supplier.identity.view", group: "Data", label: "Supplier names", description: "See which supplier fulfils an order, and PO numbers." },
   { key: "costs.view", group: "Data", label: "Costs", description: "See what the business pays suppliers." },
+  { key: "audit.view", group: "Data", label: "Audit log", description: "See the full record of who changed what, and when." },
   { key: "orders.edit", group: "Actions", label: "Create and edit orders", description: "Create orders and change their details." },
   { key: "procurement.manage", group: "Actions", label: "Manage suppliers and POs", description: "Create suppliers and purchase orders, chase suppliers, resolve discrepancies." },
   { key: "goods_in.check", group: "Actions", label: "Check in deliveries", description: "Record deliveries arriving at the warehouse." },
@@ -91,7 +92,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "people.manage_sales",
   ],
   // E3: directors see everything, change nothing — unless an admin allows it.
-  director: [...SCREENS_ALL, "orders.view_all", "supplier.identity.view", "costs.view"],
+  director: [...SCREENS_ALL, "orders.view_all", "supplier.identity.view", "costs.view", "audit.view"],
   goods_in: ["section.goods-in", "section.settings", "supplier.identity.view", "goods_in.check"],
 };
 

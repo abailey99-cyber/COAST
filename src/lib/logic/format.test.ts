@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLongDate, formatMoney, formatShortDate, isCurrency } from "./format";
+import { formatDateTime, formatIsoDate, formatLongDate, formatMoney, formatQuantity, formatShortDate, isCurrency } from "./format";
 
 describe("formatShortDate", () => {
   it('formats like "Thu 15 Oct"', () => {
@@ -49,5 +49,23 @@ describe("isCurrency", () => {
     expect(isCurrency("GBP")).toBe(true);
     expect(isCurrency("gbp")).toBe(false);
     expect(isCurrency("JPY")).toBe(false);
+  });
+});
+
+describe("formatDateTime / formatIsoDate / formatQuantity", () => {
+  it("formats a timestamp in UK time", () => {
+    expect(formatDateTime(new Date("2026-10-15T09:42:00Z"))).toBe("Thu 15 Oct, 10:42");
+    expect(formatDateTime(new Date("nope"))).toBe("Unknown time");
+  });
+
+  it("formats a stored calendar date without shifting the day", () => {
+    expect(formatIsoDate("2026-10-16")).toBe("Fri 16 Oct");
+    expect(formatIsoDate(null)).toBe("—");
+  });
+
+  it("formats quantities", () => {
+    expect(formatQuantity(2)).toBe("2");
+    expect(formatQuantity(1.5)).toBe("1.5");
+    expect(formatQuantity(1250)).toBe("1,250");
   });
 });

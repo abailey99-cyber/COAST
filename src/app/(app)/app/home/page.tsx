@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { visibleSections } from "@/lib/logic/navigation";
+import { isSectionBuilt, visibleSections } from "@/lib/logic/navigation";
 import { isViewOnly } from "@/lib/logic/permissions";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/logic/roles";
 import { requireStaff } from "@/server/session";
@@ -24,13 +24,12 @@ export default async function HomePage() {
       <section className={styles.card} aria-labelledby="build-title">
         <h2 id="build-title" className={styles.cardTitle}>What&apos;s ready</h2>
         <p className={styles.cardText}>
-          COAST is being built in phases. Signing in, your team and the connection status in Settings work now. These
-          screens are coming next:
+          COAST is being built in phases. Here’s where each screen is:
         </p>
         <ul className={styles.cardText}>
           {sections.map((s) => (
             <li key={s.key}>
-              <Link href={s.href}>{s.label}</Link> {s.phase > 0 ? `— Phase ${s.phase}` : "— available"}
+              <Link href={s.href}>{s.label}</Link> {isSectionBuilt(s) ? "— ready" : `— coming in Phase ${s.phase}`}
             </li>
           ))}
         </ul>

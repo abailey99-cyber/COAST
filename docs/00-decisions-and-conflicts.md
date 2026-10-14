@@ -266,3 +266,25 @@ A **Sales manager** role so admins don't have to do everything:
 Settings is organised into collapsible sections (Who sees what — split into
 Screens / Data / Actions; Team and individual access — one fold-out per
 person; Connections), closed by default with a one-line summary each.
+
+---
+
+## F. Build notes — Phase 1 (14 October 2026)
+
+### F1. Audit log is written by the database, not an app helper — DECIDED (strengthens B4)
+B4 asked for "a single helper the data layer calls on every mutation". It is
+instead a database trigger (`public.audit_row_change()`) on every business
+table, so no code path — app, script or future integration — can skip it.
+Nobody can update or delete audit rows through the API (not even admins or
+the service role). Admins and anyone with the "Audit log" permission
+(directors by default) can read it in Settings.
+
+### F2. Order history is written by the database too
+`order_events` (order created, PO raised, PO status changed, line stage
+changed) is filled by triggers, never by app code, and never contains a
+supplier name or cost — PO references are ids, resolved at read time only for
+people allowed to see them.
+
+### F3. Tracking codes exist from Phase 1
+Every order gets its random tracking code (E4) when it's created, so codes
+printed or emailed before Phase 5 still work once the tracking page opens.

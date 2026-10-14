@@ -32,3 +32,21 @@ export function formatMoney(amountMinor: number, currency: Currency): string {
   if (!Number.isInteger(amountMinor)) throw new RangeError("amountMinor must be an integer number of minor units");
   return new Intl.NumberFormat("en-GB", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(amountMinor / 100);
 }
+
+/** "Thu 15 Oct, 10:42" */
+export function formatDateTime(date: Date, timeZone: string = DISPLAY_TIME_ZONE): string {
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+  const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(date);
+  return `${formatShortDate(date, timeZone)}, ${time}`;
+}
+
+/** A calendar date stored as "2026-10-16" (no time zone) → "Fri 16 Oct". */
+export function formatIsoDate(iso: string | null): string {
+  if (!iso) return "—";
+  return formatShortDate(new Date(`${iso}T12:00:00Z`), "UTC");
+}
+
+/** Quantities: no trailing zeros, UK separators. 2 → "2", 1.5 → "1.5". */
+export function formatQuantity(n: number): string {
+  return new Intl.NumberFormat("en-GB", { maximumFractionDigits: 3 }).format(n);
+}

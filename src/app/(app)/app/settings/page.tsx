@@ -1,4 +1,5 @@
 import { HEALTH_LABELS, type HealthStatus } from "@/lib/logic/health";
+import { loadAudit } from "@/server/procurement";
 import { loadSettings } from "@/server/settings";
 import { PageHeader } from "../PageHeader";
 import styles from "../shell.module.css";
@@ -15,13 +16,13 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const { canManagePermissions, integrations, team, grants } = await loadSettings();
+  const [{ canManagePermissions, integrations, team, grants }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Who sees what, your team and connections" />
+      <PageHeader title="Settings" subtitle="Who sees what, your team, connections and the audit log" />
 
       <details className={styles.fold}>
         <summary>
@@ -99,6 +100,43 @@ export default async function SettingsPage() {
           </div>
         </div>
       </details>
+      {audit.canSee && (
+        <details className={styles.fold}>
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Audit log</h2>
+              <span className={styles.foldMeta}>Every change, who made it and when · latest {audit.entries.length}</span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            <p className={styles.cardText}>
+              Recorded automatically by the database on every change. Nobody can edit or delete it through COAST — not even an admin.
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">When</th>
+                    <th scope="col">Who</th>
+                    <th scope="col">What</th>
+                    <th scope="col">Fields changed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.entries.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.when}</td>
+                      <td>{a.who}</td>
+                      <td>{a.what}</td>
+                      <td>{a.fields || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      )}
     </>
   );
 }

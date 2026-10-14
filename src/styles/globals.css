@@ -227,3 +227,13 @@ svg {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Native controls (date pickers, scrollbars) follow the theme. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
