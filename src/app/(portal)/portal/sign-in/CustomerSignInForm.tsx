@@ -4,10 +4,11 @@ import { useActionState } from "react";
 import { signInCustomer, type AccountResult } from "@/server/customer-account-actions";
 import styles from "../../portal.module.css";
 
-export function CustomerSignInForm() {
+export function CustomerSignInForm({ add }: { add: string }) {
   const [state, action, pending] = useActionState(signInCustomer, { ok: false } as AccountResult);
   return (
     <form action={action} className={styles.form}>
+      <input type="hidden" name="add" value={add} />
       <label htmlFor="cs-email">Email</label>
       <input id="cs-email" name="email" type="email" autoComplete="email" required className="input" />
       <label htmlFor="cs-password">Password</label>

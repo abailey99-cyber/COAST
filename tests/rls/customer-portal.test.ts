@@ -115,15 +115,15 @@ describe.skipIf(!enabled)("customer portal security", () => {
   });
 
   it("never lets a staff login become a customer account", async () => {
-    const { error } = await service.from("customer_accounts").insert({ user_id: ids["sales@demo-a.coast.test"], org_id: orgA, customer_id: customerId, full_name: "x", email: "sales@demo-a.coast.test" });
+    const { error } = await service.from("customer_accounts").insert({ user_id: ids["sales@demo-a.coast.test"], full_name: "x", email: "sales@demo-a.coast.test" });
     expect(error).not.toBeNull();
   });
 
   it("gives a signed-in customer nothing to read directly — not even their own order", async () => {
-    expect((await service.from("customer_accounts").insert({ user_id: customerUserId, org_id: orgA, customer_id: customerId, full_name: "[RLS customer]", email: CUSTOMER_EMAIL })).error).toBeNull();
+    expect((await service.from("customer_accounts").insert({ user_id: customerUserId, full_name: "[RLS customer]", email: CUSTOMER_EMAIL })).error).toBeNull();
     expect((await service.from("customer_account_orders").insert({ user_id: customerUserId, sales_order_id: orderId })).error).toBeNull();
     const customer = await signedIn(CUSTOMER_EMAIL, CUSTOMER_PASSWORD);
-    for (const table of ["sales_orders", "order_lines", "suppliers", "purchase_orders", "purchase_order_line_costs", "shipments", "order_messages", "customer_accounts", "customer_account_orders", "customer_notifications", "order_predictions", "staff_users", "audit_log"]) {
+    for (const table of ["sales_orders", "order_lines", "suppliers", "purchase_orders", "purchase_order_line_costs", "shipments", "order_messages", "customer_accounts", "customer_account_orders", "customer_account_links", "customer_notifications", "order_predictions", "staff_users", "audit_log", "leads"]) {
       const { data } = await customer.from(table).select("*").limit(5);
       expect(data ?? [], table).toEqual([]);
     }
@@ -134,8 +134,35 @@ describe.skipIf(!enabled)("customer portal security", () => {
     expect((await adminB.from("customer_accounts").select("email").eq("user_id", customerUserId)).data).toEqual([]);
   });
 
+  it("adds a vouched-for customer's orders automatically — new ones too — and only for that business", async () => {
+    // (The account exists from the test above.) Staff can't write links themselves; COAST does, after checking.
+    expect((await sales.from("customer_account_links").insert({ user_id: customerUserId, org_id: orgA, customer_id: customerId })).error).not.toBeNull();
+    expect((await service.from("customer_account_links").insert({ user_id: customerUserId, org_id: orgA, customer_id: customerId, vouched_by: ids["sales@demo-a.coast.test"] })).error).toBeNull();
+    // A new order for that customer goes straight into the account.
+    const { data: newId } = await procurement.rpc("create_sales_order", {
+      p: {
+        customer_name: CUSTOMER, customer_reference: "", so_number: "", sales_rep_id: ids["sales@demo-a.coast.test"], currency: "GBP", promised_date: "",
+        delivery_name: "x", delivery_line1: "x", delivery_line2: "", delivery_town: "x", delivery_postcode: "NG24 1AB", delivery_country: "GB",
+        lines: [{ sku: "", description: "Auto-added item", quantity: 1, unit_price_minor: 100, route: "from_stock" }],
+      },
+    });
+    const added = (await service.from("customer_account_orders").select("sales_order_id").eq("user_id", customerUserId)).data!.map((r) => r.sales_order_id);
+    expect(added).toEqual(expect.arrayContaining([orderId, newId]));
+    // The business sees the link; another business doesn't.
+    expect((await sales.from("customer_account_links").select("user_id").eq("user_id", customerUserId)).data).toHaveLength(1);
+    expect((await adminB.from("customer_account_links").select("user_id").eq("user_id", customerUserId)).data).toEqual([]);
+    await service.from("sales_orders").delete().eq("id", newId as string);
+  });
+
+  it("keeps register-interest leads away from every business", async () => {
+    expect((await service.from("leads").insert({ name: "x", company: "x", email: "lead@example.test", source: "website" })).error).toBeNull();
+    expect((await admin.from("leads").select("id")).data ?? []).toEqual([]);
+    expect((await anon.from("leads").insert({ name: "x", company: "x", email: "a@b.c", source: "website" })).error).not.toBeNull();
+    await service.from("leads").delete().eq("email", "lead@example.test");
+  });
+
   it("lets nobody signed out read any of it", async () => {
-    for (const table of ["customer_page_settings", "order_messages", "customer_notification_prefs", "customer_notifications", "customer_accounts", "customer_account_orders", "rate_limit_hits"]) {
+    for (const table of ["customer_page_settings", "order_messages", "customer_notification_prefs", "customer_notifications", "customer_accounts", "customer_account_orders", "customer_account_links", "rate_limit_hits", "leads"]) {
       expect((await anon.from(table).select("*").limit(1)).data ?? [], table).toEqual([]);
     }
   });

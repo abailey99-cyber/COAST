@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
-import { findOrderByTrackingCode, getPrefs, hitRateLimit, loadRawCustomerOrder, normaliseTrackingCode } from "@/lib/data/customer-portal";
+import { accountHasOrder, findOrderByTrackingCode, getPrefs, hitRateLimit, loadRawCustomerOrder, normaliseTrackingCode } from "@/lib/data/customer-portal";
 import { appUrl } from "@/lib/env";
 import { assertViewIsClean, toCustomerView, type CustomerOrderView } from "@/lib/logic/masking";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -68,6 +68,10 @@ export interface TrackingPage {
   view: CustomerOrderView;
   /** The customer's own update settings; the email is partly hidden on screen. */
   updates: { emailHint: string | null; level: string; dailyDigest: boolean };
+  /** For "Get COAST for your business" — which business's page sent them. */
+  businessSlug: string | null;
+  /** The signed-in customer already has this order in their account. */
+  inAccount: boolean;
 }
 
 /** "jo.bloggs@example.com" → "j•••@example.com". */
@@ -77,10 +81,20 @@ function hintEmail(email: string | null): string | null {
   return `${user.slice(0, 1)}•••@${domain}`;
 }
 
-export async function loadTrackingPage(code: string): Promise<TrackLookup["state"] | TrackingPage> {
+export async function loadTrackingPage(code: string, customerUserId: string | null = null): Promise<TrackLookup["state"] | TrackingPage> {
   const r = await lookUpTrackingCode(code);
   if (r.state !== "ok") return r.state;
   const admin = createSupabaseAdminClient()!;
-  const prefs = await getPrefs(admin, r.orderId);
-  return { code: r.code, view: r.view, updates: { emailHint: hintEmail(prefs?.email ?? null), level: prefs?.level ?? "milestones", dailyDigest: prefs?.dailyDigest ?? false } };
+  const [prefs, org, inAccount] = await Promise.all([
+    getPrefs(admin, r.orderId),
+    admin.from("organisations").select("slug").eq("id", r.orgId).maybeSingle<{ slug: string }>(),
+    customerUserId ? accountHasOrder(admin, customerUserId, r.orderId) : Promise.resolve(false),
+  ]);
+  return {
+    code: r.code,
+    view: r.view,
+    updates: { emailHint: hintEmail(prefs?.email ?? null), level: prefs?.level ?? "milestones", dailyDigest: prefs?.dailyDigest ?? false },
+    businessSlug: org.data?.slug ?? null,
+    inAccount,
+  };
 }

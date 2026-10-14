@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { addThisOrder, type AccountResult } from "@/server/customer-account-actions";
 import { saveCustomerUpdates, sendCustomerMessage, type PortalResult } from "@/server/portal-actions";
 import styles from "../../portal.module.css";
 
@@ -59,5 +61,26 @@ export function UpdatesForm({
       {state.error && <p className={styles.error} role="alert">{state.error}</p>}
       {state.ok && <p className={styles.ok} role="status">{state.message}</p>}
     </form>
+  );
+}
+
+/** "Add to my COAST account" for a signed-in customer. */
+export function AddToAccount({ code }: { code: string }) {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<AccountResult | null>(null);
+  if (result?.ok) {
+    return (
+      <p className={styles.ok} role="status" style={{ textAlign: "center" }}>
+        ✓ {result.message} <Link href="/portal">All my deliveries</Link>
+      </p>
+    );
+  }
+  return (
+    <div className={styles.form}>
+      <button type="button" className="btn btn-secondary" disabled={pending} onClick={() => startTransition(async () => setResult(await addThisOrder(code)))}>
+        {pending ? "Adding…" : "Add to my COAST account"}
+      </button>
+      {result?.error && <p className={styles.error} role="alert">{result.error}</p>}
+    </div>
   );
 }

@@ -69,8 +69,11 @@ _Last updated: end of Phase 6 — 14 October 2026._
 - **UNVERIFIED: a self-made account's email address isn't confirmed yet**
   (that needs real email, Phase 8). Low risk: the account only sees orders
   whose codes its owner holds, and password resets go to the real address.
-- **One email address, one business**: someone who buys from two COAST
-  businesses can only have an account with one of them for now.
+- **One COAST account covers every business** (decision L1). Automatic adding
+  happens only when a business vouches for the person; matching a confirmed
+  email to the address a business holds waits for real email (Phase 8).
+- **Register-interest leads are read with `npm run leads`** (or `-- --csv`);
+  there's no screen for them yet, and no self-serve trial or billing (L3).
 - **The account's "spend" is the order value at your prices**, by currency,
   for orders added to the account.
 - **Customer email addresses are per order** (set by the customer on their

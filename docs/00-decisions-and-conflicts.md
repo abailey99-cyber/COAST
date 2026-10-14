@@ -471,3 +471,27 @@ problems and customs holds (on the carrier). One escalation engine, Settings
 → Chasing thresholds. Problems (Updates, Home): an order turning at risk, a
 delivery problem, a supplier answer needing review, a customer message, a
 bad check-in, a cancelled PO, a supplier being chased.
+
+## L. Product-owner decisions — the customer portal as the way in (14 October 2026)
+
+### L1. One COAST account across every business — DECIDED
+A customer has one free COAST account that shows orders from every business
+that uses COAST, grouped by business (shown to them as their suppliers),
+the one with the earliest delivery first, with an "Arriving soon" list
+across all of them when there's more than one. Their pages are still built
+only through the masking layer, so they never see any business's suppliers.
+
+### L2. How orders get into the account — DECIDED
+- A tracking code, or "Add to my COAST account" on a tracking page: that one order.
+- Automatically, only when a business vouches for the person (staff invite
+  them from an order): that customer's orders from the last year and every
+  new one. A forwarded tracking link never exposes more than its own order.
+- Later (needs real email, Phase 8): automatic adding when a confirmed
+  account email matches the address the business holds for that customer.
+
+### L3. Signing businesses up — DECIDED (billing still deferred, E5)
+Every tracking page and the portal invite visitors to "Get COAST for your
+business": a register-interest form that records which business's page
+sent them (`npm run leads` lists them). **A self-serve free trial is noted
+for a later phase.** The invitations show on every business's tracking
+pages for now; hiding them becomes a paid-plan option later.

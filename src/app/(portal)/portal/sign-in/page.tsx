@@ -5,7 +5,9 @@ import { CustomerSignInForm } from "./CustomerSignInForm";
 
 export const metadata: Metadata = { title: "Customer sign in", robots: { index: false } };
 
-export default function CustomerSignInPage() {
+export default async function CustomerSignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const add = typeof sp.add === "string" ? sp.add.slice(0, 20) : "";
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -15,11 +17,11 @@ export default function CustomerSignInPage() {
         </div>
       </header>
       <main id="main" className={styles.narrow}>
-        <h1 style={{ fontSize: 28 }}>Sign in to see your orders</h1>
-        <p className={styles.quiet}>For customers of businesses that use COAST. Use the account you created, or the one the business set up for you.</p>
-        <CustomerSignInForm />
+        <h1 style={{ fontSize: 28 }}>{add ? "Sign in to add this order" : "Sign in to see your deliveries"}</h1>
+        <p className={styles.quiet}>One free COAST account shows deliveries from every business that uses COAST.</p>
+        <CustomerSignInForm add={add} />
         <p className={styles.quiet}>
-          No account yet? <Link href="/portal/sign-up">Create one with a tracking code</Link>
+          No account yet? <Link href={add ? `/portal/sign-up?add=${add}` : "/portal/sign-up"}>Create a free one</Link>
         </p>
         <p className={styles.quiet}>
           <Link href="/sign-in/forgotten">Forgotten your password?</Link> · <Link href="/track">Track one order with a code</Link>

@@ -385,3 +385,81 @@
     font-size: 11px;
   }
 }
+
+/* Customer portal (cross-business). */
+.orderLink {
+  font-weight: var(--fw-semibold);
+  color: var(--link);
+}
+
+.dueSoon {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--status-ok);
+}
+
+.dueLate {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  color: var(--status-warn);
+}
+
+.monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--badge-carrier-bg);
+  color: var(--badge-carrier-text);
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+}
+
+.textButton {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 24px;
+}
+
+.textButton:hover,
+.textButton:focus-visible {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.cta {
+  flex: 1 1 260px;
+  background: #ffffff;
+  border: 1px solid var(--divider);
+  border-radius: 18px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cta h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.cta p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

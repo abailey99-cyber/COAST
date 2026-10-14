@@ -4,12 +4,12 @@ import { useActionState } from "react";
 import { signUpCustomer, type AccountResult } from "@/server/customer-account-actions";
 import styles from "../../portal.module.css";
 
-export function CustomerSignUpForm() {
+export function CustomerSignUpForm({ add }: { add: string }) {
   const [state, action, pending] = useActionState(signUpCustomer, { ok: false } as AccountResult);
   return (
     <form action={action} className={styles.form}>
-      <label htmlFor="su-code">Tracking code from one of your orders</label>
-      <input id="su-code" name="code" required placeholder="e.g. K7Q-4M2-XP9" autoComplete="off" className="input" />
+      <label htmlFor="su-code">Tracking code of an order to add (optional)</label>
+      <input id="su-code" name="code" defaultValue={add} placeholder="e.g. K7Q-4M2-XP9" autoComplete="off" className="input" />
       <label htmlFor="su-name">Your name</label>
       <input id="su-name" name="name" required maxLength={120} autoComplete="name" className="input" />
       <label htmlFor="su-email">Email</label>

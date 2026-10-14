@@ -13,7 +13,8 @@ export default function HomePage() {
           place, and gives your customers an honest delivery date, even before anything has shipped.
         </p>
         <div className={styles.heroActions}>
-          <Link href="/sign-in" className="btn btn-primary btn-lg">Sign in</Link>
+          <Link href="/get-coast" className="btn btn-primary btn-lg">Register interest</Link>
+          <Link href="/sign-in" className="btn btn-secondary btn-lg">Sign in</Link>
         </div>
       </div>
     </section>

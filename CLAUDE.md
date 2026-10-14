@@ -96,6 +96,7 @@ Follow spec §12, with the amendments in `docs/00-decisions-and-conflicts.md`:
 | 9 | Hardening: MFA for staff, rate limiting, observability, retention/deletion, backup/DR | Spec §11. |
 | — | Marketing site (`Website`, `HowItWorks`, `Integrations`, `Pricing`, `SignIn` mockups) | Can be built any time after Phase 0; it's static apart from the lead-capture form and status config. Good early win. |
 | 10 | Roadmap (supplier portal, full white-label) | Only when asked. |
+| Later | **Self-serve free trial + billing** for businesses (decision L3) | The "Get COAST for your business" page captures interest until then. |
 
 Each phase should be usable on its own. At the end of each phase: run the
 full check suite, update `KNOWN-GAPS.md`, and give the product owner a short plain-English

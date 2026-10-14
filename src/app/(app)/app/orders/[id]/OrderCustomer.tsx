@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { markMessagesRead, newTrackingCode, replyToCustomer, saveOrderUpdates, type CustomerResult } from "@/server/customer-actions";
 import type { OrderCustomerPanel } from "@/server/customer-staff";
-import { inviteCustomer, type AccountResult } from "@/server/customer-account-actions";
+import { inviteCustomer, stopLinkingAccount, type AccountResult } from "@/server/customer-account-actions";
 import ui from "../../ui.module.css";
 
 /** The tracking link, with Copy and "Make a new code". */
@@ -141,7 +141,24 @@ export function OrderCustomer({ orderId, panel }: { orderId: string; panel: Orde
         )}
       </details>
 
-      {panel.canManage && <InviteForm orderId={orderId} />}
+      {(panel.linkedAccounts.length > 0 || panel.canManage) && (
+        <details style={{ borderTop: "1px solid var(--divider)", paddingTop: 10 }}>
+          <summary className={ui.strong} style={{ fontSize: 14, cursor: "pointer" }}>COAST accounts · {panel.linkedAccounts.length}</summary>
+          <p className={ui.muted} style={{ margin: "8px 0", fontSize: 13 }}>
+            People you've vouched for at this customer. Their free COAST account shows all your orders for this customer
+            automatically, alongside deliveries from other businesses that use COAST.
+          </p>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
+            {panel.linkedAccounts.map((a) => (
+              <li key={a.userId}>
+                {a.name} <span className={ui.muted}>· {a.email} · since {a.since}</span>{" "}
+                {panel.canManage && <StopLink orderId={orderId} userId={a.userId} name={a.name} />}
+              </li>
+            ))}
+          </ul>
+          {panel.canManage && <InviteForm orderId={orderId} />}
+        </details>
+      )}
 
       <details style={{ borderTop: "1px solid var(--divider)", paddingTop: 10 }}>
         <summary className={ui.strong} style={{ fontSize: 14, cursor: "pointer" }}>What the customer was told · {panel.notifications.length}</summary>
@@ -170,10 +187,10 @@ export function OrderCustomer({ orderId, panel }: { orderId: string; panel: Orde
 function InviteForm({ orderId }: { orderId: string }) {
   const [state, action, pending] = useActionState(inviteCustomer.bind(null, orderId), { ok: false } as AccountResult);
   return (
-    <details style={{ borderTop: "1px solid var(--divider)", paddingTop: 10 }}>
-      <summary className={ui.strong} style={{ fontSize: 14, cursor: "pointer" }}>Invite to a customer account</summary>
-      <form action={action} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-        <p className={ui.muted} style={{ margin: 0, fontSize: 13 }}>They&apos;ll be able to sign in and see every order they add with its tracking code. This order is added for them.</p>
+    <div style={{ marginTop: 10 }}>
+      <form action={action} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className={ui.strong} style={{ fontSize: 14 }}>Invite someone</div>
+        <p className={ui.muted} style={{ margin: 0, fontSize: 13 }}>Your orders for this customer — this one, the last year's and every new one — will appear in their COAST account automatically.</p>
         <label htmlFor="inv-name" className={ui.label}>Their name</label>
         <input id="inv-name" name="name" maxLength={120} className={ui.input} />
         <label htmlFor="inv-email" className={ui.label}>Their email</label>
@@ -189,6 +206,29 @@ function InviteForm({ orderId }: { orderId: string }) {
           </div>
         )}
       </form>
-    </details>
+    </div>
+  );
+}
+
+/** Stop adding this customer's orders to someone's account automatically. */
+function StopLink({ orderId, userId, name }: { orderId: string; userId: string; name: string }) {
+  const [pending, startTransition] = useTransition();
+  const [done, setDone] = useState<string | null>(null);
+  if (done) return <span className={ui.muted}>{done}</span>;
+  return (
+    <button
+      type="button"
+      className={ui.linkButton}
+      disabled={pending}
+      onClick={() => {
+        if (!window.confirm(`Stop adding this customer's new orders to ${name}'s COAST account? Orders already there stay.`)) return;
+        startTransition(async () => {
+          const r = await stopLinkingAccount(orderId, userId);
+          setDone(r.ok ? "Stopped." : (r.error ?? "That didn't work."));
+        });
+      }}
+    >
+      Stop
+    </button>
   );
 }

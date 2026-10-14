@@ -11,6 +11,7 @@ const CUSTOMER = "[E2E portal customer]";
 const SUPPLIER = "[Demo Supplier One]";
 const EMAIL = `e2e-portal-${Date.now()}@customer.coast.test`;
 const SELF_EMAIL = `e2e-self-${Date.now()}@customer.coast.test`;
+const LEAD_EMAIL = `e2e-lead-${Date.now()}@prospect.coast.test`;
 
 test.describe("customer portal", () => {
   test.skip(!e2eEnabled, "Dev database or DEMO_USER_PASSWORD not configured");
@@ -38,6 +39,7 @@ test.describe("customer portal", () => {
     const service = serviceClient();
     const { data } = await service.from("customer_accounts").select("user_id").in("email", [EMAIL, SELF_EMAIL]);
     for (const a of data ?? []) await service.auth.admin.deleteUser(a.user_id);
+    await service.from("leads").delete().eq("email", LEAD_EMAIL);
     await deleteTestCustomer(service, CUSTOMER);
   });
 
@@ -124,11 +126,11 @@ test.describe("customer portal", () => {
     await expect(staff.getByRole("region", { name: "Customer" }).getByText(/Written \(email not connected yet\) · to jo@customer.coast.test/)).toBeAttached();
   });
 
-  test("staff invite the customer to an account; they set a password and see their orders", async ({ browser }) => {
+  test("staff invite (vouch for) the customer; their orders appear automatically, new ones too", async ({ browser }) => {
     const staff = await as(browser, "sales@demo-a.coast.test");
     await staff.goto(`/app/orders/${order.orderId}`);
     const panel = staff.getByRole("region", { name: "Customer" });
-    await panel.getByText("Invite to a customer account").click();
+    await panel.getByText(/^COAST accounts/).click();
     await panel.getByLabel("Their name").fill("Jo Portal");
     await panel.getByLabel("Their email").fill(EMAIL);
     await panel.getByRole("button", { name: "Invite" }).click();
@@ -143,12 +145,27 @@ test.describe("customer portal", () => {
     await customer.getByLabel("Type it again").fill(pw);
     await customer.getByRole("button", { name: "Save and continue" }).click();
     await expect(customer).toHaveURL(/\/portal$/, { timeout: 15_000 });
-    await expect(customer.getByRole("link", { name: order.soNumber })).toBeVisible();
+    // Grouped by supplier (the business), which adds their orders automatically.
+    const group = customer.getByRole("region", { name: "[Demo Org A]" });
+    await expect(group.getByRole("link", { name: order.soNumber })).toBeVisible();
+    await expect(group.getByText("● Adds your orders automatically")).toBeVisible();
 
-    // Their PO number or our order number finds it.
-    await customer.getByLabel("Search by your PO number or our order number").fill(order.soNumber);
+    // A brand-new order for the same customer turns up by itself.
+    const service = serviceClient();
+    const { data: cust } = await service.from("sales_orders").select("customer_id, org_id, sales_rep_id").eq("id", order.orderId).single();
+    const { data: fresh } = await service
+      .from("sales_orders")
+      .insert({ org_id: cust!.org_id, customer_id: cust!.customer_id, sales_rep_id: cust!.sales_rep_id, currency: "GBP", delivery_name: "x", delivery_line1: "x", delivery_town: "x", delivery_postcode: "NG24 1AB", delivery_country: "GB" })
+      .select("so_number")
+      .single();
+    await customer.reload();
+    await expect(group.getByRole("link", { name: fresh!.so_number })).toBeVisible();
+
+    // Their PO number, the order number or the supplier finds it.
+    await customer.getByLabel("Find an order").fill(order.soNumber);
     await customer.keyboard.press("Enter");
     await expect(customer.getByRole("link", { name: order.soNumber })).toBeVisible();
+    await expect(customer.getByRole("link", { name: fresh!.so_number })).toHaveCount(0);
 
     // A customer login can't get into the staff app.
     await customer.goto("/app/home");
@@ -162,40 +179,69 @@ test.describe("customer portal", () => {
     await customer.getByLabel("Password").fill(pw);
     await customer.getByRole("button", { name: "Sign in" }).click();
     await expect(customer).toHaveURL(/\/portal$/, { timeout: 15_000 });
+
+    // Staff can stop it.
+    await staff.reload();
+    await staff.getByRole("region", { name: "Customer" }).getByText(/^COAST accounts · 1/).click();
+    staff.once("dialog", (d) => d.accept());
+    await staff.getByRole("region", { name: "Customer" }).getByRole("button", { name: "Stop" }).click();
+    await expect(staff.getByRole("region", { name: "Customer" }).getByText("Stopped.")).toBeVisible({ timeout: 15_000 });
   });
 
-  test("a customer can create their own account with a tracking code", async ({ browser }) => {
+  test("a customer creates a free account from a tracking page, and adds orders with one click", async ({ browser }) => {
     const page = await (await browser.newContext()).newPage();
     await page.goto(`/track/${code}`);
-    await page.getByRole("link", { name: "Create an account" }).click();
-    await expect(page).toHaveURL(/\/portal\/sign-up$/);
+    await expect(page.getByRole("heading", { name: "Track all your deliveries in one place" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Get COAST for your business" })).toBeVisible();
+    await page.getByRole("link", { name: "Create a free account" }).click();
+    await expect(page).toHaveURL(/\/portal\/sign-up\?add=/);
+    await expect(page.getByLabel("Tracking code of an order to add (optional)")).toHaveValue(code);
     const pw = `${randomBytes(12).toString("base64url")}Aa1!`;
-    // A wrong code is refused.
-    await page.getByLabel("Tracking code from one of your orders").fill("AAA-AAA-AAA");
-    await page.getByLabel("Your name").fill("Sam Self");
-    await page.getByLabel("Email").fill(SELF_EMAIL);
-    await page.getByLabel("Choose a password").fill(pw);
-    await page.getByLabel("Type it again").fill(pw);
-    await page.getByRole("button", { name: "Create account" }).click();
-    await expect(page.getByText(/couldn't find an order with that tracking code/)).toBeVisible({ timeout: 15_000 });
     // A staff address can't be used, and the message doesn't say why.
-    await page.getByLabel("Tracking code from one of your orders").fill(code);
     await page.getByLabel("Your name").fill("Sam Self");
     await page.getByLabel("Email").fill("sales@demo-a.coast.test");
     await page.getByLabel("Choose a password").fill(pw);
     await page.getByLabel("Type it again").fill(pw);
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page.getByText(/can't be used for a new account/)).toBeVisible({ timeout: 15_000 });
-    // The real thing.
-    await page.getByLabel("Tracking code from one of your orders").fill(code);
+    // The real thing: straight back to the order, now in the account.
+    await page.getByLabel("Tracking code of an order to add (optional)").fill(code);
     await page.getByLabel("Your name").fill("Sam Self");
     await page.getByLabel("Email").fill(SELF_EMAIL);
     await page.getByLabel("Choose a password").fill(pw);
     await page.getByLabel("Type it again").fill(pw);
     await page.getByRole("button", { name: "Create account" }).click();
-    await expect(page).toHaveURL(/\/portal$/, { timeout: 15_000 });
-    await expect(page.getByRole("link", { name: order.soNumber })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/track/${code}\\?added=1$`), { timeout: 15_000 });
+    await expect(page.getByText(/In your COAST account/)).toBeVisible();
+
+    // A second order (any business) with one click on its tracking page.
+    const service = serviceClient();
+    const other = await createTestOrder(service, CUSTOMER, [{ description: "One-click item", quantity: 1, route: "from_stock" }]);
+    const otherCode = (await service.from("sales_orders").select("tracking_code").eq("id", other.orderId).single()).data!.tracking_code;
+    await page.goto(`/track/${otherCode}`);
+    await page.getByRole("button", { name: "Add to my COAST account" }).click();
+    await expect(page.getByText("✓ Added to your COAST account.")).toBeVisible({ timeout: 15_000 });
+    await page.goto("/portal");
+    await expect(page.getByRole("link", { name: other.soNumber })).toBeVisible();
     await expect(page.getByText("Sam Self")).toBeVisible();
+    // Self-made accounts aren't vouched for, so nothing is added automatically.
+    await expect(page.getByText("● Adds your orders automatically")).toHaveCount(0);
+  });
+
+  test("a business owner registers interest from a tracking page", async ({ browser }) => {
+    const page = await (await browser.newContext()).newPage();
+    await page.goto(`/track/${code}`);
+    await page.getByRole("link", { name: "Get COAST for your business" }).click();
+    await expect(page).toHaveURL(/\/get-coast\?ref=track/);
+    await page.getByLabel("Your name").fill("Pat Prospect");
+    await page.getByLabel("Company").fill("[Prospect Ltd]");
+    await page.getByLabel("Work email").fill(LEAD_EMAIL);
+    await page.getByLabel("How many people work there?").selectOption("11-50");
+    await page.getByRole("button", { name: "Register interest" }).click();
+    await expect(page.getByText(/got your details/)).toBeVisible({ timeout: 15_000 });
+    const { data } = await serviceClient().from("leads").select("source, company_size, referrer_org").eq("email", LEAD_EMAIL).single();
+    expect(data).toMatchObject({ source: "tracking_page", company_size: "11-50" });
+    expect(data!.referrer_org).not.toBeNull();
   });
 
   test("a new tracking code stops the old one working", async ({ browser }) => {

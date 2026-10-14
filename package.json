@@ -19,7 +19,8 @@
     "db:push": "supabase db push",
     "db:seed-demo": "tsx --env-file=.env.local scripts/seed-demo.ts",
     "org:create": "tsx --env-file=.env.local scripts/create-org.ts",
-    "demo:logins": "tsx --env-file=.env.local scripts/demo-logins.ts"
+    "demo:logins": "tsx --env-file=.env.local scripts/demo-logins.ts",
+    "leads": "tsx --env-file=.env.local scripts/leads.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

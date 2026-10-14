@@ -7,7 +7,7 @@ import { formatRange } from "@/lib/logic/prediction";
 import { loadTrackingPage } from "@/server/customer-view";
 import { getCustomerSession } from "@/server/customer-session";
 import styles from "../../portal.module.css";
-import { MessageForm, UpdatesForm } from "./CustomerForms";
+import { AddToAccount, MessageForm, UpdatesForm } from "./CustomerForms";
 
 // Each tracking page is private to whoever holds the code.
 export const metadata: Metadata = { title: "Order tracking", robots: { index: false, follow: false }, referrer: "no-referrer" };
@@ -26,7 +26,8 @@ const PILL = { ok: styles.pillOk, warn: styles.pillWarn, neutral: styles.pillNeu
 
 export default async function TrackingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const [page, account] = await Promise.all([loadTrackingPage(code), getCustomerSession()]);
+  const account = await getCustomerSession();
+  const page = await loadTrackingPage(code, account?.userId ?? null);
   const signedIn = account !== null;
 
   if (typeof page === "string") {
@@ -180,14 +181,34 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
               />
             </section>
 
-            {signedIn ? (
-              <Link href="/portal" className="btn btn-secondary">View all my orders</Link>
-            ) : (
-              <p className={styles.quiet} style={{ fontSize: 14, margin: 0, textAlign: "center" }}>
-                Order from {v.branding.displayName} often? <Link href="/portal/sign-up">Create an account</Link> to see every order in one place.
+            {signedIn && (page.inAccount ? (
+              <p className={styles.ok} style={{ textAlign: "center" }}>
+                ✓ In your COAST account · <Link href="/portal">All my deliveries</Link>
               </p>
-            )}
+            ) : (
+              <AddToAccount code={page.code} />
+            ))}
           </div>
+        </div>
+
+        <div className={styles.ctaRow}>
+          {!signedIn && (
+            <section className={styles.cta} aria-labelledby="cta-account">
+              <h2 id="cta-account">Track all your deliveries in one place</h2>
+              <p>A free COAST account shows this order, and deliveries from every other business that uses COAST, on one page — soonest first.</p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <Link href={`/portal/sign-up?add=${page.code}`} className="btn btn-primary">Create a free account</Link>
+                <Link href={`/portal/sign-in?add=${page.code}`}>I have one — add this order</Link>
+              </div>
+            </section>
+          )}
+          <section className={styles.cta} aria-labelledby="cta-business">
+            <h2 id="cta-business">Run a business?</h2>
+            <p>Give your customers a page like this. COAST chases your suppliers, tracks every carrier and keeps delivery dates honest.</p>
+            <div>
+              <Link href={`/get-coast?ref=track${page.businessSlug ? `&b=${page.businessSlug}` : ""}`} className="btn btn-secondary">Get COAST for your business</Link>
+            </div>
+          </section>
         </div>
       </main>
     </div>

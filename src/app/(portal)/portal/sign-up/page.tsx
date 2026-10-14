@@ -5,7 +5,9 @@ import { CustomerSignUpForm } from "./CustomerSignUpForm";
 
 export const metadata: Metadata = { title: "Create a customer account", robots: { index: false } };
 
-export default function CustomerSignUpPage() {
+export default async function CustomerSignUpPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const add = typeof sp.add === "string" ? sp.add.slice(0, 20) : "";
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -15,14 +17,14 @@ export default function CustomerSignUpPage() {
         </div>
       </header>
       <main id="main" className={styles.narrow}>
-        <h1 style={{ fontSize: 28 }}>See all your orders in one place</h1>
+        <h1 style={{ fontSize: 28 }}>Track all your deliveries in one place</h1>
         <p className={styles.quiet}>
-          Create an account with the tracking code from any order. That order is added straight away, and you can add more
-          with their codes.
+          One free COAST account for deliveries from every business that uses COAST, soonest first. Add orders with their
+          tracking codes, or with one click on any tracking page.
         </p>
-        <CustomerSignUpForm />
+        <CustomerSignUpForm add={add} />
         <p className={styles.quiet}>
-          Already have an account? <Link href="/portal/sign-in">Sign in</Link>
+          Already have an account? <Link href={add ? `/portal/sign-in?add=${add}` : "/portal/sign-in"}>Sign in</Link>
         </p>
       </main>
     </div>

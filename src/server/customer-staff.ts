@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getPrefs, listMessages, listNotifications } from "@/lib/data/customer-portal";
+import { customerIdOfOrder, getPrefs, listLinkedAccounts, listMessages, listNotifications } from "@/lib/data/customer-portal";
 import { formatDateTime } from "@/lib/logic/format";
 import { MaskingError } from "@/lib/logic/masking";
 import { NOTIFY_LEVELS, NOTIFY_LEVEL_LABELS } from "@/lib/logic/notifications";
@@ -22,6 +22,8 @@ export interface OrderCustomerPanel {
   notifications: { id: string; when: string; summary: string; status: string; to: string | null; reason: string | null }[];
   /** "Customer view shows: …" (App.dc.html). */
   preview: { headline: string; latest: string; status: string } | { blocked: string } | null;
+  /** COAST accounts this business vouched for: this customer's orders are added to them automatically. */
+  linkedAccounts: { userId: string; name: string; email: string; since: string }[];
 }
 
 const STATUS_WORDS: Record<string, string> = {
@@ -34,7 +36,13 @@ const STATUS_WORDS: Record<string, string> = {
 };
 
 export async function loadOrderCustomer(staff: StaffContext, supabase: SupabaseClient, orderId: string, trackingCode: string): Promise<OrderCustomerPanel> {
-  const [messages, prefs, notifications] = await Promise.all([listMessages(supabase, orderId), getPrefs(supabase, orderId), listNotifications(supabase, orderId)]);
+  const customerId = await customerIdOfOrder(supabase, orderId);
+  const [messages, prefs, notifications, linked] = await Promise.all([
+    listMessages(supabase, orderId),
+    getPrefs(supabase, orderId),
+    listNotifications(supabase, orderId),
+    customerId ? listLinkedAccounts(supabase, customerId) : Promise.resolve([]),
+  ]);
   let preview: OrderCustomerPanel["preview"] = null;
   const admin = createSupabaseAdminClient();
   if (admin) {
@@ -65,5 +73,6 @@ export async function loadOrderCustomer(staff: StaffContext, supabase: SupabaseC
     levels: NOTIFY_LEVELS.map((l) => ({ value: l, label: NOTIFY_LEVEL_LABELS[l] })),
     notifications: notifications.map((n) => ({ id: n.id, when: formatDateTime(new Date(n.createdAt)), summary: n.summary, status: STATUS_WORDS[n.status] ?? n.status, to: n.toAddress, reason: n.reason })),
     preview,
+    linkedAccounts: linked.map((a) => ({ userId: a.userId, name: a.fullName, email: a.email, since: formatDateTime(new Date(a.vouchedAt)) })),
   };
 }

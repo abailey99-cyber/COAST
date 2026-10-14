@@ -373,22 +373,103 @@ export async function listNotifications(client: SupabaseClient, orderId: string)
 }
 
 // ── Customer accounts ───────────────────────────────────────────────────────
+/** One COAST account for a customer, across every business they buy from. */
 export interface CustomerAccount {
   userId: string;
-  orgId: string;
-  customerId: string;
   fullName: string;
   email: string;
 }
 
 export async function getCustomerAccount(admin: SupabaseClient, userId: string): Promise<CustomerAccount | null> {
-  const { data } = await admin.from("customer_accounts").select("user_id, org_id, customer_id, full_name, email").eq("user_id", userId).maybeSingle<{ user_id: string; org_id: string; customer_id: string; full_name: string; email: string }>();
-  return data ? { userId: data.user_id, orgId: data.org_id, customerId: data.customer_id, fullName: data.full_name, email: data.email } : null;
+  const { data } = await admin.from("customer_accounts").select("user_id, full_name, email").eq("user_id", userId).maybeSingle<{ user_id: string; full_name: string; email: string }>();
+  return data ? { userId: data.user_id, fullName: data.full_name, email: data.email } : null;
 }
 
-export async function createCustomerAccount(admin: SupabaseClient, a: CustomerAccount & { invitedBy: string | null }): Promise<void> {
-  const { error } = await admin.from("customer_accounts").insert({ user_id: a.userId, org_id: a.orgId, customer_id: a.customerId, full_name: a.fullName, email: a.email, invited_by: a.invitedBy });
+export async function findCustomerAccountByEmail(admin: SupabaseClient, email: string): Promise<CustomerAccount | null> {
+  const { data } = await admin.from("customer_accounts").select("user_id, full_name, email").eq("email", email.toLowerCase()).maybeSingle<{ user_id: string; full_name: string; email: string }>();
+  return data ? { userId: data.user_id, fullName: data.full_name, email: data.email } : null;
+}
+
+export async function createCustomerAccount(admin: SupabaseClient, a: CustomerAccount): Promise<void> {
+  const { error } = await admin.from("customer_accounts").insert({ user_id: a.userId, full_name: a.fullName, email: a.email.toLowerCase() });
   if (error) throw new Error(`Couldn't create the customer account: ${error.message}`);
+}
+
+/**
+ * A business vouches for this person as one of its customers: that
+ * customer's orders (the last year's, and every new one) are added to
+ * their account by the database.
+ */
+export async function linkAccountToCustomer(admin: SupabaseClient, l: { userId: string; orgId: string; customerId: string; vouchedBy: string }): Promise<void> {
+  const { error } = await admin
+    .from("customer_account_links")
+    .upsert({ user_id: l.userId, org_id: l.orgId, customer_id: l.customerId, vouched_by: l.vouchedBy }, { onConflict: "user_id,customer_id", ignoreDuplicates: true });
+  if (error) throw new Error(`Couldn't link the account: ${error.message}`);
+}
+
+export async function unlinkAccount(admin: SupabaseClient, userId: string, orgId: string, customerId?: string): Promise<boolean> {
+  let q = admin.from("customer_account_links").delete().eq("user_id", userId).eq("org_id", orgId);
+  if (customerId) q = q.eq("customer_id", customerId);
+  const { data, error } = await q.select("user_id");
+  if (error) throw new Error(`Couldn't stop the automatic adding: ${error.message}`);
+  return (data?.length ?? 0) > 0;
+}
+
+/** People a business has vouched for, for one of its customers (staff view). */
+export async function listLinkedAccounts(client: SupabaseClient, customerId: string): Promise<{ userId: string; fullName: string; email: string; vouchedAt: string }[]> {
+  const { data, error } = await client
+    .from("customer_account_links")
+    .select("user_id, vouched_at, customer_accounts(full_name, email)")
+    .eq("customer_id", customerId)
+    .returns<{ user_id: string; vouched_at: string; customer_accounts: { full_name: string; email: string } | null }[]>();
+  if (error) throw new Error(`Couldn't load linked accounts: ${error.message}`);
+  return (data ?? []).map((r) => ({ userId: r.user_id, fullName: r.customer_accounts?.full_name ?? "", email: r.customer_accounts?.email ?? "", vouchedAt: r.vouched_at }));
+}
+
+/** Businesses adding this person's orders automatically (portal view). */
+export async function listAccountLinks(admin: SupabaseClient, userId: string): Promise<{ orgId: string; customerId: string }[]> {
+  const { data } = await admin.from("customer_account_links").select("org_id, customer_id").eq("user_id", userId).returns<{ org_id: string; customer_id: string }[]>();
+  return (data ?? []).map((r) => ({ orgId: r.org_id, customerId: r.customer_id }));
+}
+
+export async function removeOrderFromAccount(admin: SupabaseClient, userId: string, orderId: string): Promise<void> {
+  await admin.from("customer_account_orders").delete().eq("user_id", userId).eq("sales_order_id", orderId);
+}
+
+/** The name and logo each business shows customers (its customer page settings, or its own name). */
+export async function businessBranding(admin: SupabaseClient, orgIds: readonly string[]): Promise<Map<string, { name: string; logoUrl: string | null }>> {
+  const ids = [...new Set(orgIds)];
+  if (ids.length === 0) return new Map();
+  const [orgs, settings] = await Promise.all([
+    admin.from("organisations").select("id, name").in("id", ids).returns<{ id: string; name: string }[]>(),
+    admin.from("customer_page_settings").select("org_id, display_name, logo_url").in("org_id", ids).returns<{ org_id: string; display_name: string | null; logo_url: string | null }[]>(),
+  ]);
+  const s = new Map((settings.data ?? []).map((r) => [r.org_id, r]));
+  return new Map((orgs.data ?? []).map((o) => [o.id, { name: s.get(o.id)?.display_name ?? o.name, logoUrl: s.get(o.id)?.logo_url ?? null }]));
+}
+
+// ── Leads ("Get COAST for your business") ───────────────────────────────────
+export async function insertLead(
+  admin: SupabaseClient,
+  l: { name: string; company: string; email: string; phone: string | null; companySize: string | null; message: string | null; source: "tracking_page" | "customer_portal" | "website"; referrerOrg: string | null },
+): Promise<void> {
+  const { error } = await admin.from("leads").insert({
+    name: l.name,
+    company: l.company,
+    email: l.email,
+    phone: l.phone,
+    company_size: l.companySize,
+    message: l.message,
+    source: l.source,
+    referrer_org: l.referrerOrg,
+  });
+  if (error) throw new Error(`Couldn't save the enquiry: ${error.message}`);
+}
+
+export async function orgIdBySlug(admin: SupabaseClient, slug: string): Promise<string | null> {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) return null;
+  const { data } = await admin.from("organisations").select("id").eq("slug", slug).maybeSingle<{ id: string }>();
+  return data?.id ?? null;
 }
 
 export async function addOrderToAccount(admin: SupabaseClient, userId: string, orderId: string): Promise<void> {
@@ -412,10 +493,11 @@ export async function listAccountOrderSummaries(admin: SupabaseClient, orderIds:
   if (orderIds.length === 0) return [];
   const { data, error } = await admin
     .from("sales_orders")
-    .select("id, so_number, customer_reference, created_at, currency, tracking_code, order_lines(stage, route, quantity, unit_price_minor), order_predictions(predicted_from, predicted_to, confidence)")
+    .select("id, org_id, so_number, customer_reference, created_at, currency, tracking_code, order_lines(stage, route, quantity, unit_price_minor), order_predictions(predicted_from, predicted_to, confidence)")
     .in("id", orderIds as string[])
     .returns<{
       id: string;
+      org_id: string;
       so_number: string;
       customer_reference: string | null;
       created_at: string;
@@ -434,4 +516,9 @@ export async function hitRateLimit(admin: SupabaseClient, bucket: string, limit:
   const { data, error } = await admin.rpc("hit_rate_limit", { p_bucket: bucket.slice(0, 200), p_limit: limit, p_window_seconds: windowSeconds });
   if (error) return true;
   return data === true;
+}
+
+export async function customerIdOfOrder(client: SupabaseClient, orderId: string): Promise<string | null> {
+  const { data } = await client.from("sales_orders").select("customer_id").eq("id", orderId).maybeSingle<{ customer_id: string }>();
+  return data?.customer_id ?? null;
 }

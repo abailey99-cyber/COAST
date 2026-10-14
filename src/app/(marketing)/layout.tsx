@@ -3,7 +3,7 @@ import { Lockup } from "@/components/brand/Lockup";
 import styles from "./marketing.module.css";
 
 // The full marketing site (handoff §7.3–7.8) is a later slot. Until then the
-// header and footer only link to pages that exist (handoff §8).
+// header and footer only link to pages that exist (handoff §8): Sign in and Register interest.
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -13,8 +13,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <Link href="/" aria-label="COAST home" className={styles.homeLink}>
             <Lockup tone="dark" />
           </Link>
-          <nav aria-label="Main">
+          <nav aria-label="Main" style={{ display: "flex", gap: 16, alignItems: "center" }}>
             <Link href="/sign-in" className={styles.navLink}>Sign in</Link>
+            <Link href="/get-coast" className="btn btn-primary">Register interest</Link>
           </nav>
         </div>
       </header>
