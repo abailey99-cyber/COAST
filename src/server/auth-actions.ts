@@ -21,7 +21,7 @@ function field(formData: FormData, name: string): string {
 export async function signInStaff(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = field(formData, "email").trim();
   const password = field(formData, "password");
-  const next = safeNextPath(field(formData, "next"));
+  const next = safeNextPath(field(formData, "next"), "/app/home");
   if (!email || !password) return { error: "Enter your work email and password." };
 
   const supabase = await createSupabaseServerClient();
@@ -77,5 +77,5 @@ export async function setNewPassword(_prev: FormState, formData: FormData): Prom
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: "That password couldn't be saved. Try a different one." };
 
-  redirect("/app");
+  redirect("/app/home");
 }

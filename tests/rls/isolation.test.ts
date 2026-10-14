@@ -93,6 +93,12 @@ describe.skipIf(!enabled)("row-level security", () => {
     expect(staff.data ?? []).toEqual([]);
   });
 
+  it("blocks public sign-up (staff are created by an admin only)", async () => {
+    const { data, error } = await anon().auth.signUp({ email: "stranger@nowhere.coast.test", password: "a-long-enough-password" });
+    expect(error).not.toBeNull();
+    expect(data.user).toBeNull();
+  });
+
   it("stops an admin editing another organisation's staff", async () => {
     const res = await adminA.from("staff_users").update({ full_name: "Hacked" }).eq("id", ids["admin@demo-b.coast.test"]!).select();
     expect(res.data ?? []).toEqual([]);

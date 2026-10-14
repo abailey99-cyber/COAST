@@ -1,4 +1,8 @@
+import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+
+// Signed-in tests read the dev database settings and demo password from here.
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const PORT = 3100;
 
@@ -14,7 +18,8 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "phone", use: { ...devices["Pixel 7"] } },
+    // Signed-in tests run once, at desktop size, to stay well under Supabase sign-in rate limits.
+    { name: "phone", use: { ...devices["Pixel 7"] }, testIgnore: /roles\.spec\.ts/ },
   ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,

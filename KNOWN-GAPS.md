@@ -34,12 +34,18 @@ _Last updated: end of Phase 0 — 14 October 2026._
 - **Password-reset emails use Supabase's built-in sender**, which only
   allows a few emails an hour and comes from a Supabase address. Fine for
   development; production needs custom SMTP (or Microsoft 365, Phase 8).
-- **RLS tests run against the Supabase development project, not in CI.**
-  `tests/rls/isolation.test.ts` signs in as the demo users through the real
-  API. It skips itself when the database isn't configured, which includes CI
-  for now. To run it in CI, add the dev project's keys and
-  `DEMO_USER_PASSWORD` as GitHub secrets (or switch to a local Supabase via
-  Docker and pgTAP).
+- **Database security tests and signed-in browser tests run on your computer, not in CI.**
+  `tests/rls/isolation.test.ts` (11 tests) and `tests/e2e/roles.spec.ts`
+  sign in as the demo users against the Supabase development project. Both
+  skip themselves when the database isn't configured, which includes CI for
+  now. To run them in CI, add the dev project's keys and `DEMO_USER_PASSWORD`
+  as GitHub secrets (or switch to a local Supabase via Docker and pgTAP).
+  All passed locally on 14 October 2026.
+- **Every new table must grant `service_role` in its own migration.** Newer
+  Supabase projects don't grant API roles table access by default (found
+  during setup; fixed for Phase 0 tables in migration 0002).
+- **`supabase config push` can't update Storage settings on the free plan.**
+  Answer "n" to the storage prompt. The sign-in settings push fine.
 - **New organisations are created by script only** (decisions C1 — no
   self-serve sign-up or billing in v1). Public sign-up is switched off in
   `supabase/config.toml`.

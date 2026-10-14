@@ -10,12 +10,11 @@ export const metadata = { title: "Home" };
 // The real role-scoped "what needs attention today" view arrives in Phase 6.
 export default async function HomePage() {
   const staff = await requireStaff({ section: "home" });
-  const firstName = staff.fullName.split(" ")[0] || staff.fullName;
   const sections = sectionsForRole(staff.role).filter((s) => s.key !== "home");
 
   return (
     <>
-      <PageHeader title={`Welcome, ${firstName}`} subtitle={`${staff.orgName} · ${ROLE_LABELS[staff.role]}`} />
+      <PageHeader title={`Welcome, ${staff.fullName}`} subtitle={`${staff.orgName} · ${ROLE_LABELS[staff.role]}`} />
       <section className={styles.card} aria-labelledby="role-title">
         <h2 id="role-title" className={styles.cardTitle}>Your access</h2>
         <p className={styles.cardText}>{ROLE_DESCRIPTIONS[staff.role]}</p>
