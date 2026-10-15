@@ -8,6 +8,7 @@ import { PO_STATUS_LABELS, type PoStatus } from "./purchase-orders";
 import { getCarrier, isCarrierKey } from "./carriers";
 import { SHIPMENT_STATUS_LABELS, isShipmentLeg, isShipmentStatus } from "./shipments";
 import { PREDICTION_SOURCE_LABELS, formatRange, isPredictionSource } from "./prediction";
+import { CATEGORY_LABELS, RESOLUTION_LABELS, STATUS_LABELS, isCategory, isProblemStatus, isResolution } from "./problems";
 
 const NOTIFIED_WORDS: Record<string, string> = {
   date_confirmed: "delivery date confirmed",
@@ -17,6 +18,7 @@ const NOTIFIED_WORDS: Record<string, string> = {
   delivered: "delivered",
   late: "may be late",
   delivery_problem: "delivery problem",
+  problem_update: "update on their problem report",
   reply: "reply",
   digest: "daily summary",
 };
@@ -103,7 +105,9 @@ export type OrderEventKind =
   | "customer_message"
   | "staff_reply"
   | "customer_notified"
-  | "goods_received";
+  | "goods_received"
+  | "problem_raised"
+  | "problem_updated";
 
 const SOURCE_WORDS: Record<string, string> = { link: "the confirmation link", paste: "email (pasted in)", inbound: "email" };
 const OUTCOME_WORDS: Record<string, string> = { applied: "applied automatically", needs_review: "sent for review", accepted: "accepted after review", rejected: "marked not relevant" };
@@ -211,6 +215,17 @@ export function describeEvent(e: EventInput, ctx: EventContext): string {
       return "Replied to the customer";
     case "customer_notified":
       return `Customer emailed${typeof e.detail.topic === "string" ? `: ${NOTIFIED_WORDS[e.detail.topic] ?? "an update"}` : ""}${e.detail.status === "logged" ? " (logged — email isn't connected yet)" : ""}`;
+    case "problem_raised": {
+      const what = isCategory(e.detail.category) ? CATEGORY_LABELS[e.detail.category].toLowerCase() : "something";
+      const who = e.detail.via === "customer" ? "The customer" : e.detail.via === "carrier" ? "The carrier" : e.detail.via === "goods_in" ? "Goods-in" : "Staff";
+      return `Delivery problem: ${who} reported ${what}`;
+    }
+    case "problem_updated": {
+      const what = isCategory(e.detail.category) ? CATEGORY_LABELS[e.detail.category] : "Delivery problem";
+      if (!isProblemStatus(e.detail.to)) return `Delivery problem (${what.toLowerCase()}) updated`;
+      const how = e.detail.to === "resolved" && isResolution(e.detail.resolution) ? ` — ${RESOLUTION_LABELS[e.detail.resolution].toLowerCase()}` : "";
+      return `Delivery problem (${what.toLowerCase()}): ${STATUS_LABELS[e.detail.to].toLowerCase()}${how}`;
+    }
     case "goods_received": {
       const q = typeof e.detail.quantity === "number" ? e.detail.quantity : Number(e.detail.quantity);
       const what = e.detail.condition === "damaged" ? "arrived damaged" : e.detail.condition === "wrong_item" ? "the wrong item arrived" : e.detail.condition === "short" ? `${Number.isFinite(q) ? q : "some"} arrived (fewer than expected)` : `${Number.isFinite(q) ? q : "all"} checked in`;

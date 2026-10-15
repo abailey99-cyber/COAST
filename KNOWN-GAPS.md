@@ -13,11 +13,40 @@ _Last updated: end of Phase 6 — 14 October 2026._
 | Marketing site (How it works, Integrations, Pricing, register interest) | Home is a one-section holding page; the header shows only "Sign in"; the footer shows only the copyright line. "Register interest" isn't linked anywhere until the form exists | Any time — separate slot |
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
-| Delivery-exception records from a carrier's "problem" (spec §5.4) | The shipment shows "● Problem reported" and appears under Shipments → Needs attention; nothing is drafted yet | Phase 7 |
-| Customs documents checklist, HS codes on screen | Shipments show a customs status only | Phase 7 |
+| Uploading customs documents themselves (PDFs) | The checklist records what's arrived; the files live wherever they do today | Later — photo storage is ready to extend |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Phase 7 (delivery problems and customs)
+
+- **Photos are shrunk in the browser** to at most 2000px and sent as JPEG,
+  because a request can carry about 4 MB (Vercel's limit). Up to 5 per
+  problem, 10 MB each before shrinking; the server checks each file's real
+  type from its first bytes (JPEG, PNG, WebP only). An iPhone HEIC photo is
+  converted where the browser can read it (Safari can) and refused otherwise.
+  // UNVERIFIED: not yet tried on a real phone camera.
+- **Photo files stay in Storage when an order is deleted.** Their records go
+  (migration 0022); removing the files is part of Phase 9 retention.
+- **A customer only sees problems they reported themselves**, with
+  customer-safe wording ("We're looking into it", "We're sorting it out",
+  "We need something from you", "Sorted"). Problems raised by carriers,
+  goods-in or staff stay internal; a replacement line does show on the order.
+- **A replacement copies only the first affected line**, once. Anything more
+  is added by editing the order.
+- **Carrier claim deadlines** come from the carrier's claim window in Settings
+  (blank until set). With no window there's no deadline unless someone types
+  one in. Claims are submitted outside COAST; COAST records that it was done.
+- **The customs checklist is a suggestion** worked out from the shipment and
+  its lines (invoice and packing list always; export or import declaration;
+  certificate of origin if goods were made abroad; dangerous goods note when
+  noted). Staff change it per shipment. HS codes, origin and dangerous-goods
+  detail are edited on the order line.
+- **Inbound shipments** only show customs when someone marks them as crossing
+  a border; COAST doesn't record where a supplier ships from yet.
+- **Customer report emails to staff** go through the email channel, which logs
+  rather than sends until Microsoft 365 is connected (Phase 8).
+- **Rate limits** on reports: 10 per visitor per hour and 5 per order per day.
 
 ### Phase 6 (Home, Updates, Chases, Metrics, Goods-in)
 
@@ -30,13 +59,13 @@ _Last updated: end of Phase 6 — 14 October 2026._
   checked in (warehouse) or the direct shipment being delivered. COAST shows
   them next to what the supplier claims; it doesn't yet feed them back into
   delivery-date predictions automatically.
-- **Delivery-problem rates** by supplier and carrier arrive with delivery
-  exceptions (Phase 7). Damaged or wrong items checked in at goods-in are
-  recorded and show under Updates → Just the problems meanwhile.
+- **Delivery-problem rates** (Phase 7) count problems per 100 delivered:
+  per carrier against delivered shipments, per supplier against delivered
+  order lines. Under 5 deliveries shows "Not enough data yet".
 - **Goods-in staff can't see orders**; they work from a narrow "due in" list
   (SO number, customer, item, PO and supplier, expected date, parcels). A
-  damaged or wrong delivery leaves the line waiting for good stock; there's
-  no returns flow yet (Phase 7).
+  damaged, short or wrong delivery leaves the line waiting for good stock and
+  opens a delivery problem (Phase 7); returns are tracked on the problem.
 - **Chases lists** unsent and unconfirmed POs, open supplier and internal
   chases, supplier answers to review, unread customer messages, delivery
   problems, customs holds and shipments with no carrier. Sales-side waits

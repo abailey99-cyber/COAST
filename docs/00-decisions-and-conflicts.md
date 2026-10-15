@@ -472,6 +472,31 @@ problems and customs holds (on the carrier). One escalation engine, Settings
 delivery problem, a supplier answer needing review, a customer message, a
 bad check-in, a cancelled PO, a supplier being chased.
 
+## M. Build notes — Phase 7 (15 October 2026)
+
+### M1. Who handles delivery problems — DEFAULT — CONFIRM
+New permission "Handle delivery problems" (`problems.manage`) and screen
+"Delivery problems" (`section.problems`). By default procurement and sales
+(both kinds) have both, directors can look, goods-in can't (they report
+problems by checking a delivery in as damaged, short or wrong). Admins can
+change this per role.
+
+### M2. Problems COAST opens by itself — DEFAULT — CONFIRM
+A carrier saying "problem" (or someone setting a shipment to it by hand)
+opens one problem per shipment; goods-in checking something in damaged,
+short or wrong opens one for that line. They start as "New" for a person.
+
+### M3. What customers see of a problem — DEFAULT — CONFIRM
+Only problems they reported, with four customer-safe phrases. Waiting on
+the supplier and waiting on the carrier both read "We're sorting it out",
+so a customer can't tell a supplier is involved. They get an email when
+their report moves on (unless they chose no updates at all).
+
+### M4. Northern Ireland and the islands — DEFAULT — CONFIRM (C6)
+Settings → Customs has a switch, on by default, to treat mainland →
+Northern Ireland, Jersey, Guernsey and the Isle of Man as customs. Either
+way each of those shipments asks a person to confirm.
+
 ## L. Product-owner decisions — the customer portal as the way in (14 October 2026)
 
 ### L1. One COAST account across every business — DECIDED

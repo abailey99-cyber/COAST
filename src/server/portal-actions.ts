@@ -7,6 +7,10 @@ import { isNotifyLevel } from "@/lib/logic/notifications";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { lookUpTrackingCode, visitorKey } from "./customer-view";
 import { alertStaffToCustomerMessage } from "./customer-staff-alerts";
+import { readPhotos, savePhotos } from "./problem-photos";
+import { countCustomerReportsToday, insertProblem } from "@/lib/data/problems";
+import { ukDateOf, ukToday } from "@/lib/logic/prediction";
+import { CATEGORY_LABELS, claimDeadline, validateReport } from "@/lib/logic/problems";
 
 /**
  * What a customer can do without signing in, scoped by the tracking code
@@ -79,5 +83,62 @@ export async function saveCustomerUpdates(code: string, _prev: PortalResult, for
     return { ok: true, message: !has ? "Saved. Add an email address to get updates." : email && email !== before?.email ? "Saved. Updates will go to that address." : "Saved." };
   } catch {
     return { ok: false, error: "That couldn't be saved. Please try again." };
+  }
+}
+
+/**
+ * A customer reports a problem with their delivery (spec §5.4): what's
+ * wrong, which items, a few words and up to five photos. Rate-limited per
+ * visitor and per order. The rep (or procurement) hears straight away;
+ * the customer only ever sees a customer-safe status back.
+ */
+export async function reportCustomerProblem(code: string, _prev: PortalResult | null, formData: FormData): Promise<PortalResult> {
+  try {
+    const s = await scoped(code, "problem", 10);
+    if ("error" in s) return { ok: false, error: s.error };
+    if ((await countCustomerReportsToday(s.admin, s.orderId, new Date(Date.now() - 86_400_000).toISOString())) >= 5) {
+      return { ok: false, error: "We've had several reports on this order today. Please send us a message instead." };
+    }
+    const { data: lines } = await s.admin.from("order_lines").select("id, line_no, stage").eq("sales_order_id", s.orderId).returns<{ id: string; line_no: number; stage: string }[]>();
+    const live = (lines ?? []).filter((l) => l.stage !== "cancelled");
+    // The page only knows line numbers; turn them into this order's own lines.
+    const wanted = new Set(formData.getAll("lines").map(String));
+    const r = validateReport(
+      { category: String(formData.get("category") ?? ""), description: String(formData.get("description") ?? ""), lineIds: live.filter((l) => wanted.has(String(l.line_no))).map((l) => l.id) },
+      live.map((l) => l.id),
+    );
+    if (!r.ok) return { ok: false, error: r.error.replace("Choose which items", "Tick which items") };
+    const photos = await readPhotos(formData);
+    if (!photos.ok) return { ok: false, error: photos.error };
+    const name = String(formData.get("name") ?? "").trim().slice(0, 120) || null;
+
+    // Tie it to the delivery the customer saw, when there's exactly one.
+    const { data: shipments } = await s.admin.from("shipments").select("id, carrier, delivered_at").eq("sales_order_id", s.orderId).neq("leg", "inbound").returns<{ id: string; carrier: string; delivered_at: string | null }[]>();
+    const only = shipments?.length === 1 ? shipments[0]! : null;
+    let deadline: string | null = null;
+    if (only) {
+      const { data: cs } = await s.admin.from("carrier_settings").select("claim_window_days").eq("org_id", s.orgId).eq("carrier", only.carrier).maybeSingle<{ claim_window_days: number | null }>();
+      deadline = claimDeadline(cs?.claim_window_days ?? null, only.delivered_at ? ukDateOf(only.delivered_at) : ukToday(new Date()));
+    }
+    const id = await insertProblem(s.admin, {
+      orgId: s.orgId,
+      orderId: s.orderId,
+      shipmentId: only?.id ?? null,
+      raisedVia: "customer",
+      category: r.value.category,
+      description: r.value.description,
+      reporterName: name,
+      claimDeadline: deadline,
+      lines: r.value.lineIds.map((l) => ({ orderLineId: l, quantity: null })),
+    });
+    const saved = photos.photos.length > 0 ? await savePhotos(s.admin, s.orgId, id, photos.photos, { kind: "customer", userId: null }) : 0;
+    await alertStaffToCustomerMessage(s.admin, s.orgId, s.orderId, `Delivery problem reported — ${CATEGORY_LABELS[r.value.category]}${r.value.description ? `: ${r.value.description}` : ""}`, `/app/problems/${id}`);
+    revalidatePath(`/track/${s.code}`);
+    revalidatePath(`/app/orders/${s.orderId}`);
+    revalidatePath("/app/problems");
+    const lost = photos.photos.length - saved;
+    return { ok: true, message: `Thanks — we've got your report and we're looking into it. You'll see updates here.${lost > 0 ? " Some photos didn't upload; you can send them in a message." : ""}` };
+  } catch {
+    return { ok: false, error: "Your report couldn't be sent. Please try again, or send us a message." };
   }
 }

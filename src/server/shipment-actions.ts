@@ -22,7 +22,6 @@ import {
   carrierNeedsTrackingNumber,
   eventKey,
   isCustomsStatus,
-  isInternational,
   isShipmentStatus,
   lineStageForShipment,
   normaliseTrackingNumber,
@@ -30,10 +29,15 @@ import {
   type ShipmentErrors,
 } from "@/lib/logic/shipments";
 import { canCheckNow } from "@/lib/logic/tracking-poll";
+import { getCustomsSettings } from "@/lib/data/problems";
+import { borderCheck } from "@/lib/logic/customs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission } from "./session";
 import { pollShipment } from "./tracking-poll";
+import { draftCarrierProblem } from "./problems-auto";
+import { saveCustomerEori, saveCustomsSettings, setShipmentCustomsBorder, updateCustomsDocument } from "@/lib/data/problems";
+import { DOC_LABELS, isDocType, normaliseEori } from "@/lib/logic/customs";
 import { refreshPredictionsLater } from "./predictions";
 import { notifyCustomerLater } from "./notifications";
 import { topicForShipmentStatus } from "@/lib/logic/notifications";
@@ -89,7 +93,9 @@ export async function addShipment(orderId: string, _prev: ShipmentResult, formDa
     if (result.value.leg !== "outbound" && !seeSupplierLegs) throw new NotAllowedError();
 
     // A shipment straight to the customer crosses a border if the order's address does; inbound origin isn't recorded yet.
-    const international = result.value.leg !== "inbound" && isInternational(order.delivery.country, order.delivery.postcode);
+    // Decision C6: mainland → Northern Ireland / the islands follows the company's customs setting.
+    const customs = await getCustomsSettings(supabase);
+    const international = result.value.leg !== "inbound" && borderCheck(order.delivery.country, order.delivery.postcode, customs.territoriesNeedCustoms).international;
     const id = await createShipment(supabase, orderId, result.value, { isInternational: international, customsStatus: international ? "unknown" : "not_required" });
     await revalidateShipment(id, orderId);
     const live = hasLiveAdapter(result.value.carrier) && result.value.trackingNumber;
@@ -167,8 +173,12 @@ export async function setShipmentStatus(shipmentId: string, status: string, note
       // Needs order or procurement rights as well; without them the line stays put for someone who has them.
       if (to) await updateLineStage(supabase, line.id, line.stage, to).catch(() => false);
     }
+    // A delivery problem by hand opens a problem too, just as the carrier's would.
+    const admin = status === "exception" && shipment.status !== "exception" ? createSupabaseAdminClient() : null;
+    const problemId = admin ? await draftCarrierProblem(admin, shipmentId) : null;
     await revalidateShipment(shipmentId, shipment.salesOrderId);
-    return { ok: true, message: "Saved. COAST won't overwrite this status until you hand it back to the carrier." };
+    if (problemId) revalidatePath("/app/problems");
+    return { ok: true, message: `Saved. COAST won't overwrite this status until you hand it back to the carrier.${problemId ? " A delivery problem has been opened for it." : ""}` };
   } catch (e) {
     return failure(e, "The status couldn't be saved. Try again.");
   }
@@ -236,5 +246,81 @@ export async function saveCarrierClaimWindow(carrier: string, days: string): Pro
     return { ok: true, message: "Saved." };
   } catch (e) {
     return failure(e, "That couldn't be saved. Try again.");
+  }
+}
+
+// ── Customs (spec §5.3, decision C6) ────────────────────────────────────────
+/** A person settles whether customs applies — needed for mainland → Northern Ireland / the islands. */
+export async function confirmShipmentCustoms(shipmentId: string, applies: boolean): Promise<ShipmentResult> {
+  try {
+    await requirePermission("shipments.manage");
+    const supabase = await client();
+    const shipment = await getShipment(supabase, shipmentId);
+    if (!shipment) return { ok: false, error: "That shipment isn't available." };
+    if (!(await setShipmentCustomsBorder(supabase, shipmentId, applies))) return { ok: false, error: "That shipment isn't available." };
+    // Turning customs on starts "not known yet"; off means not needed.
+    if (applies !== shipment.isInternational) {
+      await setCustomsByHand(supabase, shipmentId, applies ? "unknown" : "not_required");
+      // On: "not known yet", then read from the carrier again. Off: stays "not needed".
+      if (applies) await setCustomsByHand(supabase, shipmentId, null);
+    }
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
+    return { ok: true, message: applies ? "Customs applies to this shipment. Its document checklist is below." : "Confirmed: no customs on this shipment." };
+  } catch (e) {
+    return failure(e, "That couldn't be saved. Try again.");
+  }
+}
+
+/** Tick a customs document in (or out), or mark it not needed. */
+export async function setCustomsDocument(shipmentId: string, docType: string, change: "received" | "not_received" | "required" | "not_required"): Promise<ShipmentResult> {
+  try {
+    const staff = await requirePermission("shipments.manage");
+    if (!isDocType(docType)) return { ok: false, error: "Unknown document." };
+    const supabase = await client();
+    const shipment = await getShipment(supabase, shipmentId);
+    if (!shipment || !shipment.isInternational) return { ok: false, error: "That shipment doesn't cross a border." };
+    await updateCustomsDocument(
+      supabase,
+      shipmentId,
+      docType,
+      change === "received" ? { received: { at: new Date().toISOString(), by: staff.id } } : change === "not_received" ? { received: null } : { required: change === "required" },
+    );
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
+    return { ok: true, message: `${DOC_LABELS[docType]}: ${change === "received" ? "received" : change === "not_received" ? "not received yet" : change === "required" ? "needed" : "not needed"}.` };
+  } catch (e) {
+    return failure(e, "That couldn't be saved. Try again.");
+  }
+}
+
+/** The customer's customs number (EORI), from the shipment's customs card. */
+export async function saveCustomerEoriNumber(shipmentId: string, _prev: ShipmentResult | null, formData: FormData): Promise<ShipmentResult> {
+  try {
+    await requirePermission("shipments.manage");
+    const eori = normaliseEori(String(formData.get("eori") ?? ""));
+    if (eori === "invalid") return { ok: false, error: "An EORI number is two letters then up to 15 letters or digits, e.g. GB123456789000." };
+    const supabase = await client();
+    const shipment = await getShipment(supabase, shipmentId);
+    if (!shipment) return { ok: false, error: "That shipment isn't available." };
+    const { data } = await supabase.from("sales_orders").select("customer_id").eq("id", shipment.salesOrderId).maybeSingle<{ customer_id: string }>();
+    if (!data || !(await saveCustomerEori(supabase, data.customer_id, eori))) return { ok: false, error: "You can't change that customer." };
+    await revalidateShipment(shipmentId, shipment.salesOrderId);
+    return { ok: true, message: eori ? "Customer's EORI saved." : "Customer's EORI removed." };
+  } catch (e) {
+    return failure(e, "That couldn't be saved. Try again.");
+  }
+}
+
+/** Settings → Customs: the company's EORI, and whether the islands and Northern Ireland count (C6). */
+export async function saveCustomsSettingsForm(_prev: ShipmentResult | null, formData: FormData): Promise<ShipmentResult> {
+  try {
+    const staff = await requirePermission("settings.edit");
+    const eori = normaliseEori(String(formData.get("eori") ?? ""));
+    if (eori === "invalid") return { ok: false, error: "An EORI number is two letters then up to 15 letters or digits, e.g. GB123456789000." };
+    await saveCustomsSettings(await client(), staff.orgId, staff.id, { eori, territoriesNeedCustoms: formData.get("territories") === "on" });
+    revalidatePath("/app/settings");
+    return { ok: true, message: "Saved. New shipments follow this; existing ones keep what was confirmed." };
+  } catch (e) {
+    if (e instanceof Error && e.message === "not-allowed") return { ok: false, error: "You don't have permission to change company settings." };
+    return failure(e, "The settings couldn't be saved. Try again.");
   }
 }

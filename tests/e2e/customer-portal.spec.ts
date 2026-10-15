@@ -55,7 +55,7 @@ test.describe("customer portal", () => {
     await page.getByRole("button", { name: "Track my order" }).click();
     await expect(page).toHaveURL(new RegExp(`/track/${code}$`));
     await expect(page.getByText(`Order ${order.soNumber}`)).toBeVisible();
-    await expect(page.getByText("Portal-test cabinet")).toBeVisible();
+    await expect(page.getByRole("region", { name: "In this order" }).getByText("Portal-test cabinet")).toBeVisible();
     const html = await page.content();
     for (const secret of [SUPPLIER, "Demo Supplier", poNumber, "Internal:"]) expect(html, secret).not.toContain(secret);
   });

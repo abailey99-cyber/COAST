@@ -13,6 +13,7 @@ export type SectionKey =
   | "review-queue"
   | "chases"
   | "shipments"
+  | "problems"
   | "suppliers"
   | "goods-in"
   | "updates"
@@ -30,7 +31,7 @@ export interface Section {
 }
 
 /** The build phase most recently finished. Sections from this phase or earlier are real screens. */
-export const BUILT_THROUGH_PHASE = 6;
+export const BUILT_THROUGH_PHASE = 7;
 
 export function isSectionBuilt(section: Section): boolean {
   return section.phase <= BUILT_THROUGH_PHASE;
@@ -44,6 +45,7 @@ export const SECTIONS: readonly Section[] = [
   { key: "review-queue", label: "Review queue", href: "/app/review-queue", phase: 2, permission: "section.review-queue" },
   { key: "chases", label: "Chases", href: "/app/chases", phase: 6, permission: "section.chases" },
   { key: "shipments", label: "Shipments", href: "/app/shipments", phase: 3, permission: "section.shipments" },
+  { key: "problems", label: "Delivery problems", href: "/app/problems", phase: 7, permission: "section.problems" },
   { key: "suppliers", label: "Suppliers", href: "/app/suppliers", phase: 1, permission: "section.suppliers" },
   { key: "goods-in", label: "Goods-in", href: "/app/goods-in", phase: 6, permission: "section.goods-in" },
   { key: "updates", label: "Updates", href: "/app/updates", phase: 6, permission: "section.updates" },

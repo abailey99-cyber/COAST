@@ -10,7 +10,7 @@ const LEVEL_CLASS = { none: "status-neutral", amber: "status-warn", red: "status
 /** What needs attention today (spec §5.6), showing only what this person's role can see. */
 export default async function HomePage() {
   const h = await loadHome();
-  const nothing = (h.waiting?.top.length ?? 0) === 0 && (h.atRisk?.count ?? 0) === 0 && (h.goodsIn?.due ?? 0) === 0 && (h.problems?.length ?? 0) === 0;
+  const nothing = (h.waiting?.top.length ?? 0) === 0 && (h.atRisk?.count ?? 0) === 0 && (h.goodsIn?.due ?? 0) === 0 && (h.problems?.length ?? 0) === 0 && (h.openProblems?.open ?? 0) === 0;
 
   return (
     <>
@@ -40,6 +40,13 @@ export default async function HomePage() {
             <span className={ui.kpiLabel}>Due into the warehouse</span>
             <span className={ui.kpiValue}>{h.goodsIn.due}</span>
             {h.goodsIn.late > 0 && <span className="status status-warn">● {h.goodsIn.late} late</span>}
+          </Link>
+        )}
+        {h.openProblems && (
+          <Link href="/app/problems" className={ui.kpi} style={{ textDecoration: "none", color: "inherit" }}>
+            <span className={ui.kpiLabel}>Open delivery problems</span>
+            <span className={`${ui.kpiValue} ${h.openProblems.overdue ? ui.kpiValueWarn : ""}`}>{h.openProblems.open}</span>
+            {h.openProblems.claimsDue > 0 && <span className="status status-warn">● {h.openProblems.claimsDue} claim{h.openProblems.claimsDue === 1 ? "" : "s"} due soon</span>}
           </Link>
         )}
       </div>

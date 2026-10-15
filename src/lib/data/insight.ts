@@ -127,7 +127,7 @@ export async function metricsRows(client: SupabaseClient, sinceIso: string) {
   const [orders, pos, responses, poLines, receipts] = await Promise.all([
     client
       .from("sales_orders")
-      .select("id, promised_date, created_at, order_lines(stage, route), order_predictions(at_risk), shipments(leg, status, delivered_at)")
+      .select("id, promised_date, created_at, order_lines(stage, route), order_predictions(at_risk), shipments(leg, carrier, status, delivered_at)")
       .gte("created_at", sinceIso)
       .limit(5000),
     client.from("purchase_orders").select("id, supplier_id, sent_at, created_at, currency, status, suppliers(name, typical_lead_time_days)").gte("created_at", sinceIso).limit(5000),
@@ -147,7 +147,7 @@ export async function metricsRows(client: SupabaseClient, sinceIso: string) {
       created_at: string;
       order_lines: { stage: string; route: string }[] | null;
       order_predictions: { at_risk: boolean | null } | { at_risk: boolean | null }[] | null;
-      shipments: { leg: string; status: string; delivered_at: string | null }[] | null;
+      shipments: { leg: string; carrier: string; status: string; delivered_at: string | null }[] | null;
     }[],
     pos: (pos.data ?? []) as unknown as { id: string; supplier_id: string; sent_at: string | null; created_at: string; currency: string; status: string; suppliers: { name: string; typical_lead_time_days: number | null } | null }[],
     responses: (responses.data ?? []) as { purchase_order_id: string; source: "link" | "paste" | "inbound"; status: "applied" | "needs_review" | "accepted" | "rejected"; created_at: string }[],
@@ -166,19 +166,21 @@ export async function metricsRows(client: SupabaseClient, sinceIso: string) {
 
 // ── Raw rows for the Chases screen ──────────────────────────────────────────
 export async function waitingRows(client: SupabaseClient) {
-  const [pos, chases, reviews, messages, shipments] = await Promise.all([
+  const [pos, chases, reviews, messages, shipments, problems] = await Promise.all([
     client.from("purchase_orders").select("id, po_number, status, sent_at, created_at, suppliers(name)").in("status", ["draft", "sent"]).limit(1000),
     client.from("chases").select("id, kind, purchase_order_id, sales_order_id, order_line_id, note, opened_at, last_chased_at, chase_count, sales_orders(so_number)").eq("status", "open").limit(1000),
     client.from("supplier_responses").select("id, purchase_order_id, created_at, purchase_orders(po_number)").eq("status", "needs_review").limit(500),
     client.from("order_messages").select("id, sales_order_id, created_at, body, sales_orders(so_number)").eq("author_kind", "customer").is("read_at", null).limit(500),
     client.from("shipments").select("id, sales_order_id, carrier, tracking_number, status, updated_at, is_international, customs_status, sales_orders(so_number)").in("status", ["exception", "unknown", "pre_transit", "in_transit", "out_for_delivery"]).limit(1000),
+    client.from("delivery_exceptions").select("id, sales_order_id, category, status, waiting_since, shipment_id, sales_orders(so_number)").not("status", "in", "(resolved,closed)").limit(1000),
   ]);
-  for (const r of [pos, chases, reviews, messages, shipments]) if (r.error) throw new Error(`Couldn't load what's waiting: ${r.error.message}`);
+  for (const r of [pos, chases, reviews, messages, shipments, problems]) if (r.error) throw new Error(`Couldn't load what's waiting: ${r.error.message}`);
   return {
     pos: (pos.data ?? []) as unknown as { id: string; po_number: string; status: string; sent_at: string | null; created_at: string; suppliers: { name: string } | null }[],
     chases: (chases.data ?? []) as unknown as { id: string; kind: "supplier" | "internal"; purchase_order_id: string | null; sales_order_id: string | null; order_line_id: string | null; note: string | null; opened_at: string; last_chased_at: string | null; chase_count: number; sales_orders: { so_number: string } | null }[],
     reviews: (reviews.data ?? []) as unknown as { id: string; purchase_order_id: string; created_at: string; purchase_orders: { po_number: string } | null }[],
     messages: (messages.data ?? []) as unknown as { id: string; sales_order_id: string; created_at: string; body: string; sales_orders: { so_number: string } | null }[],
     shipments: (shipments.data ?? []) as unknown as { id: string; sales_order_id: string; carrier: string; tracking_number: string | null; status: string; updated_at: string; is_international: boolean; customs_status: string; sales_orders: { so_number: string } | null }[],
+    problems: (problems.data ?? []) as unknown as { id: string; sales_order_id: string; category: string; status: string; waiting_since: string; shipment_id: string | null; sales_orders: { so_number: string } | null }[],
   };
 }

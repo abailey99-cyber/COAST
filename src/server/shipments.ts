@@ -20,7 +20,6 @@ import {
   SHIPMENT_STATUS_TONE,
   defaultLeg,
   etaRange,
-  isInternational,
   normaliseTrackingNumber,
   type CustomsStatus,
   type ShipmentLeg,
@@ -28,6 +27,8 @@ import {
   type Tone,
 } from "@/lib/logic/shipments";
 import { canCheckNow } from "@/lib/logic/tracking-poll";
+import { getCustomsSettings, listCustomsDocuments } from "@/lib/data/problems";
+import { DOC_LABELS, DOC_TYPES, borderCheck, linesMissingHsCode, needsCustomsAttention, requiredDocuments, type DocType } from "@/lib/logic/customs";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff, type StaffContext } from "./session";
 
@@ -71,12 +72,15 @@ export interface ShipmentItem {
   /** COAST checks this one with the carrier by itself. */
   live: boolean;
   needsAttention: boolean;
+  /** Mainland → Northern Ireland / the islands, and nobody has said whether customs applies yet (C6). */
+  customsToConfirm: boolean;
 }
 
 function toItem(s: ShipmentRow): ShipmentItem {
   const def = getCarrier(s.carrier);
   const live = hasLiveAdapter(s.carrier) && s.trackingNumber !== null;
   const customsProblem = s.isInternational && (s.customsStatus === "held" || s.customsStatus === "unknown");
+  const customsToConfirm = s.leg !== "inbound" && s.status !== "delivered" && !s.customsConfirmed && borderCheck(s.deliveryCountry, s.deliveryPostcode, true).territory;
   return {
     id: s.id,
     orderId: s.salesOrderId,
@@ -99,14 +103,15 @@ function toItem(s: ShipmentRow): ShipmentItem {
     lastChecked: s.poll.lastPolledAt ? formatDateTime(new Date(s.poll.lastPolledAt)) : null,
     checkProblem: s.poll.failures > 0 ? s.poll.lastError : null,
     live,
-    needsAttention: s.status === "exception" || s.carrier === "unknown" || (customsProblem && s.status !== "delivered") || s.poll.failures >= 3,
+    needsAttention: s.status === "exception" || s.carrier === "unknown" || (customsProblem && s.status !== "delivered") || customsToConfirm || s.poll.failures >= 3,
+    customsToConfirm,
   };
 }
 
 // ── Shipments screen ────────────────────────────────────────────────────────
-export const SHIPMENT_VIEWS = ["live", "attention", "delivered", "all"] as const;
+export const SHIPMENT_VIEWS = ["live", "attention", "customs", "delivered", "all"] as const;
 export type ShipmentView = (typeof SHIPMENT_VIEWS)[number];
-export const SHIPMENT_VIEW_LABELS: Record<ShipmentView, string> = { live: "On the way", attention: "Needs attention", delivered: "Delivered", all: "All" };
+export const SHIPMENT_VIEW_LABELS: Record<ShipmentView, string> = { live: "On the way", attention: "Needs attention", customs: "Customs", delivered: "Delivered", all: "All" };
 
 function parseView(v: string | undefined): ShipmentView {
   return (SHIPMENT_VIEWS as readonly string[]).includes(v ?? "") ? (v as ShipmentView) : "live";
@@ -115,6 +120,7 @@ function parseView(v: string | undefined): ShipmentView {
 function inView(s: ShipmentItem, view: ShipmentView): boolean {
   if (view === "live") return s.status !== "delivered";
   if (view === "attention") return s.needsAttention;
+  if (view === "customs") return s.status !== "delivered" && (s.customs !== null || s.customsToConfirm);
   if (view === "delivered") return s.status === "delivered";
   return true;
 }
@@ -155,6 +161,62 @@ export interface ShipmentPage {
   statusOptions: { value: ShipmentStatus; label: string }[];
   customsOptions: { value: CustomsStatus; label: string }[];
   carriers: { key: CarrierKey; label: string }[];
+  customs: ShipmentCustoms | null;
+}
+
+/** Customs on one shipment (spec §5.3): does it apply, which documents, what's missing. */
+export interface ShipmentCustoms {
+  applies: boolean;
+  /** Mainland → Northern Ireland or the islands: a person confirms (C6). */
+  territory: boolean;
+  confirmed: boolean;
+  docs: { type: DocType; label: string; required: boolean; received: string | null; note: string | null }[];
+  outstanding: number;
+  missingHsCodes: number[];
+  ourEori: string | null;
+  customer: { id: string; name: string; eori: string | null } | null;
+  needsAttention: boolean;
+}
+
+async function loadCustomsFor(supabase: SupabaseClient, row: ShipmentRow, names: Map<string, string>): Promise<ShipmentCustoms | null> {
+  if (row.leg === "inbound" && !row.isInternational) return null;
+  const settings = await getCustomsSettings(supabase);
+  const border = row.leg === "inbound" ? { international: row.isInternational, territory: false } : borderCheck(row.deliveryCountry, row.deliveryPostcode, settings.territoriesNeedCustoms);
+  if (!row.isInternational && !border.territory) return null;
+  const [stored, lines, order] = await Promise.all([
+    listCustomsDocuments(supabase, row.id),
+    row.lineIds.length
+      ? supabase.from("order_lines").select("line_no, hs_code, country_of_origin, dangerous_goods").in("id", row.lineIds).returns<{ line_no: number; hs_code: string | null; country_of_origin: string | null; dangerous_goods: string | null }[]>()
+      : Promise.resolve({ data: [] as { line_no: number; hs_code: string | null; country_of_origin: string | null; dangerous_goods: string | null }[] }),
+    supabase.from("sales_orders").select("customers(id, name, eori)").eq("id", row.salesOrderId).maybeSingle<{ customers: { id: string; name: string; eori: string | null } | null }>(),
+  ]);
+  const facts = (lines.data ?? []).map((l) => ({ lineNo: l.line_no, hsCode: l.hs_code, countryOfOrigin: l.country_of_origin, dangerousGoods: l.dangerous_goods }));
+  // The suggested checklist, with anything a person has set taking precedence.
+  const suggested = new Set(row.isInternational ? requiredDocuments(row.leg, facts) : []);
+  const byType = new Map(stored.map((d) => [d.docType, d]));
+  const docs = DOC_TYPES.filter((t) => suggested.has(t) || byType.has(t)).map((t) => {
+    const s = byType.get(t);
+    return {
+      type: t,
+      label: DOC_LABELS[t],
+      required: s ? s.required : true,
+      received: s?.receivedAt ? `${formatDateTime(new Date(s.receivedAt))}${s.receivedBy ? ` · ${names.get(s.receivedBy) ?? "someone"}` : ""}` : null,
+      note: s?.note ?? null,
+    };
+  });
+  const outstanding = docs.filter((d) => d.required && !d.received).length;
+  const territoryUnconfirmed = border.territory && !row.customsConfirmed;
+  return {
+    applies: row.isInternational,
+    territory: border.territory,
+    confirmed: row.customsConfirmed,
+    docs: row.isInternational ? docs : [],
+    outstanding: row.isInternational ? outstanding : 0,
+    missingHsCodes: row.isInternational ? linesMissingHsCode(facts) : [],
+    ourEori: settings.eori,
+    customer: order.data?.customers ?? null,
+    needsAttention: needsCustomsAttention({ international: row.isInternational, delivered: row.status === "delivered", customsStatus: row.customsStatus, territoryUnconfirmed, outstandingDocs: outstanding }),
+  };
 }
 
 export async function loadShipment(id: string): Promise<ShipmentPage | null> {
@@ -203,6 +265,7 @@ export async function loadShipment(id: string): Promise<ShipmentPage | null> {
     statusOptions: SHIPMENT_STATUSES.map((s) => ({ value: s, label: SHIPMENT_STATUS_LABELS[s] })),
     customsOptions: (["unknown", "in_progress", "held", "cleared"] as const).map((c) => ({ value: c, label: CUSTOMS_LABELS[c] })),
     carriers: carrierOptions(),
+    customs: await loadCustomsFor(supabase, row, names),
   };
 }
 
@@ -263,12 +326,13 @@ export async function addSupplierShipments(db: SupabaseClient, po: PoDetail, tra
   const numbers = [...new Set(trackingNumbers.map(normaliseTrackingNumber).filter((n): n is string => n !== null))].slice(0, 10);
   if (numbers.length === 0) return 0;
   const groups = new Map<string, { orderId: string; leg: ShipmentLeg; lineIds: string[]; international: boolean }>();
+  const customs = await getCustomsSettings(db);
   for (const l of po.lines) {
     if (!l.orderId || !l.orderLineId || l.stage === "delivered" || l.stage === "cancelled") continue;
     const leg: ShipmentLeg | null = l.route === "direct_ship" ? "direct" : l.route === "via_warehouse" ? "inbound" : null;
     if (!leg) continue;
     const key = `${l.orderId}|${leg}`;
-    const g = groups.get(key) ?? { orderId: l.orderId, leg, lineIds: [], international: leg === "direct" && isInternational(l.deliveryCountry, l.deliveryPostcode) };
+    const g = groups.get(key) ?? { orderId: l.orderId, leg, lineIds: [], international: leg === "direct" && borderCheck(l.deliveryCountry, l.deliveryPostcode, customs.territoriesNeedCustoms).international };
     g.lineIds.push(l.orderLineId);
     groups.set(key, g);
   }

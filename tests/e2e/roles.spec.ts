@@ -8,11 +8,11 @@ import { openMenu, sessionFile, type DemoUser } from "./demo-users";
 const enabled = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.DEMO_USER_PASSWORD) && process.env.COAST_ENV !== "production";
 
 const ROLES: { email: DemoUser; label: string; nav: string[] }[] = [
-  { email: "admin@demo-a.coast.test", label: "Admin", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
-  { email: "procurement@demo-a.coast.test", label: "Procurement", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
-  { email: "salesmanager@demo-a.coast.test", label: "Sales manager", nav: ["Home", "Orders", "Chases", "Updates", "Metrics", "Settings"] },
-  { email: "sales@demo-a.coast.test", label: "Sales", nav: ["Home", "Orders", "Chases", "Updates", "Metrics", "Settings"] },
-  { email: "director@demo-a.coast.test", label: "Director", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
+  { email: "admin@demo-a.coast.test", label: "Admin", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Delivery problems", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
+  { email: "procurement@demo-a.coast.test", label: "Procurement", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Delivery problems", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
+  { email: "salesmanager@demo-a.coast.test", label: "Sales manager", nav: ["Home", "Orders", "Chases", "Delivery problems", "Updates", "Metrics", "Settings"] },
+  { email: "sales@demo-a.coast.test", label: "Sales", nav: ["Home", "Orders", "Chases", "Delivery problems", "Updates", "Metrics", "Settings"] },
+  { email: "director@demo-a.coast.test", label: "Director", nav: ["Home", "Orders", "Purchase orders", "Review queue", "Chases", "Shipments", "Delivery problems", "Suppliers", "Goods-in", "Updates", "Metrics", "Settings"] },
   { email: "goodsin@demo-a.coast.test", label: "Goods-in", nav: ["Home", "Goods-in", "Settings"] },
 ];
 
@@ -45,7 +45,8 @@ test.describe("signed-in roles", () => {
       await openMenu(page);
       await expect(page.getByText(`${role.label} · [Demo Org A]`)).toBeVisible();
       const items = page.getByRole("navigation", { name: "Main" }).getByRole("list").getByRole("link");
-      await expect(items).toHaveText(role.nav);
+      // Chases may carry an "N waiting" badge from whatever is overdue in the dev data.
+      await expect(items).toHaveText(role.nav.map((n) => (n === "Chases" ? /^Chases(\d+ waiting)?$/ : n)));
     });
   }
 

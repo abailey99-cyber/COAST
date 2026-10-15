@@ -27,6 +27,7 @@ import { waitingFor, type Waiting } from "./supplier-loop";
 import { predictionForOrderPage, type LineLeadTime } from "./predictions";
 import { LEAD_TIME_SOURCE_LABELS, formatRange, type LinePrediction } from "@/lib/logic/prediction";
 import { loadOrderShipments, type OrderShipments } from "./shipments";
+import { loadOrderProblems, type OrderProblems } from "./problems";
 import { loadOrderCustomer, type OrderCustomerPanel } from "./customer-staff";
 import { unreadCustomerMessages } from "@/lib/data/customer-portal";
 
@@ -183,6 +184,8 @@ export interface OrderPage {
   chases: ChaseView[];
   shipments: OrderShipments;
   customer: OrderCustomerPanel;
+  /** Null when this person can't see delivery problems. */
+  problems: OrderProblems | null;
   prediction: {
     label: string;
     estimate: boolean;
@@ -224,6 +227,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     loadOrderShipments(staff, supabase, id, order.lines),
     loadOrderCustomer(staff, supabase, id, order.trackingCode),
   ]);
+  const problems = await loadOrderProblems(staff, supabase, id, order.lines, { team, settings });
   const now = new Date();
   const names = new Map(team.map((p) => [p.id, p.fullName]));
   const poNumbers = new Map(order.lines.flatMap((l) => l.poLinks.map((p) => [p.purchaseOrderId, p.poNumber] as const)));
@@ -282,6 +286,7 @@ export async function loadOrder(id: string): Promise<OrderPage | null> {
     can,
     suppliers: suppliers.filter((s) => s.isActive),
     shipments,
+    problems,
     customer,
     prediction: computed
       ? {

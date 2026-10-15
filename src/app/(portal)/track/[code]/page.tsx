@@ -7,7 +7,8 @@ import { formatRange } from "@/lib/logic/prediction";
 import { loadTrackingPage } from "@/server/customer-view";
 import { getCustomerSession } from "@/server/customer-session";
 import styles from "../../portal.module.css";
-import { AddToAccount, InAccount, MessageForm, UpdatesForm } from "./CustomerForms";
+import { AddToAccount, InAccount, MessageForm, ReportProblemForm, UpdatesForm } from "./CustomerForms";
+import { CATEGORY_LABELS, PROBLEM_CATEGORIES } from "@/lib/logic/problems";
 
 // Each tracking page is private to whoever holds the code.
 export const metadata: Metadata = { title: "Order tracking", robots: { index: false, follow: false }, referrer: "no-referrer" };
@@ -115,6 +116,7 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
             ))}
           </ol>
           <p className={styles.latest}>{v.latest}</p>
+          {v.customsNote && <p className={styles.latest} style={{ marginTop: 0 }}><span className="status status-warn">● {v.customsNote}</span></p>}
         </section>
 
         <div className={styles.columns}>
@@ -163,6 +165,28 @@ export default async function TrackingPage({ params }: { params: Promise<{ code:
                     </div>
                   ))}
                 </div>
+              )}
+            </section>
+
+            <section aria-labelledby="problem-title" className={styles.card} style={{ padding: 24 }} id="problem">
+              <h2 id="problem-title" style={{ fontSize: 16 }}>Something wrong with your delivery?</h2>
+              {v.problems.length > 0 && (
+                <ul style={{ listStyle: "none", margin: "0 0 12px", padding: 0, display: "flex", flexDirection: "column", gap: 8 }} aria-label="Your reports">
+                  {v.problems.map((p) => (
+                    <li key={p.id} style={{ fontSize: 14 }}>
+                      <strong>{p.what}</strong> <span className={styles.quiet}>· reported {formatDateTime(new Date(p.reportedAt))}</span>
+                      <div><span className={`status ${p.open ? "status-neutral" : "status-ok"}`}>● {p.status}</span></div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {v.lines.length > 0 && (
+                <details>
+                  <summary style={{ cursor: "pointer", fontWeight: 600 }}>Report a problem</summary>
+                  <div style={{ marginTop: 12 }}>
+                    <ReportProblemForm code={page.code} lines={v.lines.map((l) => ({ lineNo: l.lineNo, description: l.description }))} categories={PROBLEM_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] }))} />
+                  </div>
+                </details>
               )}
             </section>
 

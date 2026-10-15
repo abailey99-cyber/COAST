@@ -21,6 +21,7 @@ import { nextPollAt, planPollRun, runAllowance, runsLeftToday } from "@/lib/logi
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { refreshPredictions, sweepPredictions } from "./predictions";
 import { flushHeldNotifications, notifyCustomer } from "./notifications";
+import { draftCarrierProblem } from "./problems-auto";
 import { topicForShipmentStatus } from "@/lib/logic/notifications";
 
 /**
@@ -85,6 +86,7 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
   await recordCarrierOutcome(admin, due.carrier, null);
   const changed = result.statusChange !== null || result.newEvents.length > 0 || result.patch.estimatedFrom !== shipment.estimatedFrom || result.patch.estimatedTo !== shipment.estimatedTo;
   if (changed) await refreshPredictions([shipment.salesOrderId], now);
+  if (result.statusChange?.to === "exception") await draftCarrierProblem(admin, due.id, now);
   if (result.statusChange) {
     const topic = topicForShipmentStatus(shipment.leg, result.statusChange.from, result.statusChange.to);
     if (topic) await notifyCustomer(shipment.salesOrderId, topic, { now });

@@ -115,7 +115,8 @@ interface RawOrderRow {
     purchase_order_lines: { purchase_orders: { po_number: string; notes: string | null; suppliers: { name: string } | null } | null; purchase_order_line_costs: { unit_cost_minor: number } | null }[] | null;
   }[] | null;
   order_predictions: RawPred | RawPred[] | null;
-  shipments: { leg: string; carrier: string; tracking_number: string | null; status: string; delivered_at: string | null }[] | null;
+  shipments: { leg: string; carrier: string; tracking_number: string | null; status: string; delivered_at: string | null; is_international: boolean; customs_status: string }[] | null;
+  delivery_exceptions: { id: string; raised_via: "customer" | "carrier" | "goods_in" | "staff"; category: string; status: string; created_at: string }[] | null;
 }
 
 interface RawPred {
@@ -137,7 +138,8 @@ export async function loadRawCustomerOrder(admin: SupabaseClient, orderId: strin
        order_lines(line_no, description, quantity, route, stage,
          purchase_order_lines(purchase_orders(po_number, notes, suppliers(name)), purchase_order_line_costs(unit_cost_minor))),
        order_predictions(predicted_from, predicted_to, confidence, source, at_risk),
-       shipments(leg, carrier, tracking_number, status, delivered_at)`,
+       shipments(leg, carrier, tracking_number, status, delivered_at, is_international, customs_status),
+       delivery_exceptions(id, raised_via, category, status, created_at)`,
     )
     .eq("id", orderId)
     .maybeSingle<RawOrderRow>();
@@ -200,7 +202,9 @@ export async function loadRawCustomerOrder(admin: SupabaseClient, orderId: strin
       trackingNumber: s.tracking_number,
       status: s.status as ShipmentStatus,
       deliveredAt: s.delivered_at,
+      customsHeld: s.is_international && s.customs_status === "held",
     })),
+    problems: (data.delivery_exceptions ?? []).map((x) => ({ id: x.id, raisedVia: x.raised_via, category: x.category, status: x.status, createdAt: x.created_at })),
     events: ((events.data ?? []) as { id: number; kind: string; detail: Record<string, unknown>; created_at: string }[]).map((e) => ({ id: e.id, kind: e.kind, detail: e.detail ?? {}, createdAt: e.created_at })),
     messages: ((messages.data ?? []) as unknown as { id: string; author_kind: "customer" | "staff"; body: string; created_at: string; staff_users: { full_name: string } | null }[]).map((m) => ({
       id: m.id,

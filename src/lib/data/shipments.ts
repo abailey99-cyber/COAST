@@ -39,8 +39,12 @@ export interface ShipmentRow {
   estimatedTo: string | null;
   deliveredAt: string | null;
   isInternational: boolean;
+  /** A person has confirmed whether customs applies (spec §5.3). */
+  customsConfirmed: boolean;
   customsStatus: CustomsStatus;
   customsSource: ValueSource;
+  deliveryCountry: string;
+  deliveryPostcode: string;
   note: string | null;
   createdBy: string | null;
   createdAt: string;
@@ -62,6 +66,7 @@ interface RawShipment {
   estimated_to: string | null;
   delivered_at: string | null;
   is_international: boolean;
+  customs_confirmed: boolean;
   customs_status: string;
   customs_source: string;
   note: string | null;
@@ -69,7 +74,7 @@ interface RawShipment {
   created_at: string;
   shipment_lines: { order_line_id: string }[] | null;
   shipment_poll_state: PollRaw | PollRaw[] | null;
-  sales_orders: { so_number: string; customers: { name: string } | null } | null;
+  sales_orders: { so_number: string; delivery_country: string; delivery_postcode: string; customers: { name: string } | null } | null;
 }
 
 interface PollRaw {
@@ -80,9 +85,9 @@ interface PollRaw {
 }
 
 const SHIPMENT_COLUMNS = `id, org_id, sales_order_id, leg, carrier, tracking_number, status, status_source, status_text,
-  estimated_from, estimated_to, delivered_at, is_international, customs_status, customs_source, note, created_by, created_at,
+  estimated_from, estimated_to, delivered_at, is_international, customs_confirmed, customs_status, customs_source, note, created_by, created_at,
   shipment_lines(order_line_id), shipment_poll_state(next_poll_at, last_polled_at, failures, last_error),
-  sales_orders(so_number, customers(name))`;
+  sales_orders(so_number, delivery_country, delivery_postcode, customers(name))`;
 
 function toShipment(r: RawShipment): ShipmentRow | null {
   if (!isShipmentLeg(r.leg) || !isCarrierKey(r.carrier) || !isShipmentStatus(r.status) || !isCustomsStatus(r.customs_status)) return null;
@@ -103,8 +108,11 @@ function toShipment(r: RawShipment): ShipmentRow | null {
     estimatedTo: r.estimated_to,
     deliveredAt: r.delivered_at,
     isInternational: r.is_international,
+    customsConfirmed: r.customs_confirmed,
     customsStatus: r.customs_status,
     customsSource: r.customs_source === "manual" ? "manual" : "carrier",
+    deliveryCountry: r.sales_orders?.delivery_country ?? "",
+    deliveryPostcode: r.sales_orders?.delivery_postcode ?? "",
     note: r.note,
     createdBy: r.created_by,
     createdAt: r.created_at,

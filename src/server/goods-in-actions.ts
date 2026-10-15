@@ -6,6 +6,7 @@ import { receiptOutcome, validateReceipt } from "@/lib/logic/goods-in";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { refreshPredictionsLater } from "./predictions";
+import { draftGoodsInProblem } from "./problems-auto";
 import { NotAllowedError, requirePermission } from "./session";
 
 export interface GoodsInResult {
@@ -35,9 +36,14 @@ export async function checkIn(lineId: string, _prev: GoodsInResult, formData: Fo
     const admin = createSupabaseAdminClient();
     const { data: order } = admin ? await admin.from("order_lines").select("sales_order_id").eq("id", lineId).maybeSingle<{ sales_order_id: string }>() : { data: null };
     refreshPredictionsLater([order?.sales_order_id]);
+    // Damaged, short or wrong: draft a delivery problem for someone to triage (spec §5.4).
+    const problemId = admin
+      ? await draftGoodsInProblem(admin, { orderLineId: lineId, condition: r.value.condition, quantity: r.value.quantity, note: r.value.note, shipmentId, expected: Math.max(line.quantity - line.receivedSoFar, 0) })
+      : null;
     revalidatePath("/app/goods-in");
     revalidatePath("/app/home");
-    return { ok: true, message: `${line.soNumber} line ${line.lineNo}: ${receiptOutcome(r.value, line.quantity, line.receivedSoFar)}` };
+    if (problemId) revalidatePath("/app/problems");
+    return { ok: true, message: `${line.soNumber} line ${line.lineNo}: ${receiptOutcome(r.value, line.quantity, line.receivedSoFar)}${problemId ? " A delivery problem has been opened for it." : ""}` };
   } catch (e) {
     if (e instanceof NotAllowedError) return { ok: false, error: e.message };
     if (e instanceof Error && e.message === "not-waiting") return { ok: false, error: "That line isn't waiting to be checked in any more. Refresh the page." };

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { addThisOrder, type AccountResult } from "@/server/customer-account-actions";
-import { saveCustomerUpdates, sendCustomerMessage, type PortalResult } from "@/server/portal-actions";
+import { withShrunkPhotos } from "@/components/photos";
+import { reportCustomerProblem, saveCustomerUpdates, sendCustomerMessage, type PortalResult } from "@/server/portal-actions";
 import styles from "../../portal.module.css";
 
 export function MessageForm({ code }: { code: string }) {
@@ -86,5 +87,42 @@ export function AddToAccount({ code }: { code: string }) {
       </button>
       {result?.error && <span className={styles.helpError} role="alert">{result.error}</span>}
     </span>
+  );
+}
+
+/** "Report a problem" (spec §5.4): what's wrong, which items, a few words, photos. */
+export function ReportProblemForm({ code, lines, categories }: { code: string; lines: { lineNo: number; description: string }[]; categories: { value: string; label: string }[] }) {
+  const [state, action, pending] = useActionState(async (prev: PortalResult | null, fd: FormData): Promise<PortalResult> => {
+    const shrunk = await withShrunkPhotos(fd);
+    if (typeof shrunk === "string") return { ok: false, error: shrunk };
+    return reportCustomerProblem(code, prev, shrunk);
+  }, null);
+  if (state?.ok) return <p className="status status-ok" role="status" style={{ margin: 0 }}>● {state.message}</p>;
+  return (
+    <form action={action} className={styles.form}>
+      <label htmlFor="prob-category">What&apos;s wrong?</label>
+      <select id="prob-category" name="category" required defaultValue="" className="input">
+        <option value="" disabled>Choose…</option>
+        {categories.map((c) => (
+          <option key={c.value} value={c.value}>{c.label}</option>
+        ))}
+      </select>
+      <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        <legend style={{ fontSize: 14, marginBottom: 4 }}>Which items?</legend>
+        {lines.map((l) => (
+          <label key={l.lineNo} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
+            <input type="checkbox" name="lines" value={l.lineNo} defaultChecked={lines.length === 1} /> {l.description}
+          </label>
+        ))}
+      </fieldset>
+      <label htmlFor="prob-description">Tell us what happened</label>
+      <textarea id="prob-description" name="description" rows={3} maxLength={2000} className="input" style={{ height: "auto", padding: 10 }} />
+      <label htmlFor="prob-photos">Photos (optional, up to 5)</label>
+      <input id="prob-photos" name="photos" type="file" accept="image/*" multiple className="input" style={{ height: "auto", padding: 8 }} />
+      <label htmlFor="prob-name">Who&apos;s reporting it (optional)</label>
+      <input id="prob-name" name="name" maxLength={120} autoComplete="name" className="input" />
+      <button type="submit" className="btn btn-primary" disabled={pending}>{pending ? "Sending…" : "Send report"}</button>
+      {state && !state.ok && <p className="notice notice-error" role="alert" style={{ margin: 0 }}>{state.error}</p>}
+    </form>
   );
 }

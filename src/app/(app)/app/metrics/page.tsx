@@ -142,11 +142,45 @@ export default async function MetricsPage() {
         </section>
       )}
 
-      <section className={ui.panel}>
-        <p className={ui.muted} style={{ margin: 0 }}>
-          Delivery-problem rates by supplier and carrier arrive with delivery exceptions (Phase 7).
-        </p>
-      </section>
+      {m.problemRates && (
+        <section aria-labelledby="problem-rates-title" className={ui.panel}>
+          <h2 id="problem-rates-title" style={{ fontSize: 16 }}>Delivery problems</h2>
+          <p className={ui.muted} style={{ margin: 0 }}>
+            {m.problemRates.total} reported in this period. Rates are problems per 100 delivered; under 5 deliveries there isn&apos;t enough to tell.
+          </p>
+          <RateTable title="By carrier" rows={m.problemRates.byCarrier} unit="Shipments delivered" />
+          {m.problemRates.bySupplier && <RateTable title="By supplier" rows={m.problemRates.bySupplier} unit="Lines delivered" />}
+        </section>
+      )}
     </>
+  );
+}
+
+function RateTable({ title, rows, unit }: { title: string; rows: { key: string; name: string; delivered: number; problems: number; ratePercent: number | null }[]; unit: string }) {
+  if (rows.length === 0) return <p className={ui.muted} style={{ margin: 0 }}>{title}: nothing delivered in this period.</p>;
+  return (
+    <div className={ui.tableWrap}>
+      <table className={ui.table}>
+        <caption style={{ textAlign: "left", fontWeight: 600, padding: "4px 0" }}>{title}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">{unit}</th>
+            <th scope="col">Problems</th>
+            <th scope="col">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              <td className={ui.strong}>{r.name}</td>
+              <td>{r.delivered}</td>
+              <td>{r.problems}</td>
+              <td>{pct(r.ratePercent)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

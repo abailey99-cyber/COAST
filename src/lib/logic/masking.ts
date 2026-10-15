@@ -16,6 +16,8 @@ import type { FulfilmentRoute, LineStage } from "./orders";
 import type { CarrierKey } from "./carriers";
 import { getCarrier } from "./carriers";
 import type { ShipmentLeg, ShipmentStatus } from "./shipments";
+import { CUSTOMER_CUSTOMS_LINE } from "./customs";
+import { CATEGORY_LABELS, customerStatus, isCategory, isOpen, isProblemStatus, type ProblemStatus } from "./problems";
 
 // ── Customer stages (decision B6) ───────────────────────────────────────────
 export const CUSTOMER_STAGES = ["Ordered", "Confirmed", "Dispatched", "In transit", "Delivered"] as const;
@@ -95,6 +97,19 @@ export interface RawCustomerOrder {
     trackingNumber: string | null;
     status: ShipmentStatus;
     deliveredAt: string | null;
+    /** Crossing a border and held at customs (decision C7: the customer gets one fixed line, nothing more). */
+    customsHeld?: boolean;
+  }[];
+  /** Delivery problems on the order. Only the category, status and date of the customer's own reports ever reach the view. */
+  problems?: {
+    id: string;
+    raisedVia: "customer" | "carrier" | "goods_in" | "staff";
+    category: string;
+    status: string;
+    createdAt: string;
+    /** Internal only. */
+    rootCause?: string | null;
+    resolutionNote?: string | null;
   }[];
   /** The order's history (order_events), oldest first. */
   events: { id: number; kind: string; detail: Record<string, unknown>; createdAt: string }[];
@@ -129,8 +144,12 @@ export interface CustomerOrderView {
   latest: string;
   lastUpdated: string;
   updates: CustomerUpdate[];
-  lines: { description: string; quantity: number }[];
+  lines: { lineNo: number; description: string; quantity: number }[];
   deliverTo: string[];
+  /** Decision C7: "Customs checks in progress — we're on it." while a delivery is held; otherwise null. */
+  customsNote: string | null;
+  /** The customer's own problem reports: what, when, and a customer-safe status (spec §5.4). */
+  problems: { id: string; what: string; status: string; reportedAt: string; open: boolean }[];
   repName: string | null;
   tracking: { carrier: string; trackingNumber: string | null; trackingUrl: string | null }[];
   messages: { id: string; from: "you" | "us"; name: string | null; body: string; at: string }[];
@@ -263,7 +282,15 @@ export function toCustomerView(raw: RawCustomerOrder, now: Date): CustomerOrderV
     latest,
     lastUpdated,
     updates,
-    lines: [...live].sort((a, b) => a.lineNo - b.lineNo).map((l) => ({ description: l.description, quantity: l.quantity })),
+    lines: [...live].sort((a, b) => a.lineNo - b.lineNo).map((l) => ({ lineNo: l.lineNo, description: l.description, quantity: l.quantity })),
+    customsNote: !delivered && !cancelled && raw.shipments.some((s) => s.leg !== "inbound" && s.customsHeld === true && s.status !== "delivered") ? CUSTOMER_CUSTOMS_LINE : null,
+    problems: (raw.problems ?? [])
+      .filter((x) => x.raisedVia === "customer" && isProblemStatus(x.status))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((x) => {
+        const status = x.status as ProblemStatus;
+        return { id: x.id, what: isCategory(x.category) ? CATEGORY_LABELS[x.category] : CATEGORY_LABELS.other, status: customerStatus(status), reportedAt: x.createdAt, open: isOpen(status) };
+      }),
     deliverTo: [d.name, d.line1, d.line2, d.town, d.postcode].filter((x): x is string => Boolean(x && x.trim())),
     repName: raw.order.salesRepName,
     tracking: raw.shipments

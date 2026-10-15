@@ -16,8 +16,8 @@ describe("visibleSections with default permissions", () => {
     expect(keys("goods_in")).toEqual(["home", "goods-in", "settings"]);
   });
 
-  it("shows sales Orders, Chases, Updates, Metrics and Settings", () => {
-    expect(keys("sales")).toEqual(["home", "orders", "chases", "updates", "metrics", "settings"]);
+  it("shows sales Orders, Chases, Delivery problems, Updates, Metrics and Settings", () => {
+    expect(keys("sales")).toEqual(["home", "orders", "chases", "problems", "updates", "metrics", "settings"]);
   });
 
   it.each(["admin", "director", "procurement"] as const)("shows %s every section", (role) => {

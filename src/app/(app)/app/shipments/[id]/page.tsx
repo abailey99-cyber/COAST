@@ -5,6 +5,7 @@ import { PageHeader } from "../../PageHeader";
 import ui from "../../ui.module.css";
 import { TONE_CLASS } from "../tone";
 import { CheckNowButton, ChangeTrackingForm, CustomsControl, StatusControl } from "./ShipmentControls";
+import { CustomsCard } from "./CustomsCard";
 
 export const metadata = { title: "Shipment" };
 
@@ -90,6 +91,8 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
               <dd>{page.createdBy} · {page.createdAt}</dd>
             </dl>
           </section>
+
+          {page.customs && <CustomsCard shipmentId={s.id} customs={page.customs} canManage={can.manage} />}
 
           {can.manage && (
             <section className={ui.panel} aria-labelledby="manage-title">

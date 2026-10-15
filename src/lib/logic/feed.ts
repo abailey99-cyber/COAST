@@ -46,6 +46,8 @@ const CATEGORY: Record<string, FeedCategory> = {
   shipment_added: "shipments",
   shipment_status_changed: "shipments",
   goods_received: "shipments",
+  problem_raised: "shipments",
+  problem_updated: "shipments",
   customer_message: "customers",
   staff_reply: "customers",
   customer_notified: "customers",
@@ -72,6 +74,7 @@ export function isProblem(kind: string, detail: Record<string, unknown>): boolea
     case "po_status_changed":
       return detail.to === "cancelled";
     case "chase_chased":
+    case "problem_raised":
       return true;
     default:
       return false;
@@ -85,7 +88,7 @@ export function matchesFeed(filter: FeedFilter, kind: string, detail: Record<str
 }
 
 // ── Waiting on someone (Chases screen) ──────────────────────────────────────
-export const WAITING_ON = ["supplier", "procurement", "us", "carrier"] as const;
+export const WAITING_ON = ["supplier", "procurement", "us", "carrier", "customer"] as const;
 export type WaitingOn = (typeof WAITING_ON)[number];
 
 export const WAITING_ON_LABELS: Record<WaitingOn, string> = {
@@ -93,6 +96,7 @@ export const WAITING_ON_LABELS: Record<WaitingOn, string> = {
   procurement: "Procurement",
   us: "Us (a customer is waiting)",
   carrier: "A carrier",
+  customer: "The customer",
 };
 
 export interface WaitItemInput {
@@ -126,7 +130,7 @@ export function rankWaiting(items: readonly WaitItemInput[], now: Date, t: Escal
 }
 
 export function countByWaitingOn(items: readonly WaitItem[]): Record<WaitingOn | "overdue", number> {
-  const out = { supplier: 0, procurement: 0, us: 0, carrier: 0, overdue: 0 };
+  const out = { supplier: 0, procurement: 0, us: 0, carrier: 0, customer: 0, overdue: 0 };
   for (const i of items) {
     out[i.waitingOn]++;
     if (i.level !== "none") out.overdue++;

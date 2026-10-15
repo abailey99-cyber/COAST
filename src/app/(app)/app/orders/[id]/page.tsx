@@ -6,6 +6,7 @@ import ui from "../../ui.module.css";
 import { DeliveryDateControl, LeadTimeInput } from "./DeliveryDate";
 import { OrderChases } from "./OrderChases";
 import { OrderShipments } from "./OrderShipments";
+import { OrderProblemsPanel } from "./OrderProblems";
 import { OrderCustomer, TrackingLink } from "./OrderCustomer";
 import { RaisePoForm } from "./RaisePoForm";
 import { StageSelect } from "./StageSelect";
@@ -160,6 +161,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <div className={ui.aside} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <OrderCustomer orderId={order.id} panel={page.customer} />
         <OrderShipments orderId={order.id} data={page.shipments} />
+        {page.problems && <OrderProblemsPanel orderId={order.id} data={page.problems} />}
         {(page.chases.length > 0 || page.chaseableLines.length > 0) && <OrderChases chases={page.chases} lines={page.chaseableLines} />}
         <aside className={ui.panel} aria-labelledby="history-title">
           <h2 id="history-title" style={{ fontSize: 16 }}>History</h2>

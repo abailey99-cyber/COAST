@@ -9,6 +9,7 @@ import { ThemeToggle } from "../ThemeToggle";
 import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PredictionSettingsForm } from "./PredictionSettingsForm";
+import { CustomsSettingsForm } from "./CustomsSettingsForm";
 import { CustomerPageForm } from "./CustomerPageForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
@@ -23,7 +24,7 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -136,6 +137,24 @@ export default async function SettingsPage() {
             internal notes — COAST checks every page and every reply before it goes out.
           </p>
           <CustomerPageForm values={customerPage} orgName={orgName} editable={canEditSettings} />
+        </div>
+      </details>
+
+      <details className={styles.fold}>
+        <summary>
+          <span className={styles.foldTitles}>
+            <h2 className={styles.cardTitle}>Customs</h2>
+            <span className={styles.foldMeta}>
+              EORI {customs.eori ?? "not set"} · Northern Ireland and the islands {customs.territoriesNeedCustoms ? "count as customs" : "don't count as customs"}
+            </span>
+          </span>
+        </summary>
+        <div className={styles.foldBody}>
+          <p className={styles.cardText}>
+            For deliveries that cross a border. Each one gets a document checklist on its shipment page, and anything held or
+            missing shows on Chases. Customers only ever see “Customs checks in progress — we&apos;re on it.”
+          </p>
+          <CustomsSettingsForm values={customs} editable={canEditSettings} />
         </div>
       </details>
 

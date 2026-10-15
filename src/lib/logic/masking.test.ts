@@ -137,8 +137,8 @@ describe("toCustomerView — what the customer does see", () => {
     expect(v.stage).toBe(1);
     expect(v.latest).toBe("Your order is confirmed and is on schedule for delivery on Friday 16 October.");
     expect(v.lines).toEqual([
-      { description: "Industrial shelving unit", quantity: 4 },
-      { description: "Pallet racking beams", quantity: 20 },
+      { lineNo: 1, description: "Industrial shelving unit", quantity: 4 },
+      { lineNo: 2, description: "Pallet racking beams", quantity: 20 },
     ]);
     expect(v.deliverTo).toEqual(["[Customer A] Goods In", "1 Example Park", "Newark", "NG24 1AB"]);
     expect(v.repName).toBe("[Rep name]");
@@ -208,6 +208,27 @@ describe("toCustomerView — what the customer does see", () => {
       { id: "m2", from: "us", name: "[Rep name]", body: "Due Friday.", at: "2026-10-14T09:30:00Z" },
     ]);
     expect(v.lastUpdated).toBe("2026-10-14T11:00:00Z");
+  });
+
+  it("shows the customer's own problem reports with customer-safe wording, and nothing internal (spec §5.4)", () => {
+    const r = raw({
+      problems: [
+        { id: "x1", raisedVia: "customer", category: "damaged", status: "waiting_supplier", createdAt: "2026-10-14T09:00:00Z", rootCause: `${SUPPLIER} packed it badly`, resolutionNote: `Credit from ${PO}` },
+        { id: "x2", raisedVia: "goods_in", category: "short", status: "triage", createdAt: "2026-10-13T09:00:00Z" },
+      ],
+    });
+    const v = toCustomerView(r, NOW);
+    expect(v.problems).toEqual([{ id: "x1", what: "Damaged", status: "We're sorting it out", reportedAt: "2026-10-14T09:00:00Z", open: true }]);
+    expect(findLeaks(JSON.stringify(v), r.secrets)).toEqual([]);
+    expect(JSON.stringify(v)).not.toMatch(/supplier|packed it badly|goods_in/i);
+  });
+
+  it("gives the one approved customs line while a delivery is held, and nothing else about customs (C7)", () => {
+    const held = toCustomerView(raw({ shipments: [{ leg: "direct", carrier: "dhl", trackingNumber: "1234567890", status: "in_transit", deliveredAt: null, customsHeld: true }] }), NOW);
+    expect(held.customsNote).toBe("Customs checks in progress — we're on it.");
+    expect(toCustomerView(raw(), NOW).customsNote).toBeNull();
+    const inbound = toCustomerView(raw({ shipments: [{ leg: "inbound", carrier: "ups", trackingNumber: null, status: "in_transit", deliveredAt: null, customsHeld: true }] }), NOW);
+    expect(inbound.customsNote).toBeNull();
   });
 });
 

@@ -14,12 +14,13 @@ export default async function ChasesPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const data = await loadWaiting({ filter: typeof sp.filter === "string" ? sp.filter : undefined });
   const pills = [
-    { value: "all", label: `Everything · ${data.counts.supplier + data.counts.procurement + data.counts.us + data.counts.carrier}` },
+    { value: "all", label: `Everything · ${data.counts.supplier + data.counts.procurement + data.counts.us + data.counts.carrier + data.counts.customer}` },
     { value: "overdue", label: `Overdue · ${data.counts.overdue}` },
     { value: "supplier", label: `${WAITING_ON_LABELS.supplier} · ${data.counts.supplier}` },
     { value: "procurement", label: `${WAITING_ON_LABELS.procurement} · ${data.counts.procurement}` },
     { value: "us", label: `Customers waiting on us · ${data.counts.us}` },
     { value: "carrier", label: `${WAITING_ON_LABELS.carrier} · ${data.counts.carrier}` },
+    { value: "customer", label: `${WAITING_ON_LABELS.customer} · ${data.counts.customer}` },
   ];
 
   return (

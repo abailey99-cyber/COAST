@@ -67,7 +67,7 @@ describe("waiting on someone", () => {
     expect(ranked.map((r) => r.id)).toEqual(["old", "mid", "fresh"]);
     expect(ranked[0]!.level).toBe("alert");
     expect(ranked[2]!.level).toBe("none");
-    expect(countByWaitingOn(ranked)).toEqual({ supplier: 2, procurement: 0, us: 1, carrier: 0, overdue: 2 });
+    expect(countByWaitingOn(ranked)).toEqual({ supplier: 2, procurement: 0, us: 1, carrier: 0, customer: 0, overdue: 2 });
   });
 });
 

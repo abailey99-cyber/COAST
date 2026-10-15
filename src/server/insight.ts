@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { listExpected, listOrgEvents, listRecentReceipts, metricsRows, poNumbersById, waitingRows, type ExpectedLine } from "@/lib/data/insight";
+import { problemRows } from "@/lib/data/problems";
 import { listStaffInOrg } from "@/lib/data/staff";
 import { getChaseSettings } from "@/lib/data/supplier-loop";
 import { getCarrier, isCarrierKey } from "@/lib/logic/carriers";
@@ -13,6 +14,8 @@ import { canAccessSection } from "@/lib/logic/navigation";
 import { describeEvent } from "@/lib/logic/order-list";
 import { isFulfilmentRoute, isLineStage, orderStatus, type FulfilmentRoute, type LineStage } from "@/lib/logic/orders";
 import { hasPermission } from "@/lib/logic/permissions";
+import { CATEGORY_LABELS, STATUS_LABELS as PROBLEM_STATUS_LABELS, isCategory, isProblemStatus, problemRates, waitingOn as problemWaitingOn } from "@/lib/logic/problems";
+import { problemSummary } from "./problems";
 import { formatRange, ukDateOf, ukToday } from "@/lib/logic/prediction";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff, type StaffContext } from "./session";
@@ -100,7 +103,7 @@ export interface WaitingView {
   filter: WaitingOn | "all" | "overdue";
 }
 
-const WAIT_FILTERS = ["all", "overdue", "supplier", "procurement", "us", "carrier"] as const;
+const WAIT_FILTERS = ["all", "overdue", "supplier", "procurement", "us", "carrier", "customer"] as const;
 
 async function waitingItems(supabase: SupabaseClient, now: Date): Promise<WaitItem[]> {
   const [rows, settings] = await Promise.all([waitingRows(supabase), getChaseSettings(supabase)]);
@@ -132,8 +135,25 @@ async function waitingItems(supabase: SupabaseClient, now: Date): Promise<WaitIt
   for (const m of rows.messages) {
     items.push({ id: `msg-${m.id}`, waitingOn: "us", since: m.created_at, title: `${m.sales_orders?.so_number ?? "An order"}: customer message`, detail: m.body.slice(0, 120), href: `/app/orders/${m.sales_order_id}` });
   }
+  // Delivery problems: waiting on whoever their status says (spec §5.4). A carrier problem replaces the shipment's own line.
+  const problemShipments = new Set<string>();
+  for (const p of rows.problems) {
+    if (!isProblemStatus(p.status)) continue;
+    const on = problemWaitingOn(p.status);
+    if (!on) continue;
+    if (p.shipment_id) problemShipments.add(p.shipment_id);
+    items.push({
+      id: `problem-${p.id}`,
+      waitingOn: on,
+      since: p.waiting_since,
+      title: `${p.sales_orders?.so_number ?? "An order"}: delivery problem — ${isCategory(p.category) ? CATEGORY_LABELS[p.category].toLowerCase() : "something's wrong"}`,
+      detail: PROBLEM_STATUS_LABELS[p.status],
+      href: `/app/problems/${p.id}`,
+    });
+  }
   for (const s of rows.shipments) {
     const so = s.sales_orders?.so_number ?? "An order";
+    if (s.status === "exception" && problemShipments.has(s.id)) continue;
     const label = isCarrierKey(s.carrier) ? getCarrier(s.carrier).label : s.carrier;
     if (s.status === "exception") items.push({ id: `ship-${s.id}`, waitingOn: "carrier", since: s.updated_at, title: `${so}: delivery problem reported`, detail: [label, s.tracking_number].filter(Boolean).join(" · "), href: `/app/shipments/${s.id}` });
     else if (s.is_international && s.customs_status === "held") items.push({ id: `customs-${s.id}`, waitingOn: "carrier", since: s.updated_at, title: `${so}: held at customs`, detail: [label, s.tracking_number].filter(Boolean).join(" · "), href: `/app/shipments/${s.id}` });
@@ -171,6 +191,8 @@ export interface MetricsView {
   suppliers: (ReturnType<typeof supplierFigures>[number] & { responseLabel: string })[] | null;
   spend: { currency: string; total: string; top: string | null; rows: { name: string; amount: string; percent: number }[] }[] | null;
   reading: ReturnType<typeof readingFigures> | null;
+  /** Delivery problems per 100 delivered (spec §5.4). Suppliers only for people who may see them. */
+  problemRates: { bySupplier: ReturnType<typeof problemRates> | null; byCarrier: ReturnType<typeof problemRates>; total: number } | null;
 }
 
 const PERIOD_DAYS = 180;
@@ -179,7 +201,8 @@ export async function loadMetrics(): Promise<MetricsView> {
   const staff = await requireStaff({ section: "metrics" });
   const supabase = await client();
   const since = new Date(Date.now() - PERIOD_DAYS * 86_400_000).toISOString();
-  const [rows, settings] = await Promise.all([metricsRows(supabase, since), getChaseSettings(supabase)]);
+  const seeProblems = hasPermission(staff.permissions, "section.problems");
+  const [rows, settings, problems] = await Promise.all([metricsRows(supabase, since), getChaseSettings(supabase), seeProblems ? problemRows(supabase, since) : Promise.resolve(null)]);
 
   const ordersById = new Map(rows.orders.map((o) => [o.id, o]));
   const orderFacts: OrderFact[] = rows.orders.map((o) => {
@@ -247,7 +270,42 @@ export async function loadMetrics(): Promise<MetricsView> {
     }
   }
 
-  return { periodDays: PERIOD_DAYS, orders: orderFigures(orderFacts), suppliers, spend, reading };
+  let rates: MetricsView["problemRates"] = null;
+  if (problems) {
+    // Carriers: delivered shipments vs problems tied to their shipments.
+    const carriers = new Map<string, { delivered: number; problems: number }>();
+    const bump = (m: Map<string, { delivered: number; problems: number }>, k: string, f: "delivered" | "problems") => {
+      const v = m.get(k) ?? { delivered: 0, problems: 0 };
+      v[f]++;
+      m.set(k, v);
+    };
+    for (const o of rows.orders) for (const s of o.shipments ?? []) if (s.status === "delivered" && s.carrier !== "unknown") bump(carriers, s.carrier, "delivered");
+    for (const p of problems) if (p.shipments?.carrier && p.shipments.carrier !== "unknown") bump(carriers, p.shipments.carrier, "problems");
+    const carrierName = (k: string) => (isCarrierKey(k) ? getCarrier(k).label : k);
+    let bySupplier: ReturnType<typeof problemRates> | null = null;
+    if (seeSuppliers) {
+      // Suppliers: their delivered order lines vs problems on those lines.
+      const lineSupplier = new Map<string, { id: string; name: string }>();
+      const suppliersMap = new Map<string, { name: string; delivered: number; problems: number }>();
+      const poById = new Map(rows.pos.map((p) => [p.id, p]));
+      for (const pl of rows.poLines) {
+        const po = poById.get(pl.purchase_order_id);
+        if (!po || po.status === "cancelled") continue;
+        lineSupplier.set(pl.order_line_id, { id: po.supplier_id, name: po.suppliers?.name ?? "" });
+        const v = suppliersMap.get(po.supplier_id) ?? { name: po.suppliers?.name ?? "", delivered: 0, problems: 0 };
+        if (pl.order_lines?.stage === "delivered") v.delivered++;
+        suppliersMap.set(po.supplier_id, v);
+      }
+      for (const p of problems) {
+        const hit = new Set((p.delivery_exception_lines ?? []).flatMap((l) => (lineSupplier.has(l.order_line_id) ? [lineSupplier.get(l.order_line_id)!.id] : [])));
+        for (const id of hit) suppliersMap.get(id)!.problems++;
+      }
+      bySupplier = problemRates([...suppliersMap].filter(([, v]) => v.delivered > 0 || v.problems > 0).map(([key, v]) => ({ key, name: v.name, delivered: v.delivered, problems: v.problems })));
+    }
+    rates = { bySupplier, byCarrier: problemRates([...carriers].map(([key, v]) => ({ key, name: carrierName(key), ...v }))), total: problems.length };
+  }
+
+  return { periodDays: PERIOD_DAYS, orders: orderFigures(orderFacts), suppliers, spend, reading, problemRates: rates };
 }
 
 // ── Goods-in ────────────────────────────────────────────────────────────────
@@ -309,6 +367,7 @@ export interface HomeView {
   reviewCount: number | null;
   goodsIn: { due: number; late: number } | null;
   problems: FeedItem[] | null;
+  openProblems: { open: number; overdue: number; claimsDue: number } | null;
 }
 
 export async function loadHome(): Promise<HomeView> {
@@ -317,11 +376,12 @@ export async function loadHome(): Promise<HomeView> {
   const can = (s: Parameters<typeof canAccessSection>[1]) => canAccessSection(staff.permissions, s);
   const now = new Date();
 
-  const [waiting, atRisk, problems, goods] = await Promise.all([
+  const [waiting, atRisk, problems, goods, openProblems] = await Promise.all([
     can("chases") ? waitingItems(supabase, now) : Promise.resolve(null),
     can("orders") ? atRiskOrders(supabase) : Promise.resolve(null),
     can("updates") ? feedItems(supabase, "problems", undefined, 6).then((r) => r.items) : Promise.resolve(null),
     can("goods-in") && hasPermission(staff.permissions, "goods_in.check") ? listExpected(supabase) : Promise.resolve(null),
+    problemSummary(staff),
   ]);
   const today = ukToday(now);
   const label = (i: WaitItem) => ({ ...i, levelLabel: ESCALATION_LABELS[i.level], wait: describeWait(i.hours) });
@@ -332,6 +392,7 @@ export async function loadHome(): Promise<HomeView> {
     reviewCount: can("review-queue") && waiting ? waiting.filter((i) => i.id.startsWith("review-")).length : null,
     goodsIn: goods ? { due: goods.length, late: goods.filter((l) => l.confirmedDate !== null && l.confirmedDate < today).length } : null,
     problems,
+    openProblems,
   };
 }
 

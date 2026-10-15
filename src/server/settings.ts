@@ -20,6 +20,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "./session";
 import { loadCarrierConnections, type CarrierConnectionsView } from "./shipments";
 import { getPredictionSettings } from "@/lib/data/predictions";
+import { getCustomsSettings, type CustomsSettings } from "@/lib/data/problems";
 import { getCustomerPageSettings, type CustomerPageSettings } from "@/lib/data/customer-portal";
 import { DEFAULT_PREDICTION_SETTINGS, type PredictionSettings } from "@/lib/logic/prediction";
 
@@ -45,6 +46,7 @@ export interface SettingsView {
   carriers: CarrierConnectionsView | null;
   prediction: PredictionSettings;
   customerPage: CustomerPageSettings;
+  customs: CustomsSettings;
   orgName: string;
   team: PersonAccess[];
   /** role → granted permissions, for every role except admin (always everything). */
@@ -60,6 +62,7 @@ export async function loadSettings(): Promise<SettingsView> {
   const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
   const carriers = supabase ? await loadCarrierConnections(staff) : null;
   const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
+  const customs = supabase ? await getCustomsSettings(supabase) : { eori: null, territoriesNeedCustoms: true };
   const customerPage = supabase ? await getCustomerPageSettings(supabase) : { displayName: null, logoUrl: null, supplierWord: "shipper", showDirectCarrier: false, minGapHours: 4, dateShiftDays: 2 };
 
   const grants = Object.fromEntries(CONFIGURABLE_ROLES.map((r) => [r, [] as Permission[]])) as SettingsView["grants"];
@@ -94,6 +97,7 @@ export async function loadSettings(): Promise<SettingsView> {
     carriers,
     prediction,
     customerPage,
+    customs,
     orgName: staff.orgName,
     team: people,
     grants,

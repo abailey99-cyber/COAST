@@ -9,7 +9,7 @@ import { appUrl } from "@/lib/env";
  * screen and the order; also emailed through the channel (logged until
  * Microsoft 365 is connected).
  */
-export async function alertStaffToCustomerMessage(admin: SupabaseClient, orgId: string, orderId: string, body: string): Promise<void> {
+export async function alertStaffToCustomerMessage(admin: SupabaseClient, orgId: string, orderId: string, body: string, path?: string): Promise<void> {
   try {
     const { data: order } = await admin.from("sales_orders").select("so_number, sales_rep_id").eq("id", orderId).single<{ so_number: string; sales_rep_id: string | null }>();
     if (!order) return;
@@ -22,12 +22,12 @@ export async function alertStaffToCustomerMessage(admin: SupabaseClient, orgId: 
       const { data } = await admin.from("staff_users").select("email").eq("org_id", orgId).eq("role", "procurement").eq("is_active", true).limit(10);
       recipients = (data ?? []) as { email: string }[];
     }
-    const link = `${appUrl()}/app/orders/${orderId}`;
+    const link = `${appUrl()}${path ?? `/app/orders/${orderId}`}`;
     const channel = emailChannel();
     for (const r of recipients) {
       await channel.send({
         to: r.email,
-        subject: `Customer message on ${order.so_number}`,
+        subject: path ? `Delivery problem reported on ${order.so_number}` : `Customer message on ${order.so_number}`,
         text: `A customer wrote about ${order.so_number}:\n\n${body.slice(0, 1000)}\n\nReply from the order: ${link}`,
         html: `<p>A customer wrote about <strong>${order.so_number}</strong>:</p><blockquote>${body.slice(0, 1000).replace(/[<>&]/g, "")}</blockquote><p><a href="${link}">Reply from the order</a></p>`,
       });

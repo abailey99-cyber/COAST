@@ -77,7 +77,7 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Pr
                       {s.carrier === "unknown" && <div className={ui.muted}>Choose the carrier</div>}
                     </td>
                     <td>{s.status === "delivered" ? (s.delivered ? `Delivered ${s.delivered}` : "Delivered") : (s.eta ?? <span className={ui.muted}>Not known yet</span>)}</td>
-                    <td>{s.customs ? <span className={`status ${TONE_CLASS[s.customs.tone]}`}>● {s.customs.label}</span> : <span className={ui.muted}>—</span>}</td>
+                    <td>{s.customs ? <span className={`status ${TONE_CLASS[s.customs.tone]}`}>● {s.customs.label}</span> : s.customsToConfirm ? <span className="status status-warn">● Confirm if needed</span> : <span className={ui.muted}>—</span>}</td>
                     <td>
                       {s.live ? (s.lastChecked ?? <span className={ui.muted}>Not yet</span>) : <span className={ui.muted}>Not checked automatically</span>}
                       {s.checkProblem && <div className={ui.fieldError}>{s.checkProblem}</div>}

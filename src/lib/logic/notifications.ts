@@ -27,7 +27,7 @@ export function isNotifyLevel(v: unknown): v is NotifyLevel {
   return typeof v === "string" && (NOTIFY_LEVELS as readonly string[]).includes(v);
 }
 
-export type Topic = "date_confirmed" | "date_changed" | "dispatched" | "out_for_delivery" | "delivered" | "late" | "delivery_problem" | "reply";
+export type Topic = "date_confirmed" | "date_changed" | "dispatched" | "out_for_delivery" | "delivered" | "late" | "delivery_problem" | "problem_update" | "reply";
 export type NotificationKind = "milestone" | "date_change" | "problem" | "reply";
 
 export const TOPIC_KIND: Record<Topic, NotificationKind> = {
@@ -38,14 +38,16 @@ export const TOPIC_KIND: Record<Topic, NotificationKind> = {
   date_changed: "date_change",
   late: "problem",
   delivery_problem: "problem",
+  // An answer to something the customer reported: treated like a reply.
+  problem_update: "reply",
   reply: "reply",
 };
 
 const WANTED: Record<NotifyLevel, readonly Topic[]> = {
-  everything: ["date_confirmed", "date_changed", "dispatched", "out_for_delivery", "delivered", "late", "delivery_problem", "reply"],
-  milestones: ["date_confirmed", "dispatched", "delivered", "late", "delivery_problem", "reply"],
-  problems: ["late", "delivery_problem", "reply"],
-  replies: ["reply"],
+  everything: ["date_confirmed", "date_changed", "dispatched", "out_for_delivery", "delivered", "late", "delivery_problem", "problem_update", "reply"],
+  milestones: ["date_confirmed", "dispatched", "delivered", "late", "delivery_problem", "problem_update", "reply"],
+  problems: ["late", "delivery_problem", "problem_update", "reply"],
+  replies: ["problem_update", "reply"],
 };
 
 export function wants(level: NotifyLevel, topic: Topic): boolean {
@@ -153,6 +155,10 @@ export function topicSummary(topic: Topic, view: CustomerOrderView, replyText?: 
       return when ? `Your order may arrive later than planned. We now expect it ${when}.` : "Your order may arrive later than planned.";
     case "delivery_problem":
       return "There's a problem with your delivery. We're looking into it and will be in touch.";
+    case "problem_update": {
+      const p = view.problems[0];
+      return p ? `Update on the problem you reported (${p.what.toLowerCase()}): ${p.status}.` : "There's an update on the problem you reported.";
+    }
     case "reply":
       return `New reply: “${(replyText ?? "").slice(0, 300)}”`;
   }
