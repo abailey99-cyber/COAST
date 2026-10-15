@@ -47,6 +47,10 @@ _Last updated: end of Phase 6 — 14 October 2026._
 - **Customer report emails to staff** go through the email channel, which logs
   rather than sends until Microsoft 365 is connected (Phase 8).
 - **Rate limits** on reports: 10 per visitor per hour and 5 per order per day.
+- **Tracking numbers in an emailed supplier reply** (Phase 8, when replies
+  arrive by themselves) will need `create_shipment` to work for the system
+  account; today it takes the organisation from the signed-in person, so only
+  pasted-in replies add shipments. The confirmation link doesn't ask for them.
 
 ### Phase 6 (Home, Updates, Chases, Metrics, Goods-in)
 

@@ -59,7 +59,8 @@ export async function submitSupplierConfirmation(token: string, _prev: ConfirmSt
     });
     refreshPredictionsLater(po.lines.map((l) => l.orderId));
     return { done: outcome.outcome };
-  } catch {
+  } catch (e) {
+    console.error("[confirm] couldn't save a supplier answer", e instanceof Error ? e.message : e);
     return { error: "Your answer couldn't be saved. Please try again, or reply to the email instead." };
   }
 }
