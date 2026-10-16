@@ -40,6 +40,8 @@ export async function resetDemoPermissions(): Promise<void> {
   const rows = CONFIGURABLE_ROLES.flatMap((role) => DEFAULT_PERMISSIONS[role].map((permission) => ({ org_id: orgId, role, permission, granted_by: null })));
   const { error } = await service.from("role_permissions").insert(rows);
   if (error) throw new Error(`Couldn't reset permissions: ${error.message}`);
+  // Every test signs in from this one computer: start each run with clean sign-in counters (readiness Task 5B limits).
+  for (const prefix of ["staff-sign-in:", "customer-sign-in:", "signin-fail:", "mfa-code:", "confirm-"]) await service.from("rate_limit_hits").delete().like("bucket", `${prefix}%`);
 }
 
 export const e2eEnabled =

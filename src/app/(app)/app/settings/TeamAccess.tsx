@@ -4,6 +4,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { PERMISSIONS, PERMISSION_GROUPS, type Permission } from "@/lib/logic/permissions";
 import { ROLE_LABELS } from "@/lib/logic/roles";
 import { setPersonPermission } from "@/server/permission-actions";
+import { resetStaffMfa } from "@/server/mfa-actions";
 import type { OverrideState, PersonAccess } from "@/server/settings";
 import styles from "../shell.module.css";
 import { SaveStatus } from "./SaveStatus";
@@ -15,17 +16,17 @@ type Choice = OverrideState | "default";
  * (decision E7). Admins can change anyone but admins and themselves;
  * sales managers can change sales reps, and only pass on what they have.
  */
-export function TeamAccess({ people }: { people: PersonAccess[] }) {
+export function TeamAccess({ people, viewer }: { people: PersonAccess[]; viewer: { id: string; isAdmin: boolean } }) {
   return (
     <div>
       {people.map((p) => (
-        <PersonRow key={p.id} person={p} />
+        <PersonRow key={p.id} person={p} canResetMfa={viewer.isAdmin && p.id !== viewer.id} />
       ))}
     </div>
   );
 }
 
-function PersonRow({ person }: { person: PersonAccess }) {
+function PersonRow({ person, canResetMfa }: { person: PersonAccess; canResetMfa: boolean }) {
   const [overrides, apply] = useOptimistic(person.overrides, (state, c: { permission: Permission; choice: Choice }) => {
     const next = { ...state };
     if (c.choice === "default") delete next[c.permission];
@@ -72,6 +73,7 @@ function PersonRow({ person }: { person: PersonAccess }) {
         )}
       </summary>
       <div className={styles.personBody}>
+        {canResetMfa && <ResetMfa userId={person.id} name={person.fullName} />}
         {isAdmin ? (
           <p className={styles.cardText}>Admins always have full access.</p>
         ) : (
@@ -139,5 +141,27 @@ function PersonRow({ person }: { person: PersonAccess }) {
           ))}
       </div>
     </details>
+  );
+}
+
+/** A lost phone: an admin resets someone's two-step sign-in; they set up a new app next time (readiness Task 5B). */
+function ResetMfa({ userId, name }: { userId: string; name: string }) {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={pending}
+        onClick={() => {
+          if (!window.confirm(`Reset ${name}'s two-step sign-in? They'll set up their authenticator app again next time they sign in.`)) return;
+          startTransition(async () => setResult(await resetStaffMfa(userId)));
+        }}
+      >
+        Reset two-step sign-in
+      </button>
+      {result && (result.ok ? <span className={styles.saveStatus} role="status">✓ {result.message}</span> : <span className="notice notice-error" role="alert">{result.error}</span>)}
+    </div>
   );
 }

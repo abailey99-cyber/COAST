@@ -16,4 +16,5 @@ export function isWellFormedToken(token: string): boolean {
   return /^[A-Za-z0-9_-]{43}$/.test(token);
 }
 
+/** The default; each company can choose its own (Settings → Chasing, readiness Task 5B). */
 export const LINK_LIFETIME_DAYS = 30;

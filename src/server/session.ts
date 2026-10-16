@@ -21,6 +21,8 @@ export type StaffSession =
   | { state: "unconfigured" }
   | { state: "signed-out" }
   | { state: "not-staff" }
+  /** Signed in with a password, but the organisation requires two-step sign-in and it isn't done yet (readiness Task 5B). */
+  | { state: "needs-mfa"; enrolled: boolean }
   | { state: "staff"; staff: StaffContext };
 
 export const getStaffSession = cache(async (): Promise<StaffSession> => {
@@ -34,6 +36,10 @@ export const getStaffSession = cache(async (): Promise<StaffSession> => {
   const profile = await getStaffProfile(supabase, userId);
   if (!profile || !profile.isActive) return { state: "not-staff" };
 
+  // Two-step sign-in: until it's passed, the database shows this person nothing (0036).
+  const mfa = await mfaStatus(supabase);
+  if (mfa.required && !mfa.passed) return { state: "needs-mfa", enrolled: mfa.enrolled };
+
   if (profile.role === "admin") return { state: "staff", staff: { ...profile, permissions: resolvePermissions("admin", []) } };
   const [roleRows, overrides] = await Promise.all([listRolePermissions(supabase, profile.role), listPersonOverrides(supabase, profile.id)]);
   const permissions = resolvePermissions(profile.role, roleRows.map((r) => r.permission), overrides);
@@ -46,6 +52,7 @@ export async function requireStaff(options: { section?: SectionKey } = {}): Prom
   if (session.state === "unconfigured") redirect("/sign-in");
   if (session.state === "signed-out") redirect("/sign-in");
   if (session.state === "not-staff") redirect("/sign-in?error=not-staff");
+  if (session.state === "needs-mfa") redirect("/sign-in/two-step");
   const { staff } = session;
   if (options.section && !canAccessSection(staff.permissions, options.section)) redirect("/app/home");
   return staff;
@@ -60,6 +67,7 @@ export class NotAllowedError extends Error {
 
 export async function requireStaffForAction(): Promise<StaffContext> {
   const session = await getStaffSession();
+  if (session.state === "needs-mfa") throw new NotAllowedError("Finish signing in with your authenticator app first.");
   if (session.state !== "staff") throw new NotAllowedError("Please sign in again.");
   return session.staff;
 }
@@ -76,4 +84,14 @@ export async function requireAdmin(): Promise<StaffContext> {
   const staff = await requireStaffForAction();
   if (staff.role !== "admin") throw new NotAllowedError("Only an admin can do that.");
   return staff;
+}
+
+/** Whether this person's organisation requires two-step sign-in, whether this session has passed it, and whether they've set up an app. */
+export async function mfaStatus(supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>): Promise<{ required: boolean; passed: boolean; enrolled: boolean }> {
+  const { data } = await supabase.rpc("staff_mfa_status").maybeSingle<{ required: boolean; passed: boolean }>();
+  const required = data?.required ?? true;
+  const passed = data?.passed ?? false;
+  if (!required || passed) return { required, passed, enrolled: true };
+  const { data: factors } = await supabase.auth.mfa.listFactors();
+  return { required, passed, enrolled: (factors?.totp ?? []).some((f) => f.status === "verified") };
 }

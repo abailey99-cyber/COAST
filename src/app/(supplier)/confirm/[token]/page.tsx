@@ -13,6 +13,7 @@ const MESSAGES: Record<string, { title: string; body: string }> = {
   revoked: { title: "This link has been replaced", body: "A newer link was sent. Please use the most recent email, or reply to it with your confirmed delivery date." },
   closed: { title: "This purchase order has been cancelled", body: "There's nothing to confirm. If you think this is a mistake, reply to the purchase order email." },
   unavailable: { title: "Confirmation isn't available right now", body: "Please reply to the purchase order email with your confirmed delivery date." },
+  busy: { title: "Too many tries", body: "Please wait a few minutes and open the link again, or reply to the purchase order email instead." },
 };
 
 export default async function ConfirmPage({ params }: { params: Promise<{ token: string }> }) {

@@ -240,6 +240,23 @@ describe("findLeaks — staff replies", () => {
       expect(findLeaks(t, secrets).length, t).toBeGreaterThan(0);
     }
   });
+  it("catches a supplier name with its company ending dropped or swapped, and & written as and (readiness Task 5B)", () => {
+    const secrets = { supplierNames: ["Grimsby Widget Works Ltd", "Smith & Sons Limited", "Hull Ltd"], poNumbers: [] };
+    expect(findLeaks("It's coming from Grimsby Widget Works.", secrets).map((l) => l.value)).toEqual(["Grimsby Widget Works Ltd"]);
+    expect(findLeaks("grimsby widget works limited are shipping", secrets).map((l) => l.value)).toEqual(["Grimsby Widget Works Ltd"]);
+    expect(findLeaks("Smith and Sons will deliver", secrets).map((l) => l.value)).toEqual(["Smith & Sons Limited"]);
+    expect(findLeaks("SMITH & SONS LTD", secrets).map((l) => l.value)).toEqual(["Smith & Sons Limited"]);
+    // Too short once the ending is gone: "Hull" alone is a city, not a leak.
+    expect(findLeaks("Our warehouse in Hull", secrets)).toEqual([]);
+    expect(findLeaks("Hull Ltd sent it", secrets).map((l) => l.value)).toEqual(["Hull Ltd"]);
+  });
+
+  it("catches PO numbers however they're written", () => {
+    const secrets = { supplierNames: [], poNumbers: ["PO-5017"] };
+    for (const t of ["see P.O. 5017", "PO #5017", "PO no. 5017", "po number: 5017", "PO5017", "po 5017"]) expect(findLeaks(t, secrets), t).toHaveLength(1);
+    for (const t of ["see PO-50171", "invoice 5017", "PO-5018"]) expect(findLeaks(t, secrets), t).toEqual([]);
+  });
+
   it("catches PO numbers with or without the dash", () => {
     for (const t of ["See PO-5017", "po5017 is late", "ref PO 5017", "(PO-5017)"]) {
       expect(findLeaks(t, secrets).map((l) => l.kind), t).toContain("po");

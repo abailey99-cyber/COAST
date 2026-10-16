@@ -5,6 +5,8 @@ import { getPurchaseOrder } from "@/lib/data/procurement";
 import { validateLinkAnswer } from "@/lib/logic/supplier-response";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveLink } from "./confirm-page";
+import { hitRateLimit } from "@/lib/data/customer-portal";
+import { visitorKey } from "./customer-view";
 import { poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
 
 export interface ConfirmState {
@@ -17,11 +19,13 @@ export interface ConfirmState {
  * A supplier submits their answer through the no-login link. Re-checks the
  * link (it may have been revoked or expired since the page loaded), then the
  * answer takes the same path as every other supplier answer.
- * UNVERIFIED: no rate limit on this public endpoint yet (Phase 9); the link
- * code is 256 random bits, so guessing one isn't practical.
+ * Rate-limited per visitor (readiness Task 5B); the link code is 256
+ * random bits, so guessing one isn't practical either.
  */
 export async function submitSupplierConfirmation(token: string, _prev: ConfirmState, formData: FormData): Promise<ConfirmState> {
   try {
+    const limiter = createSupabaseAdminClient();
+    if (limiter && !(await hitRateLimit(limiter, `confirm-send:${await visitorKey()}`, 20, 3600))) return { error: "Too many tries. Please wait a while, or reply to the email instead." };
     const { state, view } = await resolveLink(token, new Date());
     if (state !== "open" || !view) return { error: "This link no longer works. Please reply to the purchase order email instead." };
     const admin = createSupabaseAdminClient();

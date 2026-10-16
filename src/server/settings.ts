@@ -1,4 +1,5 @@
 import "server-only";
+import { loadSecurityLog } from "./security-log";
 import { loadForwarding, type ForwardingView } from "./inbound-view";
 import { loadIntegrations, type IntegrationsView } from "./integrations";
 import { listPersonOverrides, listRolePermissions } from "@/lib/data/permissions";
@@ -48,6 +49,9 @@ export interface SettingsView {
   carriers: CarrierConnectionsView | null;
   connections: IntegrationsView | null;
   forwarding: ForwardingView | null;
+  securityLog: Awaited<ReturnType<typeof loadSecurityLog>>;
+  /** Who's looking (for actions only an admin can take on someone else). */
+  viewer: { id: string; isAdmin: boolean };
   prediction: PredictionSettings;
   customerPage: CustomerPageSettings;
   customs: CustomsSettings;
@@ -63,10 +67,11 @@ export async function loadSettings(): Promise<SettingsView> {
   const [team, roleRows, overrideRows] = supabase
     ? await Promise.all([listStaffInOrg(supabase), listRolePermissions(supabase), listPersonOverrides(supabase)])
     : [[], [], []];
-  const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
+  const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR, linkLifetimeDays: 30 };
   const carriers = supabase ? await loadCarrierConnections(staff) : null;
   const connections = supabase ? await loadIntegrations(staff) : null;
   const forwarding = supabase ? await loadForwarding(staff) : null;
+  const securityLog = await loadSecurityLog(staff);
   const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
   const customs = supabase ? await getCustomsSettings(supabase) : { eori: null, territoriesNeedCustoms: true };
   const customerPage = supabase ? await getCustomerPageSettings(supabase) : { displayName: null, logoUrl: null, supplierWord: "shipper", showDirectCarrier: false, minGapHours: 4, dateShiftDays: 2 };
@@ -103,6 +108,8 @@ export async function loadSettings(): Promise<SettingsView> {
     carriers,
     connections,
     forwarding,
+    securityLog,
+    viewer: { id: staff.id, isAdmin: staff.role === "admin" },
     prediction,
     customerPage,
     customs,

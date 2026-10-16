@@ -485,17 +485,20 @@ export async function resolveSupplierChases(client: SupabaseClient, poId: string
 export interface ChaseSettings {
   thresholds: EscalationThresholds;
   calendar: WorkingCalendar;
+  /** How long a supplier's confirmation link works (readiness Task 5B). */
+  linkLifetimeDays: number;
 }
 
 export async function getChaseSettings(client: SupabaseClient): Promise<ChaseSettings> {
   const { data } = await client
     .from("chase_settings")
-    .select("amber_hours, red_hours, alert_hours, day_start_hour, day_end_hour")
-    .maybeSingle<{ amber_hours: number; red_hours: number; alert_hours: number; day_start_hour: number; day_end_hour: number }>();
-  if (!data) return { thresholds: { amberHours: 8, redHours: 16, alertHours: 24 }, calendar: DEFAULT_CALENDAR };
+    .select("amber_hours, red_hours, alert_hours, day_start_hour, day_end_hour, link_lifetime_days")
+    .maybeSingle<{ amber_hours: number; red_hours: number; alert_hours: number; day_start_hour: number; day_end_hour: number; link_lifetime_days: number }>();
+  if (!data) return { thresholds: { amberHours: 8, redHours: 16, alertHours: 24 }, calendar: DEFAULT_CALENDAR, linkLifetimeDays: 30 };
   return {
     thresholds: { amberHours: data.amber_hours, redHours: data.red_hours, alertHours: data.alert_hours },
     calendar: { ...DEFAULT_CALENDAR, dayStartHour: data.day_start_hour, dayEndHour: data.day_end_hour },
+    linkLifetimeDays: data.link_lifetime_days ?? 30,
   };
 }
 
@@ -503,11 +506,11 @@ export async function updateChaseSettings(
   client: SupabaseClient,
   orgId: string,
   userId: string,
-  s: { amberHours: number; redHours: number; alertHours: number; dayStartHour: number; dayEndHour: number },
+  s: { amberHours: number; redHours: number; alertHours: number; dayStartHour: number; dayEndHour: number; linkLifetimeDays: number },
 ): Promise<void> {
   const { data, error } = await client
     .from("chase_settings")
-    .update({ amber_hours: s.amberHours, red_hours: s.redHours, alert_hours: s.alertHours, day_start_hour: s.dayStartHour, day_end_hour: s.dayEndHour, updated_by: userId })
+    .update({ amber_hours: s.amberHours, red_hours: s.redHours, alert_hours: s.alertHours, day_start_hour: s.dayStartHour, day_end_hour: s.dayEndHour, link_lifetime_days: s.linkLifetimeDays, updated_by: userId })
     .eq("org_id", orgId)
     .select("org_id");
   if (error) throw new Error(`Couldn't save: ${error.message}`);

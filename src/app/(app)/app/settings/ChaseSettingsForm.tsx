@@ -10,6 +10,7 @@ interface Values {
   alertHours: number;
   dayStartHour: number;
   dayEndHour: number;
+  linkLifetimeDays: number;
 }
 
 /** When something waiting on someone turns amber, red and "needs attention" (decisions B14). */
@@ -38,6 +39,7 @@ export function ChaseSettingsForm({ values, editable }: { values: Values; editab
         {field("alertHours", "Needs attention after", "Working hours")}
         {field("dayStartHour", "Working day starts", "Hour, 0–23 (UK time)")}
         {field("dayEndHour", "Working day ends", "Hour, 1–24 (UK time)")}
+        {field("linkLifetimeDays", "Supplier links work for", "Days, 1–90 (new links)")}
       </div>
       {editable && (
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>

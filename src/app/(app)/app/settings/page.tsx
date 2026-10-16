@@ -28,7 +28,7 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const m365Outcome = typeof sp.m365 === "string" ? sp.m365 : null;
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, forwarding, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, forwarding, securityLog, viewer, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -81,7 +81,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             Open a person to see exactly what they can do. Adding and removing people from here arrives later; for now your
             COAST admin does it.
           </p>
-          <TeamAccess people={team} />
+          <TeamAccess people={team} viewer={viewer} />
         </div>
       </details>
 
@@ -101,7 +101,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </p>
           <ChaseSettingsForm
             editable={canEditSettings}
-            values={{ ...chase.thresholds, dayStartHour: chase.calendar.dayStartHour, dayEndHour: chase.calendar.dayEndHour }}
+            values={{ ...chase.thresholds, dayStartHour: chase.calendar.dayStartHour, dayEndHour: chase.calendar.dayEndHour, linkLifetimeDays: chase.linkLifetimeDays }}
           />
         </div>
       </details>
@@ -195,6 +195,33 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </summary>
           <div className={styles.foldBody}>
             <ForwardingPanel view={forwarding} m365Outcome={m365Outcome} />
+          </div>
+        </details>
+      )}
+
+      {securityLog && (
+        <details className={styles.fold} id="security-log">
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Security log</h2>
+              <span className={styles.foldMeta}>
+                Sign-ins, lockouts, access and connection changes · {securityLog.filter((e) => e.attention).length} worth a look in the last {securityLog.length}
+              </span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            {securityLog.length === 0 ? (
+              <p className={styles.cardText}>Nothing yet.</p>
+            ) : (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                {securityLog.map((e) => (
+                  <li key={e.id} style={{ fontSize: 14 }}>
+                    <span className={`status ${e.attention ? "status-warn" : "status-neutral"}`}>● {e.text}</span>
+                    <span style={{ color: "var(--text-muted)", fontSize: 12 }}> · {e.who} · {e.when}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </details>
       )}

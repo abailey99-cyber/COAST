@@ -339,23 +339,47 @@ function scannable(name: string): boolean {
   return name.replace(/[^A-Za-z0-9]/g, "").length >= 3;
 }
 
+/** Company endings people drop or swap ("Acme Widgets Ltd" → "Acme Widgets", "Acme Widgets Limited"). */
+const COMPANY_SUFFIXES = ["ltd", "limited", "plc", "llp", "lp", "inc", "incorporated", "corp", "corporation", "co", "company", "group", "holdings", "uk", "gmbh", "bv", "sa", "srl", "sarl", "ag", "pty", "llc"];
+const SUFFIX = `(?:[^A-Za-z0-9]{1,3}(?:${COMPANY_SUFFIXES.join("|")}))*`;
+
+/** "&" and "and" are the same word for matching. */
+const andWords = (s: string) => s.replace(/&/g, " and ");
+
+/** A name's distinctive part, without its company ending; null when what's left is too short to scan safely. */
+function coreName(words: readonly string[]): string[] | null {
+  const core = [...words];
+  while (core.length > 1 && COMPANY_SUFFIXES.includes(core.at(-1)!.toLowerCase())) core.pop();
+  const letters = core.join("").length;
+  // "Hull" alone would block a city; two words, or one long word, is distinctive enough.
+  return core.length >= 2 || letters >= 6 ? core : null;
+}
+
 /**
- * Any real supplier name or PO number in `text`. Case-insensitive; names
- * match as whole words and ignore spacing and punctuation differences
- * ("Acme  Ltd", "ACME-LTD"); PO numbers match with or without the dash.
+ * Any real supplier name or PO number in `text` (CLAUDE.md non-negotiable 1).
+ * Case-insensitive; names match as whole words, ignoring spacing and
+ * punctuation ("Acme  Ltd", "ACME-LTD"), "&" written as "and", and the
+ * company ending dropped or swapped ("Acme Widgets", "Acme Widgets
+ * Limited"). PO numbers match with or without the dash, and written as
+ * "P.O. 5017", "PO #5017" or "PO no. 5017".
  */
 export function findLeaks(text: string, secrets: { supplierNames: readonly string[]; poNumbers: readonly string[] }): Leak[] {
   const leaks: Leak[] = [];
-  const flat = text.normalize("NFKC");
+  const flat = andWords(text.normalize("NFKC"));
   for (const name of new Set(secrets.supplierNames.map((n) => n.trim()).filter(scannable))) {
-    const words = name.split(/[^A-Za-z0-9]+/).filter(Boolean).map(escapeRe);
-    const re = new RegExp(`(^|[^A-Za-z0-9])${words.join("[^A-Za-z0-9]{0,3}")}(?![A-Za-z0-9])`, "i");
-    if (re.test(flat)) leaks.push({ kind: "supplier", value: name });
+    const words = andWords(name.normalize("NFKC")).split(/[^A-Za-z0-9]+/).filter(Boolean);
+    const exact = new RegExp(`(^|[^A-Za-z0-9])${words.map(escapeRe).join("[^A-Za-z0-9]{0,3}")}(?![A-Za-z0-9])`, "i");
+    const core = coreName(words);
+    const variant = core ? new RegExp(`(^|[^A-Za-z0-9])${core.map(escapeRe).join("[^A-Za-z0-9]{0,3}")}${SUFFIX}(?![A-Za-z0-9])`, "i") : null;
+    if (exact.test(flat) || variant?.test(flat)) leaks.push({ kind: "supplier", value: name });
   }
   for (const po of new Set(secrets.poNumbers.map((p) => p.trim()).filter(Boolean))) {
-    const parts = po.split(/[^A-Za-z0-9]+/).filter(Boolean).map(escapeRe);
-    const re = new RegExp(`(^|[^A-Za-z0-9])${parts.join("[^A-Za-z0-9]?")}(?![0-9])`, "i");
-    if (re.test(flat)) leaks.push({ kind: "po", value: po });
+    const parts = po.split(/[^A-Za-z0-9]+/).filter(Boolean);
+    const plain = new RegExp(`(^|[^A-Za-z0-9])${parts.map(escapeRe).join("[^A-Za-z0-9]?")}(?![0-9])`, "i");
+    // "PO-5017" also written "P.O. 5017", "PO #5017", "PO no. 5017", "PO number 5017".
+    const m = po.match(/^P\W?O\W?(\d{3,})$/i);
+    const spelled = m ? new RegExp(String.raw`(^|[^A-Za-z0-9])P\.?\s*O\.?\s*(?:#|no\.?|num(?:ber)?\.?)?\s*:?\s*` + m[1] + String.raw`(?![0-9])`, "i") : null;
+    if (plain.test(flat) || spelled?.test(flat)) leaks.push({ kind: "po", value: po });
   }
   return leaks;
 }

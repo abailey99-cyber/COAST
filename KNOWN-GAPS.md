@@ -18,6 +18,27 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 5B (security controls)
+
+- **Two-step sign-in is enforced by the database** for every real
+  organisation. The two demo organisations used by automated tests ([Demo
+  Org A] and [Demo Org B]) are exempt so tests can sign in with a password;
+  [Demo Org C] requires it. No signed-in person can switch it off.
+- **Customer accounts don't use two-step sign-in** (staff only, as planned).
+- **A restore hasn't been rehearsed yet:** it needs a staging project and
+  Supabase's Pro plan with Point in Time Recovery (founder tasks,
+  `docs/runbooks/backup-restore.md`). Photos in Storage aren't in database
+  backups.
+- **Alerts go through the email channel**, which logs rather than sends
+  until Microsoft 365 sending is built (Phase 8): set `FOUNDER_ALERT_EMAIL`
+  now, and alerts are also written to the hosting logs. A failed job also
+  shows as a failed run in GitHub Actions, which emails the repository owner.
+- **Lockout is per email address** (5 wrong passwords in 15 minutes pauses
+  sign-in for 15 minutes) plus a per-visitor limit. Supabase's own sign-in
+  limits apply on top.
+- **The security log shows the last 100 events**; older ones stay in the
+  database (retention rules come with Task 6).
+
 ### Readiness Task 4 (aggregator tracking)
 
 - **No real aggregator yet.** The founder is choosing one; everything is

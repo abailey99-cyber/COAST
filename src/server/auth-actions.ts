@@ -5,6 +5,7 @@ import { getStaffProfile } from "@/lib/data/staff";
 import { appUrl } from "@/lib/env";
 import { passwordProblem, safeNextPath } from "@/lib/logic/security";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { afterFailedSignIn, afterSignIn, allowPasswordReset, beforeSignIn } from "./sign-in-guard";
 
 export interface FormState {
   error?: string;
@@ -27,8 +28,13 @@ export async function signInStaff(_prev: FormState, formData: FormData): Promise
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { error: NOT_CONNECTED };
 
+  // A limit per visitor, and a lockout after repeated wrong passwords (readiness Task 5B).
+  const guard = await beforeSignIn("staff", email);
+  if (!guard.ok) return { error: guard.error };
+
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
+    await afterFailedSignIn("staff", email);
     // Same message whatever went wrong, so the form doesn't reveal which emails exist.
     return { error: "That email and password don't match. Check them, or reset your password." };
   }
@@ -38,6 +44,7 @@ export async function signInStaff(_prev: FormState, formData: FormData): Promise
     await supabase.auth.signOut();
     return { error: "This account isn't set up as a COAST team member. Ask your COAST admin." };
   }
+  await afterSignIn("staff", staff.id, staff.orgId);
 
   redirect(next);
 }
@@ -55,6 +62,7 @@ export async function requestPasswordReset(_prev: FormState, formData: FormData)
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { error: NOT_CONNECTED };
+  if (!(await allowPasswordReset())) return { error: "Too many requests from here. Please wait an hour and try again." };
 
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${appUrl()}/auth/callback?next=/auth/set-password`,

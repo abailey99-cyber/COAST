@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { afterFailedSignIn, afterSignIn, beforeSignIn } from "./sign-in-guard";
 import { revalidatePath } from "next/cache";
 import { getOrder } from "@/lib/data/orders";
 import {
@@ -67,14 +68,17 @@ export async function signInCustomer(_prev: AccountResult, formData: FormData): 
   const supabase = await createSupabaseServerClient();
   const admin = createSupabaseAdminClient();
   if (!supabase || !admin) return { ok: false, error: NOT_CONNECTED };
-  if (!(await hitRateLimit(admin, `customer-sign-in:${await visitorKey()}`, 20, 600))) return { ok: false, error: "Too many tries. Please wait a few minutes." };
+  const guard = await beforeSignIn("customer", email);
+  if (!guard.ok) return { ok: false, error: guard.error };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   const account = !error && data.user ? await getCustomerAccount(admin, data.user.id) : null;
   if (!account) {
     if (!error) await supabase.auth.signOut({ scope: "local" });
+    await afterFailedSignIn("customer", email);
     // The same answer whatever went wrong (wrong password, no account, a staff login).
     return { ok: false, error: "That email and password don't match a customer account." };
   }
+  await afterSignIn("customer", account.userId, null);
   const added = addCode ? await addByCode(admin, account.userId, addCode) : null;
   redirect(after(added));
 }

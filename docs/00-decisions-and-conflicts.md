@@ -608,3 +608,22 @@ stops. A shipment on an organisation's own carrier account stays direct;
 the test carrier always does. With webhooks, COAST still checks once a day
 as a safety net; without, every 2 hours near the delivery date, 8 hours
 normally, once a day after 3 quiet days, never once delivered.
+
+### N14. Two-step sign-in and its exemption — DEFAULT — CONFIRM
+Every staff member of every real organisation must use an authenticator
+app, enforced in the database (`organisations.require_staff_mfa`, not
+changeable by anyone signed in). The two demo organisations used by
+automated tests are exempt; they hold no real data. An admin can reset a
+colleague's authenticator (a lost phone), logged in the security log.
+
+### N15. Sign-in lockout and limits — DEFAULT — CONFIRM
+5 wrong passwords for one address in 15 minutes pauses that address for 15
+minutes (any address, so it reveals nothing); 30 attempts per visitor per
+10 minutes; 10 wrong authenticator codes per 15 minutes; 5 password resets
+per visitor per hour. Supplier link: 60 opens per visitor per 10 minutes,
+15 wrong codes, 20 answers an hour. Link lifetime: a company setting, 1–90
+days, default 30.
+
+### N16. Processing stays in the EU — DECIDED
+Database in Ireland (eu-west-1); Vercel functions pinned to Dublin (dub1)
+in `vercel.json`.

@@ -7,6 +7,7 @@ import { getPurchaseOrder, updatePoStatus } from "@/lib/data/procurement";
 import {
   applyAnswer,
   getChase,
+  getChaseSettings,
   getResponse,
   openInternalChase,
   openSupplierChase,
@@ -29,7 +30,8 @@ import { NotAllowedError, requirePermission, requireStaffForAction, type StaffCo
 import { answerFromEmail, poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
 import { addSupplierShipments } from "./shipments";
 import { refreshPredictionsLater } from "./predictions";
-import { LINK_LIFETIME_DAYS, newLinkToken } from "./tokens";
+import { newLinkToken } from "./tokens";
+import { linkExpiry, linkLifetimeProblem } from "@/lib/logic/supplier-link";
 
 export interface LoopResult {
   ok: boolean;
@@ -64,7 +66,8 @@ function redact(message: EmailMessage, url: string): EmailMessage {
 
 async function newLink(supabase: Awaited<ReturnType<typeof client>>, poId: string, userId: string): Promise<{ url: string; expires: Date }> {
   const { token, hash } = newLinkToken();
-  const expires = new Date(Date.now() + LINK_LIFETIME_DAYS * 86_400_000);
+  // The company's chosen lifetime (readiness Task 5B).
+  const expires = linkExpiry(new Date(), (await getChaseSettings(supabase)).linkLifetimeDays);
   await replaceLink(supabase, poId, userId, hash, expires);
   return { url: `${appUrl()}/confirm/${token}`, expires };
 }
@@ -315,11 +318,13 @@ export async function saveChaseSettings(_prev: LoopResult, formData: FormData): 
   try {
     const staff = await requirePermission("settings.edit");
     const n = (k: string) => Number(String(formData.get(k) ?? "").trim());
-    const s = { amberHours: n("amberHours"), redHours: n("redHours"), alertHours: n("alertHours"), dayStartHour: n("dayStartHour"), dayEndHour: n("dayEndHour") };
+    const s = { amberHours: n("amberHours"), redHours: n("redHours"), alertHours: n("alertHours"), dayStartHour: n("dayStartHour"), dayEndHour: n("dayEndHour"), linkLifetimeDays: n("linkLifetimeDays") };
     if (![s.amberHours, s.redHours, s.alertHours, s.dayStartHour, s.dayEndHour].every(Number.isInteger)) return { ok: false, error: "Use whole numbers." };
     const problem = thresholdsProblem(s);
     if (problem) return { ok: false, error: problem };
     if (s.dayStartHour < 0 || s.dayEndHour > 24 || s.dayStartHour >= s.dayEndHour) return { ok: false, error: "The working day must start before it ends (hours 0–24)." };
+    const linkProblem = linkLifetimeProblem(s.linkLifetimeDays);
+    if (linkProblem) return { ok: false, error: linkProblem };
     await updateChaseSettings(await client(), staff.orgId, staff.id, s);
     revalidatePath("/app", "layout");
     return { ok: true, message: "Saved." };

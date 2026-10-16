@@ -21,6 +21,11 @@ async function main() {
   const admin = adminClient();
   const orgA = await ensureOrganisation(admin, "[Demo Org A]", "demo-org-a");
   const orgB = await ensureOrganisation(admin, "[Demo Org B]", "demo-org-b");
+  // Demo organisations A and B sign in with a password only, so automated tests can (they hold no real data).
+  // C requires two-step sign-in like every real organisation, for testing it (readiness Task 5B).
+  const orgC = await ensureOrganisation(admin, "[Demo Org C]", "demo-org-c");
+  await admin.from("organisations").update({ require_staff_mfa: false }).in("id", [orgA, orgB]);
+  await admin.from("organisations").update({ require_staff_mfa: true }).eq("id", orgC);
 
   const people: StaffSpec[] = [
     { email: "admin@demo-a.coast.test", fullName: "[Admin A]", role: "admin", orgId: orgA },
@@ -37,6 +42,7 @@ async function main() {
     { email: "sales@demo-b.coast.test", fullName: "[Sales rep B]", role: "sales", orgId: orgB },
     { email: "director@demo-b.coast.test", fullName: "[Director B]", role: "director", orgId: orgB },
     { email: "goodsin@demo-b.coast.test", fullName: "[Goods-in B]", role: "goods_in", orgId: orgB },
+    { email: "admin@demo-c.coast.test", fullName: "[Admin C]", role: "admin", orgId: orgC },
   ];
 
   const ids: Record<string, string> = {};
