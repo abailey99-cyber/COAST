@@ -520,3 +520,64 @@ business": a register-interest form that records which business's page
 sent them (`npm run leads` lists them). **A self-serve free trial is noted
 for a later phase.** The invitations show on every business's tracking
 pages for now; hiding them becomes a paid-plan option later.
+
+## N. Pilot readiness plan, Branches and Projects (16 October 2026)
+
+The plans are `docs/04-pilot-readiness-plan.md` (Tasks 1–6) and
+`docs/03-branches-and-projects.md` (Phases 7b, 7c). They come after Phase 7
+and before Phase 8, in the order the readiness plan gives, then 7b and 7c.
+
+### N0. Any number of organisations — DECIDED
+COAST is built for an unlimited number of organisations from now on. The
+database already was (every table is scoped by organisation with RLS); what
+assumed one company was the integrations: carrier keys and the Microsoft 365
+mailbox read from the hosting settings, and one DHL allowance shared
+platform-wide. Tasks 2–4 replace those with per-organisation credentials,
+per-organisation inbound addresses and per-shipment tracking. Nothing new
+may assume a fixed number of tenants.
+
+### N1. The website keeps an audit-trail claim, worded exactly — DECIDED
+The plan said to remove "Full audit trail". COAST has had a real audit log
+since Phase 1 (F1: written by the database itself, visible to admins and
+directors). The site says what's true: every change recorded with who, what
+and when; the truth test covers it.
+
+### N2. Integrations and Pricing pages are built now — DECIDED
+They didn't exist yet (the public site was a holding page). Task 1 builds
+them from the mockups with the truthful wording.
+
+### N3. Credential encryption: COAST encrypts — DECIDED
+AES-256-GCM in one server-only module, master key only in the hosting
+settings, key version stored on each record so keys can rotate. Backups
+never hold a usable key.
+
+### N4. Already in place (checked, not rebuilt)
+- Supplier link codes are already stored only as a hash, expire after 30
+  days, can be revoked from the PO, and opening the link never submits it
+  (the supplier presses "Send confirmation"), so email scanners can't use
+  it up. Task 5B adds configurable expiry and tests.
+- "Show direct-ship carrier to customer" already defaults to off (0016).
+- The database is in the EU (Ireland, eu-west-1).
+- Paste-in replies are a staff action, so a clear pasted date still applies
+  itself; Task 3's "never auto-apply" covers forwarded mail.
+
+### N5. Managers — DECIDED by E7
+The Sales manager role already exists. In 7b they get "See every branch" by
+default.
+
+### N6. "Sees every branch" is a permission — DEFAULT — CONFIRM
+Not a hard-coded role list (CLAUDE.md non-negotiable 7): admin, procurement,
+director and sales manager hold it by default; admins can change that.
+
+### N7. Customer-facing project wording follows B8
+Customers see a business's word for things, never "supplier".
+
+### N8. Two-person approval with one approver — DEFAULT — CONFIRM
+If an organisation has only one active admin or procurement user, they can
+approve their own participant request; it is audited as "approved without a
+second person".
+
+### N9. Customer-created project groups belong to the account — DEFAULT — CONFIRM
+Customer accounts are people who follow orders across businesses (L1), so a
+group belongs to that account. Sharing groups within a customer's company is
+for later.

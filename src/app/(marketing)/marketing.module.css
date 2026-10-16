@@ -92,3 +92,297 @@
     padding-bottom: 64px;
   }
 }
+
+/* ── Inner pages (Integrations, Pricing): handoff §7.6–7.7 ─────────────── */
+.pageHero {
+  background: var(--coast-deep-sea);
+  color: var(--text);
+}
+
+.pageHeroInner {
+  max-width: var(--width-marketing);
+  margin: 0 auto;
+  padding: 48px var(--gutter) 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pageHeroCentred {
+  align-items: center;
+  text-align: center;
+  padding-bottom: 96px;
+}
+
+.pageTitle {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  line-height: var(--lh-heading);
+  max-width: 760px;
+}
+
+.pageLead {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.legendPill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--selected);
+  font-size: 13px;
+}
+
+.section {
+  max-width: var(--width-marketing);
+  margin: 0 auto;
+  padding: 64px var(--gutter) 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sectionLast {
+  padding-bottom: 88px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 26px;
+}
+
+.sectionTitleLarge {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.sectionLead {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.small {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 18px;
+}
+
+.tile {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cardDark {
+  background: var(--coast-deep-sea);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.cardDark .cardBody {
+  color: #c9d6da;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.mono {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--badge-carrier-bg);
+  color: var(--badge-carrier-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  flex-shrink: 0;
+}
+
+.tileName,
+.cardTitle {
+  font-weight: var(--fw-semibold);
+}
+
+.tileName {
+  font-size: 15px;
+}
+
+.cardTitle {
+  font-size: 17px;
+}
+
+.tileNote {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cardBody {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.pill {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.columnHead {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+}
+
+.roadItem {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roadName {
+  font-size: 15px;
+  font-weight: var(--fw-semibold);
+}
+
+.roadNote {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.partner {
+  max-width: var(--width-marketing);
+  margin: -64px auto 0;
+  padding: 0 var(--gutter);
+}
+
+.partnerCard {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 24px;
+  align-items: center;
+  box-shadow: 0 1px 2px rgba(14, 42, 59, 0.06), 0 8px 24px rgba(14, 42, 59, 0.06);
+}
+
+.ticks {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.faqs {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 72px var(--gutter) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+
+.faq summary {
+  font-size: 16px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.faq p {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.cta {
+  max-width: var(--width-marketing);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 88px;
+}
+
+.ctaInner {
+  border-radius: 24px;
+  padding: 48px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 640px) {
+  .ctaInner,
+  .partnerCard {
+    padding: 28px 20px;
+  }
+}

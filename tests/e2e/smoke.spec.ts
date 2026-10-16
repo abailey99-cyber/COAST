@@ -28,11 +28,29 @@ test("the staff app sends signed-out visitors to sign in", async ({ page }) => {
 });
 
 test("no page scrolls sideways on a phone", async ({ page }) => {
-  for (const path of ["/", "/sign-in", "/sign-in/forgotten", "/track"]) {
+  for (const path of ["/", "/sign-in", "/sign-in/forgotten", "/track", "/integrations", "/pricing"]) {
     await page.goto(path);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, path).toBeLessThanOrEqual(0);
   }
+});
+
+test("the website only calls something Live once it's verified, and keeps prices hidden", async ({ page }) => {
+  for (const path of ["/integrations", "/pricing"]) {
+    await page.goto(path);
+    for (const pill of await page.locator("[data-status]").all()) {
+      const status = await pill.getAttribute("data-status");
+      if (status === "live" || status === "beta") expect(await pill.getAttribute("data-verified"), await pill.textContent() ?? "").toBe("true");
+    }
+    await expect(page.getByText(/audit trail/i)).toHaveCount(0);
+  }
+  await page.goto("/integrations");
+  await expect(page.getByRole("listitem").filter({ hasText: "DHL Express" }).getByText("● In development")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "Supplier email reading" }).getByText("● Live (paste-in)")).toBeVisible();
+  await page.goto("/pricing");
+  await expect(page.getByRole("heading", { name: "Help us set COAST up for businesses like yours." })).toBeVisible();
+  await expect(page.getByText("[£ PRICE]")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Supplier details are masked everywhere in COAST" })).toBeVisible();
 });
 
 test("cron endpoints refuse requests without the secret", async ({ request }) => {

@@ -10,13 +10,26 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 | Item | Where it shows | Arrives |
 |---|---|---|
-| Marketing site (How it works, Integrations, Pricing, register interest) | Home is a one-section holding page; the header shows only "Sign in"; the footer shows only the copyright line. "Register interest" isn't linked anywhere until the form exists | Any time — separate slot |
+| Marketing site: full home page and How it works | Home is a one-section holding page. Integrations and Pricing are built (readiness Task 1); the header links only to pages that exist | Any time — separate slot |
 | Privacy, Terms, Contact pages and cookie notice | Not linked | Marketing slot (wording is an owner task) |
 | Team management (add, remove, deactivate, change role) | Settings → Team shows each person and their access (individual access *is* editable). New people are added with `npm run org:create` / by the admin script | Later phase |
 | Uploading customs documents themselves (PDFs) | The checklist records what's arrived; the files live wherever they do today | Later — photo storage is ready to extend |
 | Staff MFA, rate limiting on public endpoints, backups/DR | — | Phase 9 (Supabase applies its own auth rate limits meanwhile) |
 
 ## Limitations to know about
+
+### Readiness Task 1 (website truth pass)
+
+- **Website statuses live in `src/content/site-status.ts`.** Anything marked
+  Live or Beta must also be marked verified, or the site won't build. Every
+  carrier is "In development" until the founder has seen it work on a real
+  account; Microsoft 365, NetSuite and the aggregator are "In development";
+  email reading is "Live (paste-in)".
+- **Prices are hidden** (`SHOW_PLANS = false`); a founding-partner block
+  shows instead. The founding-partner wording is a first draft for the
+  founder to confirm.
+- **No ROI or time-saved figures** appear on the pages built so far. The home
+  page and How it works mockups will need the "illustrative" label when built.
 
 ### Phase 7 (delivery problems and customs)
 
