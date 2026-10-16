@@ -9,7 +9,7 @@ test.describe("Settings → Integrations", () => {
   test.describe.configure({ mode: "serial" });
 
   // Made up for the test.
-  const KEY = `e2e-dhl-${Date.now()}-abcd`;
+  const KEY = `test-value-${Date.now()}-abcd`;
 
   test.beforeAll(async () => {
     const service = serviceClient();

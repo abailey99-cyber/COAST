@@ -6,7 +6,7 @@ const { DecryptError, KeyringError, decryptSecret, encryptSecret, parseKeyring, 
 
 const k = () => randomBytes(32).toString("base64");
 const owner = { orgId: "org-a", provider: "dhl", kind: "api_key" };
-const SECRET = "dhl-key-0123456789abcdef";
+const SECRET = "test-value-xxxxxxxxxxxxxxxx"; // made up for the test
 
 describe("credential encryption", () => {
   const k1 = k();
@@ -62,9 +62,9 @@ describe("credential encryption", () => {
     expect(() => parseKeyring("")).toThrow(KeyringError);
     expect(() => parseKeyring("1:short")).toThrow(/32 bytes/);
     try {
-      parseKeyring("oops-this-is-secret");
+      parseKeyring("not-a-keyring-xxxxxx");
     } catch (e) {
-      expect(String(e)).not.toContain("oops-this-is-secret");
+      expect(String(e)).not.toContain("not-a-keyring-xxxxxx");
     }
   });
 });

@@ -22,7 +22,7 @@ const enabled = Boolean(url && anonKey && serviceKey && password && process.env.
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 
 // Made up for the test, long enough to be recognisable if it ever leaked.
-const SECRET = `test-dhl-key-${Math.random().toString(36).slice(2)}-never-log-me`;
+const SECRET = `test-value-${Date.now()}-xxxxxxxxxxxx`;
 
 async function signedIn(email: string): Promise<SupabaseClient> {
   const c = createClient(url!, anonKey!, opts);
