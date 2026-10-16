@@ -8,7 +8,7 @@
  * all work as src/lib/logic/branches.ts says.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { canSeeOrder } from "@/lib/logic/branches";
@@ -131,6 +131,17 @@ describe.skipIf(!enabled)("branches", { timeout: 60_000 }, () => {
     expect(seenByB.length).toBeGreaterThan(0);
     expect(seenByB.every((b) => b.org_id === orgB)).toBe(true);
     expect((await salesA.from("branches").select("id")).data!.map((b) => b.id)).toContain(defaultA);
+  });
+
+  it("has reviewed every database function that skips row-level security (docs/security/branch-access-audit.md)", async () => {
+    const { data, error } = await service.rpc("security_definer_report");
+    expect(error).toBeNull();
+    const reviewed = [...readFileSync("docs/security/branch-access-audit.md", "utf8").matchAll(/^\| `([a-z_]+)\(\)`/gm)].map((m) => m[1]!);
+    const live = (data as { function_name: string }[]).map((f) => f.function_name);
+    expect(live.filter((f) => !reviewed.includes(f)), "review these for branches and add them to the audit").toEqual([]);
+    expect(reviewed.filter((f) => !live.includes(f)), "no longer callable: remove from the audit").toEqual([]);
+    // Nothing a signed-out visitor can call, apart from Supabase's own event trigger.
+    expect((data as { function_name: string; signed_out: boolean }[]).filter((f) => f.signed_out).map((f) => f.function_name)).toEqual(["rls_auto_enable"]);
   });
 
   it("lets a person see their own extra branches but not other people's; only admins grant", async () => {

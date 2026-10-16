@@ -21,7 +21,9 @@ step 3.)
 
 **Branches (7b):** none of these show staff a list across the organisation.
 Staff-side uses all act on one record the staff member's own client has just
-read, so branch rules on that read cover them. Recheck this when adding any
+read, so branch rules on that read cover them. The full branch audit,
+including database functions that skip row-level security, is
+`docs/security/branch-access-audit.md`. Recheck both when adding any
 staff-facing use.
 
 ## Files
