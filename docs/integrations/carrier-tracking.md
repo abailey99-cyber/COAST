@@ -1,5 +1,13 @@
 # Live carrier tracking — what's needed to switch each carrier on
 
+> **Changed by the pilot readiness plan (Task 2, 16 October 2026).** Each
+> organisation now connects its **own** account in COAST under
+> **Settings → Integrations**; the secrets are encrypted per organisation
+> and are no longer environment variables. Where this guide says "set X as
+> an environment variable", enter the same value in that organisation's
+> Integrations form instead. Tracking moves to one aggregator in Task 4; direct DHL, FedEx and UPS connections stay only for organisations bringing their own account (UPS only with UPS's written consent).
+
+
 > **Pack note for Claude Code:** implement spec §5.2 / §9.3 (adapter +
 > registry + health). One `CarrierAdapter` interface; a `mock` adapter for
 > dev/tests; DHL first, then FedEx (TNT reuses FedEx credentials), UPS, then

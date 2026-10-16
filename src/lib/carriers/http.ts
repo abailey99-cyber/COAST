@@ -40,17 +40,24 @@ interface CachedToken {
 }
 
 /** OAuth client-credentials tokens, kept until a minute before they expire. */
+/**
+ * OAuth tokens, cached per organisation: each organisation signs in with its
+ * own carrier account, so a token is never shared across tenants
+ * (readiness Task 2/3).
+ */
 export function tokenCache() {
-  let cached: CachedToken | null = null;
+  const cached = new Map<string, CachedToken>();
   return {
-    async get(fetchToken: () => Promise<{ token: string; expiresInSeconds: number } | null>): Promise<string | null> {
-      if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+    async get(owner: string, fetchToken: () => Promise<{ token: string; expiresInSeconds: number } | null>): Promise<string | null> {
+      const hit = cached.get(owner);
+      if (hit && hit.expiresAt > Date.now() + 60_000) return hit.token;
       const fresh = await fetchToken();
-      cached = fresh ? { token: fresh.token, expiresAt: Date.now() + fresh.expiresInSeconds * 1000 } : null;
-      return cached?.token ?? null;
+      if (fresh) cached.set(owner, { token: fresh.token, expiresAt: Date.now() + fresh.expiresInSeconds * 1000 });
+      else cached.delete(owner);
+      return fresh?.token ?? null;
     },
-    clear() {
-      cached = null;
+    clear(owner: string) {
+      cached.delete(owner);
     },
   };
 }

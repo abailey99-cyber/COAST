@@ -10,6 +10,7 @@ import { CarrierConnections } from "./CarrierConnections";
 import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PredictionSettingsForm } from "./PredictionSettingsForm";
 import { CustomsSettingsForm } from "./CustomsSettingsForm";
+import { IntegrationsPanel } from "./IntegrationsPanel";
 import { CustomerPageForm } from "./CustomerPageForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
@@ -24,7 +25,7 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 };
 
 export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -158,6 +159,27 @@ export default async function SettingsPage() {
         </div>
       </details>
 
+      {connections && (
+        <details className={styles.fold} id="integrations">
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Integrations</h2>
+              <span className={styles.foldMeta}>
+                {connections.items.filter((i) => i.connected).length} connected · your own carrier accounts, NetSuite and Microsoft 365
+              </span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            <p className={styles.cardText}>
+              Your company&apos;s own accounts. COAST uses each one only for your organisation, encrypts every secret before storing it, and
+              records each connection, change and disconnection in the security log. Without a carrier connected, its shipments are updated by
+              hand.
+            </p>
+            <IntegrationsPanel items={connections.items} canEdit={connections.canEdit} storeReady={connections.storeReady} />
+          </div>
+        </details>
+      )}
+
       {carriers && (
         <details className={styles.fold}>
           <summary>
@@ -170,9 +192,8 @@ export default async function SettingsPage() {
           </summary>
           <div className={styles.foldBody}>
             <p className={styles.cardText}>
-              Which carriers COAST checks for you, and whether those checks are working. Each carrier is switched on once, for
-              the whole of COAST, by adding its credentials to the hosting settings (see docs/integrations/carrier-tracking.md).
-              Carriers marked beta were built without the carrier&apos;s own documentation and need a check once a real account is
+              Which carriers COAST checks for you, and whether those checks are working. A carrier is switched on when an admin
+              connects your own account for it under Integrations above. Carriers marked beta were built without the carrier&apos;s own documentation and need a check once a real account is
               connected. The claim window is how long you have to claim from that carrier for damage or loss; leave it blank
               until you know it.
             </p>

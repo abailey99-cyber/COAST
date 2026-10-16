@@ -1,5 +1,13 @@
 # NetSuite integration — what's needed to build it
 
+> **Changed by the pilot readiness plan (Task 2, 16 October 2026).** Each
+> organisation now connects its **own** account in COAST under
+> **Settings → Integrations**; the secrets are encrypted per organisation
+> and are no longer environment variables. Where this guide says "set X as
+> an environment variable", enter the same value in that organisation's
+> Integrations form instead. NetSuite's machine-to-machine sign-in needs the account ID, integration client ID, certificate ID, signing method and private key (no client secret).
+
+
 > **Pack note for Claude Code:** read-only Sales Order sync (spec §5.1, §6),
 > OAuth 2.0 Client Credentials, SuiteQL. Environment variables:
 > `NETSUITE_ACCOUNT_ID`, `NETSUITE_CLIENT_ID`, `NETSUITE_CLIENT_SECRET`,

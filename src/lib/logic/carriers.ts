@@ -5,6 +5,7 @@
  */
 
 import type { Health } from "./health";
+import type { CredentialProvider } from "./integrations";
 
 export const CARRIER_KEYS = ["dhl", "fedex", "tnt", "ups", "royal_mail", "dpd", "evri", "yodel", "other", "unknown", "mock"] as const;
 export type CarrierKey = (typeof CARRIER_KEYS)[number];
@@ -36,8 +37,12 @@ export interface CarrierDef {
   /** Initials for the monogram tile (real logos need permission — decisions D). */
   monogram: string;
   confidence: CarrierConfidence;
-  /** Environment variables that switch on live tracking. Empty = none needed (or none possible). */
-  env: readonly string[];
+  /**
+   * Whose credentials switch on live tracking: the organisation connects its
+   * own account in Settings → Integrations (readiness Task 2). None = no
+   * credentials possible (or needed, for the test carrier).
+   */
+  provider?: CredentialProvider;
   /** Another carrier whose credentials and API this one uses. */
   via?: CarrierKey;
   pacing: Pacing;
@@ -54,7 +59,7 @@ export const CARRIERS: readonly CarrierDef[] = [
     label: "DHL Express",
     monogram: "DHL",
     confidence: "public",
-    env: ["DHL_API_KEY"],
+    provider: "dhl",
     // DHL's free tier: 250 calls a day, no more than one every 5 seconds.
     pacing: { dailyLimit: 250, minGapMs: 5_000, maxPerRun: 9 },
     trackingUrl: (n) => `https://www.dhl.com/gb-en/home/tracking.html?tracking-id=${enc(n)}`,
@@ -64,7 +69,7 @@ export const CARRIERS: readonly CarrierDef[] = [
     label: "FedEx",
     monogram: "FX",
     confidence: "public",
-    env: ["FEDEX_CLIENT_ID", "FEDEX_CLIENT_SECRET"],
+    provider: "fedex",
     pacing: { dailyLimit: null, minGapMs: 500, maxPerRun: 40 },
     trackingUrl: (n) => `https://www.fedex.com/fedextrack/?trknbr=${enc(n)}`,
   },
@@ -73,7 +78,7 @@ export const CARRIERS: readonly CarrierDef[] = [
     label: "TNT",
     monogram: "TNT",
     confidence: "public",
-    env: ["FEDEX_CLIENT_ID", "FEDEX_CLIENT_SECRET"],
+    provider: "fedex",
     via: "fedex",
     pacing: { dailyLimit: null, minGapMs: 500, maxPerRun: 20 },
     trackingUrl: (n) => `https://www.tnt.com/express/en_gb/site/shipping-tools/tracking.html?searchType=con&cons=${enc(n)}`,
@@ -83,7 +88,7 @@ export const CARRIERS: readonly CarrierDef[] = [
     label: "UPS",
     monogram: "UPS",
     confidence: "public",
-    env: ["UPS_CLIENT_ID", "UPS_CLIENT_SECRET"],
+    provider: "ups",
     pacing: { dailyLimit: null, minGapMs: 500, maxPerRun: 40 },
     trackingUrl: (n) => `https://www.ups.com/track?tracknum=${enc(n)}`,
   },
@@ -92,16 +97,16 @@ export const CARRIERS: readonly CarrierDef[] = [
     label: "Royal Mail / Parcelforce",
     monogram: "RM",
     confidence: "best_effort",
-    env: ["ROYAL_MAIL_CLIENT_ID", "ROYAL_MAIL_CLIENT_SECRET"],
+    provider: "royal_mail",
     pacing: { dailyLimit: null, minGapMs: 1_000, maxPerRun: 20 },
     trackingUrl: (n) => `https://www.royalmail.com/track-your-item#/tracking-results/${enc(n)}`,
   },
-  { key: "dpd", label: "DPD", monogram: "DPD", confidence: "best_effort", env: ["DPD_API_KEY"], pacing: NO_PACING },
-  { key: "evri", label: "Evri", monogram: "EV", confidence: "best_effort", env: ["HERMES_API_KEY"], pacing: NO_PACING },
-  { key: "yodel", label: "Yodel", monogram: "YO", confidence: "best_effort", env: ["YODEL_API_KEY"], pacing: NO_PACING },
-  { key: "other", label: "Other / own delivery", monogram: "—", confidence: "none", env: [], pacing: NO_PACING },
-  { key: "unknown", label: "Carrier not known yet", monogram: "?", confidence: "none", env: [], pacing: NO_PACING },
-  { key: "mock", label: "Test carrier", monogram: "T", confidence: "test", env: [], pacing: { dailyLimit: null, minGapMs: 0, maxPerRun: 100 } },
+  { key: "dpd", label: "DPD", monogram: "DPD", confidence: "best_effort", pacing: NO_PACING },
+  { key: "evri", label: "Evri", monogram: "EV", confidence: "best_effort", pacing: NO_PACING },
+  { key: "yodel", label: "Yodel", monogram: "YO", confidence: "best_effort", pacing: NO_PACING },
+  { key: "other", label: "Other / own delivery", monogram: "—", confidence: "none", pacing: NO_PACING },
+  { key: "unknown", label: "Carrier not known yet", monogram: "?", confidence: "none", pacing: NO_PACING },
+  { key: "mock", label: "Test carrier", monogram: "T", confidence: "test", pacing: { dailyLimit: null, minGapMs: 0, maxPerRun: 100 } },
 ];
 
 export function getCarrier(key: CarrierKey): CarrierDef {
@@ -140,9 +145,7 @@ export function guessCarrier(trackingNumber: string): CarrierKey | null {
 }
 
 // ── Health (non-negotiable 5) ───────────────────────────────────────────────
-type Env = Readonly<Record<string, string | undefined>>;
 
-const isSet = (v: string | undefined) => typeof v === "string" && v.trim().length > 0;
 
 export type CarrierErrorKind = "auth" | "rate_limited" | "unavailable" | "bad_response" | "unsupported";
 
@@ -167,16 +170,15 @@ export function hasLiveAdapter(key: CarrierKey): boolean {
  * missing → "unconfigured", never an error. Configured → judged on what the
  * last checks actually did.
  */
-export function carrierHealth(def: CarrierDef, env: Env, activity: CarrierActivity = NO_ACTIVITY): Health {
+export function carrierHealth(def: CarrierDef, connected: boolean, activity: CarrierActivity = NO_ACTIVITY): Health {
   if (def.confidence === "none") return { status: "unconfigured", reason: "No live tracking for this option." };
   if (def.confidence === "test") return { status: "ok", reason: "Test carrier for development: invents tracking from the tracking number." };
 
-  const missing = def.env.filter((name) => !isSet(env[name]));
   const via = def.via ? ` (uses the ${getCarrier(def.via).label} connection)` : "";
-  if (missing.length === def.env.length) {
-    return { status: "unconfigured", reason: `Not connected. Add ${def.env.join(" and ")} to switch on live tracking${via}.` };
+  if (!def.provider) {
+    return { status: "unconfigured", reason: `${def.label} hasn't published a tracking API, so live checks wait for their integration pack. Update these shipments by hand.` };
   }
-  if (missing.length > 0) return { status: "error", reason: `Partly set up. Missing: ${missing.join(", ")}.` };
+  if (!connected) return { status: "unconfigured", reason: `Not connected. An admin can connect your own ${def.label} account in Settings → Integrations${via}.` };
 
   if (!hasLiveAdapter(def.key)) {
     return { status: "warn", reason: `Beta: ${def.label} hasn't published its tracking API, so live checks wait for their integration pack.` };
@@ -184,7 +186,7 @@ export function carrierHealth(def: CarrierDef, env: Env, activity: CarrierActivi
 
   const beta = def.confidence === "best_effort" ? "Beta: built without a live account, so expect a correction pass. " : "";
   if (activity.lastErrorKind === "auth" && activity.consecutiveFailures > 0) {
-    return { status: "error", reason: `${beta}${def.label} turned down the credentials. Check ${def.env.join(" and ")}.` };
+    return { status: "error", reason: `${beta}${def.label} turned down the credentials. Check them in Settings → Integrations.` };
   }
   if (activity.consecutiveFailures >= 3) {
     return { status: "error", reason: `${beta}The last ${activity.consecutiveFailures} checks failed. COAST is backing off and will keep trying.` };

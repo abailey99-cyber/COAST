@@ -6,9 +6,12 @@ import { fetchCarrierJson, fetchOAuthToken, tokenCache } from "./http";
 /**
  * Carrier tracking adapters (spec §9.3: one interface, a registry, health).
  * Each turns a tracking number into a TrackOutcome; parsing lives in
- * src/lib/logic/carrier-responses.ts. A carrier with no credentials returns
- * "unsupported" — never a crash (non-negotiable 5). Adding a carrier is one
- * new adapter here and one parser, nothing else.
+ * src/lib/logic/carrier-responses.ts. Each organisation brings its own
+ * carrier account (readiness Task 2): the poll job fetches that
+ * organisation's credentials with getIntegrationCredentials and passes them
+ * in for the one call. No credentials → the shipment isn't checked, never a
+ * crash (non-negotiable 5). Adding a carrier is one adapter here and one
+ * parser, nothing else.
  */
 
 export interface TrackRequest {
@@ -18,24 +21,30 @@ export interface TrackRequest {
   now: Date;
 }
 
-export interface CarrierAdapter {
-  key: CarrierKey;
-  /** Credentials present (health with live results is in src/lib/logic/carriers.ts). */
-  configured(): boolean;
-  track(request: TrackRequest): Promise<TrackOutcome>;
+/** Whose account the call is made with: the organisation's own decrypted credentials, for this call only. */
+export interface CarrierCredentials {
+  orgId: string;
+  secret: Readonly<Record<string, string>>;
 }
 
-const env = (name: string) => process.env[name]?.trim() || "";
-const allSet = (key: CarrierKey) => getCarrier(key).env.every((n) => env(n) !== "");
+export interface CarrierAdapter {
+  key: CarrierKey;
+  /** Needs an organisation's own credentials (everything but the test carrier). */
+  needsCredentials: boolean;
+  track(request: TrackRequest, credentials: CarrierCredentials | null): Promise<TrackOutcome>;
+}
+
+const field = (c: CarrierCredentials | null, name: string) => c?.secret[name]?.trim() || "";
 
 // ── DHL: one API key in a header ────────────────────────────────────────────
 // UNVERIFIED: endpoint and header from developer.dhl.com (Shipment Tracking – Unified); not yet run against a live key.
 const dhl: CarrierAdapter = {
   key: "dhl",
-  configured: () => allSet("dhl"),
-  async track({ trackingNumber }) {
+  needsCredentials: true,
+  async track({ trackingNumber }, c) {
+    if (!field(c, "apiKey")) return failure("auth");
     const url = `https://api-eu.dhl.com/track/shipments?trackingNumber=${encodeURIComponent(trackingNumber)}&language=en`;
-    const r = await fetchCarrierJson(url, { headers: { "DHL-API-Key": env("DHL_API_KEY"), Accept: "application/json" } });
+    const r = await fetchCarrierJson(url, { headers: { "DHL-API-Key": field(c, "apiKey"), Accept: "application/json" } });
     return r.ok ? parseDhl(r.body) : r.outcome;
   },
 };
@@ -48,13 +57,14 @@ const fedexToken = tokenCache();
 function fedexAdapter(key: "fedex" | "tnt"): CarrierAdapter {
   return {
     key,
-    configured: () => allSet("fedex"),
-    async track({ trackingNumber }) {
-      const token = await fedexToken.get(() =>
+    needsCredentials: true,
+    async track({ trackingNumber }, c) {
+      if (!c || !field(c, "clientId") || !field(c, "clientSecret")) return failure("auth");
+      const token = await fedexToken.get(c.orgId, () =>
         fetchOAuthToken(`${FEDEX_BASE}/oauth/token`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ grant_type: "client_credentials", client_id: env("FEDEX_CLIENT_ID"), client_secret: env("FEDEX_CLIENT_SECRET") }),
+          body: new URLSearchParams({ grant_type: "client_credentials", client_id: field(c, "clientId"), client_secret: field(c, "clientSecret") }),
         }),
       );
       if (!token) return failure("auth");
@@ -63,7 +73,7 @@ function fedexAdapter(key: "fedex" | "tnt"): CarrierAdapter {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-locale": "en_GB" },
         body: JSON.stringify({ includeDetailedScans: true, trackingInfo: [{ trackingNumberInfo: { trackingNumber } }] }),
       });
-      if (!r.ok && r.outcome.ok === false && r.outcome.kind === "auth") fedexToken.clear();
+      if (!r.ok && r.outcome.ok === false && r.outcome.kind === "auth") fedexToken.clear(c.orgId);
       return r.ok ? parseFedex(r.body) : r.outcome;
     },
   };
@@ -76,10 +86,11 @@ const upsToken = tokenCache();
 
 const ups: CarrierAdapter = {
   key: "ups",
-  configured: () => allSet("ups"),
-  async track({ trackingNumber }) {
-    const basic = Buffer.from(`${env("UPS_CLIENT_ID")}:${env("UPS_CLIENT_SECRET")}`).toString("base64");
-    const token = await upsToken.get(() =>
+  needsCredentials: true,
+  async track({ trackingNumber }, c) {
+    if (!c || !field(c, "clientId") || !field(c, "clientSecret")) return failure("auth");
+    const basic = Buffer.from(`${field(c, "clientId")}:${field(c, "clientSecret")}`).toString("base64");
+    const token = await upsToken.get(c.orgId, () =>
       fetchOAuthToken(`${UPS_BASE}/security/v1/oauth/token`, {
         method: "POST",
         headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
@@ -91,7 +102,7 @@ const ups: CarrierAdapter = {
     const r = await fetchCarrierJson(`${UPS_BASE}/api/track/v1/details/${encodeURIComponent(trackingNumber)}?locale=en_GB`, {
       headers: { Authorization: `Bearer ${token}`, transId, transactionSrc: "coast", Accept: "application/json" },
     });
-    if (!r.ok && r.outcome.ok === false && r.outcome.kind === "auth") upsToken.clear();
+    if (!r.ok && r.outcome.ok === false && r.outcome.kind === "auth") upsToken.clear(c.orgId);
     return r.ok ? parseUps(r.body) : r.outcome;
   },
 };
@@ -100,12 +111,13 @@ const ups: CarrierAdapter = {
 // UNVERIFIED: best-effort reconstruction of Royal Mail Group's Tracking API v2. Shown as "beta".
 const royalMail: CarrierAdapter = {
   key: "royal_mail",
-  configured: () => allSet("royal_mail"),
-  async track({ trackingNumber }) {
+  needsCredentials: true,
+  async track({ trackingNumber }, c) {
+    if (!field(c, "clientId") || !field(c, "clientSecret")) return failure("auth");
     const r = await fetchCarrierJson(`https://api.royalmail.net/mailpieces/v2/${encodeURIComponent(trackingNumber)}/events`, {
       headers: {
-        "X-IBM-Client-Id": env("ROYAL_MAIL_CLIENT_ID"),
-        "X-IBM-Client-Secret": env("ROYAL_MAIL_CLIENT_SECRET"),
+        "X-IBM-Client-Id": field(c, "clientId"),
+        "X-IBM-Client-Secret": field(c, "clientSecret"),
         "X-Accept-RMG-Terms": "yes",
         Accept: "application/json",
       },
@@ -117,7 +129,7 @@ const royalMail: CarrierAdapter = {
 // ── The test carrier ────────────────────────────────────────────────────────
 const mock: CarrierAdapter = {
   key: "mock",
-  configured: () => isMockAllowed(process.env.COAST_ENV),
+  needsCredentials: false,
   track: async ({ trackingNumber, addedAt, now }) => mockTrack(trackingNumber, addedAt, now),
 };
 
@@ -133,14 +145,19 @@ const ADAPTERS: Partial<Record<CarrierKey, CarrierAdapter>> = {
   mock,
 };
 
-/** The adapter for a carrier, when COAST can check it by itself right now. */
+/** The adapter for a carrier, when COAST can check it by itself in this build and environment. */
 export function carrierAdapter(key: CarrierKey): CarrierAdapter | null {
   if (!hasLiveAdapter(key)) return null;
-  const adapter = ADAPTERS[key];
-  return adapter && adapter.configured() ? adapter : null;
+  if (key === "mock" && !isMockAllowed(process.env.COAST_ENV)) return null;
+  return ADAPTERS[key] ?? null;
 }
 
-/** Carriers ready to be polled in this environment. */
+/** Carriers COAST can poll in this environment (each organisation still needs its own connection, except the test carrier). */
 export function liveCarriers(): CarrierKey[] {
   return (Object.keys(ADAPTERS) as CarrierKey[]).filter((k) => carrierAdapter(k) !== null);
+}
+
+/** The credential provider behind a carrier (TNT uses FedEx's). */
+export function providerFor(key: CarrierKey) {
+  return getCarrier(key).provider ?? null;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { carrierAdapter, liveCarriers } from "@/lib/carriers/registry";
+import { carrierAdapter, liveCarriers, providerFor, type CarrierCredentials } from "@/lib/carriers/registry";
 import { updateLineStage } from "@/lib/data/orders";
 import {
   getShipment,
@@ -22,6 +22,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { refreshPredictions, sweepPredictions } from "./predictions";
 import { flushHeldNotifications, notifyCustomer } from "./notifications";
 import { draftCarrierProblem } from "./problems-auto";
+import { getIntegrationCredentials } from "./credentials";
 import { topicForShipmentStatus } from "@/lib/logic/notifications";
 
 /**
@@ -39,18 +40,34 @@ export const RUN_TIME_BUDGET_MS = 50_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Check one shipment now. The caller has already reserved the carrier call. */
-export async function pollShipment(admin: SupabaseClient, due: DueShipment, now: Date): Promise<PollOutcome> {
+/**
+ * The shipment's own organisation's credentials for its carrier, or null
+ * when it hasn't connected one. Never another organisation's.
+ */
+export async function credentialsFor(orgId: string, carrier: CarrierKey): Promise<CarrierCredentials | null> {
+  const provider = providerFor(carrier);
+  if (!provider) return null;
+  const c = await getIntegrationCredentials(orgId, provider);
+  return c?.secret ? { orgId, secret: c.secret } : null;
+}
+
+/**
+ * Check one shipment now. The caller has already reserved the carrier call,
+ * and passes the shipment's organisation's credentials (or they're fetched).
+ */
+export async function pollShipment(admin: SupabaseClient, due: DueShipment, now: Date, credentials?: CarrierCredentials | null): Promise<PollOutcome> {
   const adapter = carrierAdapter(due.carrier);
   if (!adapter) return "skipped";
+  const creds = credentials === undefined ? (adapter.needsCredentials ? await credentialsFor(due.orgId, due.carrier) : null) : credentials;
+  if (adapter.needsCredentials && (!creds || creds.orgId !== due.orgId)) return "skipped";
 
-  const outcome = await adapter.track({ trackingNumber: due.trackingNumber, addedAt: new Date(due.createdAt), now });
+  const outcome = await adapter.track({ trackingNumber: due.trackingNumber, addedAt: new Date(due.createdAt), now }, creds);
 
   if (!outcome.ok) {
     const failures = due.failures + 1;
     await savePollState(admin, due.id, { nextPollAt: nextPollAt(due.status, failures, now), polledAt: now, failures, error: outcome.message });
     // "Not found yet" means the carrier answered properly; anything else counts against the carrier.
-    await recordCarrierOutcome(admin, due.carrier, outcome.kind === "not_found" ? null : outcome.kind);
+    await recordCarrierOutcome(admin, due.orgId, due.carrier, outcome.kind === "not_found" ? null : outcome.kind);
     return outcome.kind === "not_found" ? "not_found" : "failed";
   }
 
@@ -83,7 +100,7 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
   // A person's "delivered" stops the checks; so does the carrier's.
   const finalStatus = shipment.statusSource === "manual" ? shipment.status : result.patch.status;
   await savePollState(admin, due.id, { nextPollAt: nextPollAt(finalStatus, 0, now), polledAt: now, failures: 0, error: null });
-  await recordCarrierOutcome(admin, due.carrier, null);
+  await recordCarrierOutcome(admin, due.orgId, due.carrier, null);
   const changed = result.statusChange !== null || result.newEvents.length > 0 || result.patch.estimatedFrom !== shipment.estimatedFrom || result.patch.estimatedTo !== shipment.estimatedTo;
   if (changed) await refreshPredictions([shipment.salesOrderId], now);
   if (result.statusChange?.to === "exception") await draftCarrierProblem(admin, due.id, now);
@@ -103,7 +120,12 @@ export interface PollRunSummary {
   carriers: Partial<Record<CarrierKey, { planned: number; granted: number; checked: number }>>;
 }
 
-/** One scheduled run: every configured carrier, within each one's limits. */
+/**
+ * One scheduled run: every organisation's shipments with every carrier it
+ * has connected, each within that organisation's own allowance for that
+ * carrier. Credentials are fetched once per organisation and carrier, used
+ * for that group only, and never shared between organisations.
+ */
 export async function runTrackingPoll(admin: SupabaseClient, now: Date = new Date()): Promise<PollRunSummary> {
   const started = Date.now();
   const live = liveCarriers();
@@ -114,38 +136,52 @@ export async function runTrackingPoll(admin: SupabaseClient, now: Date = new Dat
   summary.due = due.length;
   if (due.length === 0) return summary;
 
-  const activity = await listCarrierActivity(admin, now.toISOString().slice(0, 10));
+  const byOrg = new Map<string, DueShipment[]>();
+  for (const d of due) byOrg.set(d.orgId, [...(byOrg.get(d.orgId) ?? []), d]);
   const runsLeft = runsLeftToday(now);
-  const allowance: Partial<Record<CarrierKey, number>> = {};
-  for (const key of live) allowance[key] = runAllowance(getCarrier(key).pacing, (activity[key] ?? NO_ACTIVITY).callsToday, runsLeft);
+  const today = now.toISOString().slice(0, 10);
 
-  const plan = planPollRun(due, allowance);
-  const byId = new Map(due.map((d) => [d.id, d]));
-
-  // Carriers run side by side; each one's own calls are spaced out.
+  // Organisations, and each one's carriers, run side by side; each carrier's own calls are spaced out.
   await Promise.all(
-    (Object.entries(plan) as [CarrierKey, string[]][]).map(async ([carrier, ids]) => {
-      const pacing = getCarrier(carrier).pacing;
-      const granted = await reserveCarrierCalls(admin, carrier, pacing.dailyLimit, ids.length);
-      const stats = { planned: ids.length, granted, checked: 0 };
-      summary.carriers[carrier] = stats;
-      for (const [i, id] of ids.slice(0, granted).entries()) {
-        if (Date.now() - started + pacing.minGapMs > RUN_TIME_BUDGET_MS) break;
-        if (i > 0 && pacing.minGapMs > 0) await sleep(pacing.minGapMs);
-        const target = byId.get(id);
-        if (!target) continue;
-        let result: PollOutcome;
-        try {
-          result = await pollShipment(admin, target, new Date());
-        } catch {
-          result = "failed";
-        }
-        stats.checked++;
-        summary.checked++;
-        if (result === "updated") summary.updated++;
-        if (result === "not_found") summary.notFound++;
-        if (result === "failed") summary.failed++;
-      }
+    [...byOrg].map(async ([orgId, orgDue]) => {
+      const activity = await listCarrierActivity(admin, today, orgId);
+      const carriers = [...new Set(orgDue.map((d) => d.carrier))];
+      const creds = new Map<CarrierKey, CarrierCredentials | null>();
+      for (const c of carriers) creds.set(c, carrierAdapter(c)?.needsCredentials ? await credentialsFor(orgId, c) : null);
+      // Not connected: nothing to check with, so those shipments wait (shown in the app as "Not connected").
+      const usable = orgDue.filter((d) => !carrierAdapter(d.carrier)?.needsCredentials || creds.get(d.carrier));
+      const allowance: Partial<Record<CarrierKey, number>> = {};
+      for (const key of carriers) allowance[key] = runAllowance(getCarrier(key).pacing, (activity[key] ?? NO_ACTIVITY).callsToday, runsLeft);
+      const plan = planPollRun(usable, allowance);
+      const byId = new Map(usable.map((d) => [d.id, d]));
+
+      await Promise.all(
+        (Object.entries(plan) as [CarrierKey, string[]][]).map(async ([carrier, ids]) => {
+          const pacing = getCarrier(carrier).pacing;
+          const granted = await reserveCarrierCalls(admin, orgId, carrier, pacing.dailyLimit, ids.length);
+          const stats = summary.carriers[carrier] ?? { planned: 0, granted: 0, checked: 0 };
+          stats.planned += ids.length;
+          stats.granted += granted;
+          summary.carriers[carrier] = stats;
+          for (const [i, id] of ids.slice(0, granted).entries()) {
+            if (Date.now() - started + pacing.minGapMs > RUN_TIME_BUDGET_MS) break;
+            if (i > 0 && pacing.minGapMs > 0) await sleep(pacing.minGapMs);
+            const target = byId.get(id);
+            if (!target) continue;
+            let result: PollOutcome;
+            try {
+              result = await pollShipment(admin, target, new Date(), creds.get(carrier) ?? null);
+            } catch {
+              result = "failed";
+            }
+            stats.checked++;
+            summary.checked++;
+            if (result === "updated") summary.updated++;
+            if (result === "not_found") summary.notFound++;
+            if (result === "failed") summary.failed++;
+          }
+        }),
+      );
     }),
   );
   return summary;

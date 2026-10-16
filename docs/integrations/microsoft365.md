@@ -1,5 +1,13 @@
 # Microsoft 365 email integration — what's needed to build it
 
+> **Changed by the pilot readiness plan (Task 2, 16 October 2026).** Each
+> organisation now connects its **own** account in COAST under
+> **Settings → Integrations**; the secrets are encrypted per organisation
+> and are no longer environment variables. Where this guide says "set X as
+> an environment variable", enter the same value in that organisation's
+> Integrations form instead. COAST's own multi-tenant app (`M365_CLIENT_ID`, `M365_CLIENT_SECRET`) is the only part in the hosting settings; each organisation's tenant ID and mailbox are in its Integrations form. Task 3 turns this guide into an IT-admin onboarding pack.
+
+
 > **Pack note for Claude Code:** this is the email channel for COAST (spec §6).
 > Build against Microsoft Graph with the client-credentials flow. Environment
 > variables: `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`,

@@ -276,6 +276,7 @@ export async function updateShipmentTracking(client: SupabaseClient, id: string,
 // ── The poll job (service role) ─────────────────────────────────────────────
 export interface DueShipment {
   id: string;
+  orgId: string;
   carrier: CarrierKey;
   trackingNumber: string;
   status: ShipmentStatus;
@@ -287,15 +288,15 @@ export interface DueShipment {
 export async function listDueShipments(admin: SupabaseClient, now: Date, limit = 2000): Promise<DueShipment[]> {
   const { data, error } = await admin
     .from("shipment_poll_state")
-    .select("shipment_id, carrier, last_polled_at, failures, shipments!inner(tracking_number, status, created_at)")
+    .select("shipment_id, carrier, last_polled_at, failures, shipments!inner(org_id, tracking_number, status, created_at)")
     .lte("next_poll_at", now.toISOString())
     .order("next_poll_at", { ascending: true })
     .limit(limit)
-    .returns<{ shipment_id: string; carrier: string; last_polled_at: string | null; failures: number; shipments: { tracking_number: string | null; status: string; created_at: string } | null }[]>();
+    .returns<{ shipment_id: string; carrier: string; last_polled_at: string | null; failures: number; shipments: { org_id: string; tracking_number: string | null; status: string; created_at: string } | null }[]>();
   if (error) throw new Error(`Couldn't load due shipments: ${error.message}`);
   return (data ?? []).flatMap((r) =>
     r.shipments?.tracking_number && isCarrierKey(r.carrier) && isShipmentStatus(r.shipments.status)
-      ? [{ id: r.shipment_id, carrier: r.carrier, trackingNumber: r.shipments.tracking_number, status: r.shipments.status, createdAt: r.shipments.created_at, lastPolledAt: r.last_polled_at, failures: r.failures }]
+      ? [{ id: r.shipment_id, orgId: r.shipments.org_id, carrier: r.carrier, trackingNumber: r.shipments.tracking_number, status: r.shipments.status, createdAt: r.shipments.created_at, lastPolledAt: r.last_polled_at, failures: r.failures }]
       : [],
   );
 }
@@ -323,22 +324,23 @@ export async function savePollState(admin: SupabaseClient, id: string, state: { 
   if (error) throw new Error(`Couldn't save poll state: ${error.message}`);
 }
 
-/** How many of `wanted` calls today's limit still allows; reserves them. */
-export async function reserveCarrierCalls(admin: SupabaseClient, carrier: CarrierKey, dailyLimit: number | null, wanted: number): Promise<number> {
-  const { data, error } = await admin.rpc("reserve_carrier_calls", { p_carrier: carrier, p_limit: dailyLimit, p_wanted: wanted });
+/** How many of `wanted` calls this organisation's daily limit for a carrier still allows; reserves them. */
+export async function reserveCarrierCalls(admin: SupabaseClient, orgId: string, carrier: CarrierKey, dailyLimit: number | null, wanted: number): Promise<number> {
+  const { data, error } = await admin.rpc("reserve_carrier_calls", { p_org: orgId, p_carrier: carrier, p_limit: dailyLimit, p_wanted: wanted });
   if (error) throw new Error(`Couldn't reserve carrier calls: ${error.message}`);
   return Number(data) || 0;
 }
 
-export async function recordCarrierOutcome(admin: SupabaseClient, carrier: CarrierKey, errorKind: CarrierErrorKind | null): Promise<void> {
-  const { error } = await admin.rpc("record_carrier_outcome", { p_carrier: carrier, p_error: errorKind });
+export async function recordCarrierOutcome(admin: SupabaseClient, orgId: string, carrier: CarrierKey, errorKind: CarrierErrorKind | null): Promise<void> {
+  const { error } = await admin.rpc("record_carrier_outcome", { p_org: orgId, p_carrier: carrier, p_error: errorKind });
   if (error) throw new Error(`Couldn't record carrier outcome: ${error.message}`);
 }
 
-export async function listCarrierActivity(client: SupabaseClient, today: string): Promise<Partial<Record<CarrierKey, CarrierActivity>>> {
-  const { data, error } = await client
-    .from("carrier_activity")
-    .select("carrier, usage_day, calls_today, last_success_at, last_error_at, last_error_kind, consecutive_failures")
+/** One organisation's carrier activity. Staff pass their own client (RLS scopes it); the poll job passes the service role and the organisation. */
+export async function listCarrierActivity(client: SupabaseClient, today: string, orgId?: string): Promise<Partial<Record<CarrierKey, CarrierActivity>>> {
+  let q = client.from("carrier_activity").select("carrier, usage_day, calls_today, last_success_at, last_error_at, last_error_kind, consecutive_failures");
+  if (orgId) q = q.eq("org_id", orgId);
+  const { data, error } = await q
     .returns<{ carrier: string; usage_day: string; calls_today: number; last_success_at: string | null; last_error_at: string | null; last_error_kind: CarrierErrorKind | null; consecutive_failures: number }[]>();
   if (error) throw new Error(`Couldn't load carrier activity: ${error.message}`);
   const out: Partial<Record<CarrierKey, CarrierActivity>> = {};

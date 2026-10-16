@@ -34,7 +34,8 @@ import { borderCheck } from "@/lib/logic/customs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission } from "./session";
-import { pollShipment } from "./tracking-poll";
+import { credentialsFor, pollShipment } from "./tracking-poll";
+import { carrierAdapter } from "@/lib/carriers/registry";
 import { draftCarrierProblem } from "./problems-auto";
 import { saveCustomerEori, saveCustomsSettings, setShipmentCustomsBorder, updateCustomsDocument } from "@/lib/data/problems";
 import { DOC_LABELS, isDocType, normaliseEori } from "@/lib/logic/customs";
@@ -127,13 +128,18 @@ export async function checkShipmentNow(shipmentId: string): Promise<ShipmentResu
     if (!canCheckNow(def.pacing, (activity[shipment.carrier] ?? NO_ACTIVITY).callsToday)) {
       return { ok: false, error: `Today's ${def.label} limit is used up. Checks start again tomorrow.` };
     }
-    if ((await reserveCarrierCalls(admin, shipment.carrier, def.pacing.dailyLimit, 1)) < 1) {
+    // This organisation's own connection, never anyone else's.
+    const adapter = carrierAdapter(shipment.carrier);
+    const creds = adapter?.needsCredentials ? await credentialsFor(shipment.orgId, shipment.carrier) : null;
+    if (adapter?.needsCredentials && !creds) return { ok: false, error: `${def.label} isn't connected yet. An admin can connect your own account in Settings → Integrations.` };
+    if ((await reserveCarrierCalls(admin, shipment.orgId, shipment.carrier, def.pacing.dailyLimit, 1)) < 1) {
       return { ok: false, error: `Today's ${def.label} limit is used up. Checks start again tomorrow.` };
     }
     const outcome = await pollShipment(
       admin,
-      { id: shipment.id, carrier: shipment.carrier, trackingNumber: shipment.trackingNumber, status: shipment.status, createdAt: shipment.createdAt, lastPolledAt: shipment.poll.lastPolledAt, failures: shipment.poll.failures },
+      { id: shipment.id, orgId: shipment.orgId, carrier: shipment.carrier, trackingNumber: shipment.trackingNumber, status: shipment.status, createdAt: shipment.createdAt, lastPolledAt: shipment.poll.lastPolledAt, failures: shipment.poll.failures },
       new Date(),
+      creds,
     );
     await revalidateShipment(shipment.id, shipment.salesOrderId);
     switch (outcome) {

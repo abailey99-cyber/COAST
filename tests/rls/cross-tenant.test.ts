@@ -152,6 +152,12 @@ describe.skipIf(!enabled)("cross-tenant harness: every table, every role, both w
       await service.from("role_permissions").delete().eq("org_id", orgId[o]!).eq("role", "goods_in").eq("permission", "section.metrics");
       await service.from("role_permissions").insert({ org_id: orgId[o], role: "goods_in", permission: "section.metrics" });
       fixtures.push({ table: "role_permissions", match: { org_id: orgId[o]!, role: "goods_in", permission: "section.metrics" } });
+      // A settings-only connection (no secret), only if the organisation hasn't one of its own.
+      const { data: had } = await service.from("integration_credentials").select("id").eq("org_id", orgId[o]!).eq("provider", "microsoft365").maybeSingle();
+      if (!had) {
+        await service.from("integration_credentials").insert({ org_id: orgId[o], provider: "microsoft365", kind: "microsoft365_tenant", config: { tenantId: "00000000-0000-0000-0000-000000000000", mailbox: "harness@example.test" } });
+        fixtures.push({ table: "integration_credentials", match: { org_id: orgId[o]!, provider: "microsoft365" } });
+      }
       await service.from("staff_permission_overrides").upsert({ user_id: someone!.id, permission: "section.goods-in", granted: false, set_by: null }, { onConflict: "user_id,permission" });
       fixtures.push({ table: "staff_permission_overrides", match: { user_id: someone!.id, permission: "section.goods-in" } });
     }

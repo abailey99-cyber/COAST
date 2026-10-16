@@ -18,6 +18,25 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 2 (per-organisation encrypted credentials)
+
+- **Each environment needs its own `COAST_CREDENTIAL_KEYS`** (founder task,
+  `docs/environments.md` and `.env.example`). Without it, Settings →
+  Integrations says secrets can't be stored. If a key is lost, every
+  organisation in that environment has to reconnect.
+- **Carriers now use each organisation's own account.** Until an
+  organisation connects one, its shipments with that carrier are updated by
+  hand. The shared platform keys are gone (Task 4 adds the aggregator).
+  Each organisation's carrier allowance (DHL's 250 a day) is now its own.
+- **NetSuite and Microsoft 365 connections are stored, not used yet.** The
+  NetSuite sync is Phase 8 and mailbox reading is Task 3. NetSuite's sign-in
+  details are UNVERIFIED (checked against vendor guides, not a live account).
+- **The security log has no screen yet.** Credential changes and failed
+  decryptions are recorded in `security_events` (admins of that
+  organisation can read them); a screen comes with Task 5B's logging.
+- **Carrier sign-in tokens are cached in memory per organisation**, per
+  server instance; a new instance signs in again.
+
 ### Readiness Task 5A (foundations)
 
 - **Staging and production don't exist yet.** The code is ready; creating

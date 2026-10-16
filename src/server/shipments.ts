@@ -1,11 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lastCronRun, type CronRun } from "@/lib/data/cron";
+import { connectedProviders } from "@/lib/data/credentials";
 import type { PoDetail } from "@/lib/data/procurement";
 import { DuplicateError } from "@/lib/data/orders";
 import { createShipment, getShipment, listCarrierActivity, listCarrierSettings, listShipmentLines, listShipments, listTrackingEvents, type ShipmentRow } from "@/lib/data/shipments";
 import { listStaffInOrg } from "@/lib/data/staff";
-import { CARRIERS, NO_ACTIVITY, carrierHealth, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers, type CarrierKey } from "@/lib/logic/carriers";
+import { CARRIERS, NO_ACTIVITY, carrierHealth, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers, type CarrierDef, type CarrierKey } from "@/lib/logic/carriers";
 import { formatDateTime, formatIsoDate } from "@/lib/logic/format";
 import type { HealthStatus } from "@/lib/logic/health";
 import { canAccessSection } from "@/lib/logic/navigation";
@@ -242,7 +243,8 @@ export async function loadShipment(id: string): Promise<ShipmentPage | null> {
     : !canCheckNow(def.pacing, (activity[row.carrier] ?? NO_ACTIVITY).callsToday)
       ? `Today's ${def.label} limit is used up. Checks start again tomorrow.`
       : null;
-  const notConfigured = item.live && carrierHealth(def, process.env, activity[row.carrier]).status === "unconfigured";
+  const connected = await connectedProviders(supabase);
+  const notConfigured = item.live && carrierHealth(def, isConnected(def, connected), activity[row.carrier]).status === "unconfigured";
 
   return {
     shipment: item,
@@ -358,6 +360,11 @@ export async function addSupplierShipments(db: SupabaseClient, po: PoDetail, tra
 }
 
 // ── Carrier connections (Settings, sidebar) ─────────────────────────────────
+/** The organisation has connected the account this carrier needs (TNT uses FedEx's). */
+function isConnected(def: CarrierDef, connected: ReadonlySet<string>): boolean {
+  return def.provider ? connected.has(def.provider) : false;
+}
+
 export interface CarrierConnection {
   key: CarrierKey;
   label: string;
@@ -378,10 +385,10 @@ export interface CarrierConnectionsView {
 
 export async function loadCarrierConnections(staff: StaffContext): Promise<CarrierConnectionsView> {
   const supabase = await client();
-  const [activity, settings, lastRun] = await Promise.all([listCarrierActivity(supabase, today()), listCarrierSettings(supabase), lastCronRun(supabase, "tracking-poll")]);
+  const [activity, settings, lastRun, connected] = await Promise.all([listCarrierActivity(supabase, today()), listCarrierSettings(supabase), lastCronRun(supabase, "tracking-poll"), connectedProviders(supabase)]);
   const carriers = trackableCarriers(process.env.COAST_ENV).map((def) => {
     const a = activity[def.key] ?? NO_ACTIVITY;
-    const h = carrierHealth(def, process.env, a);
+    const h = carrierHealth(def, isConnected(def, connected), a);
     return {
       key: def.key,
       label: def.label,
@@ -403,10 +410,13 @@ export async function loadCarrierConnections(staff: StaffContext): Promise<Carri
 export async function carrierSummary(): Promise<{ healthy: number; check: number; total: number } | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const activity = await listCarrierActivity(supabase, today()).catch(() => ({}) as Awaited<ReturnType<typeof listCarrierActivity>>);
+  const [activity, connected] = await Promise.all([
+    listCarrierActivity(supabase, today()).catch(() => ({}) as Awaited<ReturnType<typeof listCarrierActivity>>),
+    connectedProviders(supabase),
+  ]);
   const set = trackableCarriers(process.env.COAST_ENV)
     .filter((d) => d.confidence !== "test")
-    .map((d) => carrierHealth(d, process.env, activity[d.key]))
+    .map((d) => carrierHealth(d, isConnected(d, connected), activity[d.key]))
     .filter((h) => h.status !== "unconfigured");
   return { healthy: set.filter((h) => h.status === "ok").length, check: set.filter((h) => h.status !== "ok").length, total: CARRIERS.length };
 }

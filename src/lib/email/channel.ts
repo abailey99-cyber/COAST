@@ -27,13 +27,15 @@ const logChannel: EmailChannel = {
   send: async () => ({ status: "logged" }),
 };
 
-const M365_VARS = ["M365_TENANT_ID", "M365_CLIENT_ID", "M365_CLIENT_SECRET", "M365_MAILBOX"];
+// COAST's own multi-tenant Microsoft app (platform-owned). Each organisation's
+// tenant and mailbox are in its own connection (Settings → Integrations).
+const M365_VARS = ["M365_CLIENT_ID", "M365_CLIENT_SECRET"];
 
 /** UNVERIFIED: Microsoft Graph sending arrives in Phase 8 (docs/integrations/microsoft365.md). */
 const m365Channel: EmailChannel = {
   name: "m365",
   health: () => {
-    const h = configHealth("Microsoft 365 mailbox", M365_VARS, process.env);
+    const h = configHealth("COAST's Microsoft 365 app", M365_VARS, process.env);
     return h.status === "ok" ? { status: "warn", reason: "Credentials are set, but sending through Microsoft 365 isn't built yet (Phase 8)." } : h;
   },
   send: async () => ({ status: "failed", error: "Microsoft 365 sending isn't built yet." }),

@@ -27,14 +27,18 @@ export interface IntegrationHealth extends Health {
   label: string;
 }
 
-/** Configuration health for every integration except carriers (they have their own list, src/server/shipments.ts). Never exposes values. */
+/**
+ * Health of what COAST itself owns, set in the hosting settings. Each
+ * organisation's own connections (carriers, NetSuite, its Microsoft 365
+ * tenant) are in Settings → Integrations instead (readiness Task 2). Never exposes values.
+ */
 export function integrationHealth(): IntegrationHealth[] {
   const env = process.env;
   const items: Array<[string, string, string[]]> = [
     ["database", "Database and sign-in (Supabase)", ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"]],
     ["cron", "Scheduled jobs", ["CRON_SECRET"]],
-    ["m365", "Microsoft 365 mailbox", ["M365_TENANT_ID", "M365_CLIENT_ID", "M365_CLIENT_SECRET", "M365_MAILBOX"]],
-    ["netsuite", "NetSuite order sync", ["NETSUITE_ACCOUNT_ID", "NETSUITE_CLIENT_ID", "NETSUITE_CERTIFICATE_ID", "NETSUITE_PRIVATE_KEY"]],
+    ["credentials", "Credential encryption key", ["COAST_CREDENTIAL_KEYS"]],
+    ["m365", "COAST's Microsoft 365 app", ["M365_CLIENT_ID", "M365_CLIENT_SECRET"]],
   ];
   return items.map(([key, label, required]) => ({ key, label, ...configHealth(label, required, env) }));
 }

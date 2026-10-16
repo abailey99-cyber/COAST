@@ -1,4 +1,5 @@
 import "server-only";
+import { loadIntegrations, type IntegrationsView } from "./integrations";
 import { listPersonOverrides, listRolePermissions } from "@/lib/data/permissions";
 import { listStaffInOrg, type StaffProfile } from "@/lib/data/staff";
 import { emailChannelHealth } from "@/lib/email/channel";
@@ -44,6 +45,7 @@ export interface SettingsView {
   integrations: IntegrationHealth[];
   chase: ChaseSettings;
   carriers: CarrierConnectionsView | null;
+  connections: IntegrationsView | null;
   prediction: PredictionSettings;
   customerPage: CustomerPageSettings;
   customs: CustomsSettings;
@@ -61,6 +63,7 @@ export async function loadSettings(): Promise<SettingsView> {
     : [[], [], []];
   const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
   const carriers = supabase ? await loadCarrierConnections(staff) : null;
+  const connections = supabase ? await loadIntegrations(staff) : null;
   const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
   const customs = supabase ? await getCustomsSettings(supabase) : { eori: null, territoriesNeedCustoms: true };
   const customerPage = supabase ? await getCustomerPageSettings(supabase) : { displayName: null, logoUrl: null, supplierWord: "shipper", showDirectCarrier: false, minGapHours: 4, dateShiftDays: 2 };
@@ -95,6 +98,7 @@ export async function loadSettings(): Promise<SettingsView> {
     integrations: [{ key: "email", label: "Sending email", ...emailChannelHealth() }, ...integrationHealth()],
     chase,
     carriers,
+    connections,
     prediction,
     customerPage,
     customs,
