@@ -119,6 +119,7 @@ const FIELD_LABELS: Record<string, string> = {
   currency: "currency",
   promised_date: "promised date",
   delivery_address: "delivery address",
+  branch: "branch",
   sku: "product code",
   description: "description",
   quantity: "quantity",
