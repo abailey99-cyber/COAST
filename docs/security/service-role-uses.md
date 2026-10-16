@@ -38,6 +38,8 @@ staff-facing use.
 | `src/server/m365.ts` | Microsoft 365 consent; reading each connected mailbox | Consent: a signed, expiring state naming the organisation and the same signed-in admin. Mailbox job: `CRON_SECRET`, each organisation read with its own tenant's token and its mail handled as its own |
 | `src/server/sign-in-guard.ts` | Sign-in limits, lockout and sign-in security events | Rate-limit buckets keyed by a hash of the email address or by visitor; a failed staff sign-in's event goes to the organisation that address belongs to |
 | `src/server/mfa-actions.ts` | Two-step sign-in: logging set-up, an admin resetting someone's authenticator, limiting wrong codes | The signed-in person's own account; a reset only after the admin's own (RLS) read shows the person is in their organisation |
+| `src/server/data-protection.ts` | The organisation's full export; nightly retention | Export: the signed-in admin's own organisation id on every query. Retention: `CRON_SECRET`, each organisation that switched it on, by its own id |
+| `src/server/data-protection-actions.ts` | Finding, exporting and removing one person's details | Admin only; the database functions take the admin's own organisation id and touch nothing outside it |
 | `src/server/notifications.ts` | Customer update emails and the daily digest | An order id from that order's own event; built through the masking function |
 | `src/server/customer-view.ts` | The customer tracking page | The tracking code; masking function plus final leak scan |
 | `src/server/customer-session.ts` | Who the signed-in customer is | Their own sign-in |

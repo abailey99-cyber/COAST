@@ -23,7 +23,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </header>
       <main id="main">{children}</main>
       <footer className={styles.footer}>
-        <div className={styles.footerInner}>© 2026 COAST Visibility Ltd</div>
+        <div className={styles.footerInner} style={{ display: "flex", flexWrap: "wrap", gap: 20, justifyContent: "space-between" }}>
+          <span>© 2026 COAST Visibility Ltd</span>
+          <span style={{ display: "flex", gap: 20 }}>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/sub-processors">Sub-processors</Link>
+          </span>
+        </div>
       </footer>
     </>
   );

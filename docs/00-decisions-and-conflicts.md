@@ -627,3 +627,20 @@ days, default 30.
 ### N16. Processing stays in the EU — DECIDED
 Database in Ireland (eu-west-1); Vercel functions pinned to Dublin (dub1)
 in `vercel.json`.
+
+### N17. Demo data stays as placeholders — DECIDED (CLAUDE.md wins)
+The readiness plan asked for "realistic, entirely fictional" demo data;
+CLAUDE.md says seed data uses obvious placeholders (`[Customer A]`,
+`SO-10421`). Placeholders are fictional and can't be mistaken for real
+companies, so they stay.
+
+### N18. What retention and "remove a person" clear — DEFAULT — CONFIRM
+Both keep the order history (orders, lines, POs, shipments, delivery
+addresses). "Remove a person" clears their email wherever it's stored in
+this organisation, emails to and from them, their supplier-contact entries,
+and — when their name is given — their messages and problem reports.
+Retention (off by default, 1–120 months) clears customers' update emails,
+message text and problem reports on closed, inactive orders.
+
+### N19. Metering — DECIDED (readiness plan)
+One sales order, counted once, in the UK calendar month it was first seen.

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Sora } from "next/font/google";
 import "../../design/tokens.css";
 import "@/styles/globals.css";
+import { CookieNotice } from "@/components/CookieNotice";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -28,7 +29,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-GB" data-theme="light" className={sora.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   );
 }

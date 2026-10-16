@@ -28,7 +28,7 @@ test("the staff app sends signed-out visitors to sign in", async ({ page }) => {
 });
 
 test("no page scrolls sideways on a phone", async ({ page }) => {
-  for (const path of ["/", "/sign-in", "/sign-in/forgotten", "/track", "/integrations", "/pricing"]) {
+  for (const path of ["/", "/sign-in", "/sign-in/forgotten", "/track", "/integrations", "/pricing", "/privacy", "/sub-processors"]) {
     await page.goto(path);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, path).toBeLessThanOrEqual(0);
@@ -51,6 +51,23 @@ test("the website only calls something Live once it's verified, and keeps prices
   await expect(page.getByRole("heading", { name: "Help us set COAST up for businesses like yours." })).toBeVisible();
   await expect(page.getByText("[£ PRICE]")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Supplier details are masked everywhere in COAST" })).toBeVisible();
+});
+
+test("the cookie notice offers essential-only cookies first, and remembers the choice", async ({ page }) => {
+  // Look like a normal browser: the notice is skipped for automated ones.
+  await page.addInitScript(() => Object.defineProperty(navigator, "webdriver", { get: () => false }));
+  await page.goto("/pricing");
+  const notice = page.getByRole("region", { name: "Cookies" });
+  await expect(notice).toContainText("We don't use analytics or advertising cookies");
+  await expect(notice.getByRole("button").first()).toHaveText("Essential only");
+  await notice.getByRole("button", { name: "Essential only" }).click();
+  await expect(notice).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Cookies" })).toHaveCount(0);
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy notice" })).toBeVisible();
+  await page.goto("/sub-processors");
+  await expect(page.getByRole("cell", { name: "Supabase" })).toBeVisible();
 });
 
 test("cron endpoints refuse requests without the secret", async ({ request }) => {

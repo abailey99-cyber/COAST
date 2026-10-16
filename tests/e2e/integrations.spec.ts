@@ -112,3 +112,30 @@ test.describe("Supplier replies by email", () => {
     await expect(item.getByRole("status").filter({ hasText: "Dismissed." })).toBeVisible();
   });
 });
+
+// Readiness Task 6: an admin exports everything; a person can be looked up.
+test.describe("Data protection", () => {
+  test.skip(!e2eEnabled, "Dev database or DEMO_USER_PASSWORD not configured");
+
+  test("an admin downloads a ZIP of their organisation's data; others can't", async ({ browser }) => {
+    const admin = await (await browser.newContext({ storageState: sessionFile("admin@demo-a.coast.test") })).newPage();
+    const res = await admin.request.get("/api/export");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("application/zip");
+    const body = await res.body();
+    expect(body.subarray(0, 2).toString()).toBe("PK");
+    expect(body.includes(Buffer.from("sales_orders.csv"))).toBe(true);
+
+    const rep = await (await browser.newContext({ storageState: sessionFile("sales@demo-a.coast.test") })).newPage();
+    expect((await rep.request.get("/api/export")).status()).toBe(403);
+  });
+
+  test("an admin looks a person up", async ({ browser }) => {
+    const page = await (await browser.newContext({ storageState: sessionFile("admin@demo-a.coast.test") })).newPage();
+    await page.goto("/app/settings#data-protection");
+    await page.getByRole("heading", { name: "Data protection" }).click();
+    await page.getByLabel("Their email address").fill("nobody-here@example.test");
+    await page.getByRole("button", { name: "Find" }).click();
+    await expect(page.getByTestId("person-report")).toContainText("0 records for nobody-here@example.test");
+  });
+});

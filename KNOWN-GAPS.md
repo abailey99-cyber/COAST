@@ -18,6 +18,30 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 6 (data protection and pilot support)
+
+- **The privacy notice and sub-processor list are placeholders**, clearly
+  marked, for the founder's legal text. The aggregator is "to be confirmed".
+- **Finding a person** matches by email address everywhere it's stored, and
+  by the name they gave for messages and problem reports (an exact match,
+  3+ characters). Text inside emails isn't searched. Their own COAST
+  account (which follows orders across businesses) is only unlinked from
+  this organisation; deleting the account itself is the founder's job (a
+  script, later).
+- **Retention clears** customers' update-email addresses, sent update
+  emails, message text and problem-report text on closed orders with no
+  activity for the chosen months. Supplier emails, delivery addresses and
+  the order record are kept. It's off until an admin switches it on after
+  seeing the report.
+- **The export is uncompressed** (CSV files in a ZIP); a very large
+  organisation may need it in parts later. Photos aren't in it (they're
+  listed in attachments.csv).
+- **The demo seed keeps placeholder names** (`[Customer A]`), per CLAUDE.md,
+  rather than realistic-sounding ones. "Builds from an empty database" needs
+  a fresh staging project to prove (founder task).
+- **The cookie notice** is skipped for automated test browsers (so it never
+  covers what they click); a test checks it as a normal browser.
+
 ### Readiness Task 5B (security controls)
 
 - **Two-step sign-in is enforced by the database** for every real

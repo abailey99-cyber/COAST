@@ -12,6 +12,7 @@ import { PredictionSettingsForm } from "./PredictionSettingsForm";
 import { CustomsSettingsForm } from "./CustomsSettingsForm";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 import { ForwardingPanel } from "./ForwardingPanel";
+import { DataProtectionPanel } from "./DataProtectionPanel";
 import { CustomerPageForm } from "./CustomerPageForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
@@ -28,7 +29,7 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const m365Outcome = typeof sp.m365 === "string" ? sp.m365 : null;
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, forwarding, securityLog, viewer, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, forwarding, securityLog, viewer, dataProtection, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -195,6 +196,22 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </summary>
           <div className={styles.foldBody}>
             <ForwardingPanel view={forwarding} m365Outcome={m365Outcome} />
+          </div>
+        </details>
+      )}
+
+      {dataProtection && (
+        <details className={styles.fold} id="data-protection">
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Data protection</h2>
+              <span className={styles.foldMeta}>
+                Export everything · a person&apos;s details · {dataProtection.retentionMonths ? `kept ${dataProtection.retentionMonths} months${dataProtection.retentionEnforced ? "" : " (not switched on)"}` : "kept indefinitely"}
+              </span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            <DataProtectionPanel view={dataProtection} />
           </div>
         </details>
       )}

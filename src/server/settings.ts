@@ -1,4 +1,5 @@
 import "server-only";
+import { loadDataProtection, type DataProtectionView } from "./data-protection";
 import { loadSecurityLog } from "./security-log";
 import { loadForwarding, type ForwardingView } from "./inbound-view";
 import { loadIntegrations, type IntegrationsView } from "./integrations";
@@ -50,6 +51,7 @@ export interface SettingsView {
   connections: IntegrationsView | null;
   forwarding: ForwardingView | null;
   securityLog: Awaited<ReturnType<typeof loadSecurityLog>>;
+  dataProtection: DataProtectionView | null;
   /** Who's looking (for actions only an admin can take on someone else). */
   viewer: { id: string; isAdmin: boolean };
   prediction: PredictionSettings;
@@ -72,6 +74,7 @@ export async function loadSettings(): Promise<SettingsView> {
   const connections = supabase ? await loadIntegrations(staff) : null;
   const forwarding = supabase ? await loadForwarding(staff) : null;
   const securityLog = await loadSecurityLog(staff);
+  const dataProtection = await loadDataProtection(staff);
   const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
   const customs = supabase ? await getCustomsSettings(supabase) : { eori: null, territoriesNeedCustoms: true };
   const customerPage = supabase ? await getCustomerPageSettings(supabase) : { displayName: null, logoUrl: null, supplierWord: "shipper", showDirectCarrier: false, minGapHours: 4, dateShiftDays: 2 };
@@ -109,6 +112,7 @@ export async function loadSettings(): Promise<SettingsView> {
     connections,
     forwarding,
     securityLog,
+    dataProtection,
     viewer: { id: staff.id, isAdmin: staff.role === "admin" },
     prediction,
     customerPage,
