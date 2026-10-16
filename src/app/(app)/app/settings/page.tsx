@@ -11,6 +11,7 @@ import { ChaseSettingsForm } from "./ChaseSettingsForm";
 import { PredictionSettingsForm } from "./PredictionSettingsForm";
 import { CustomsSettingsForm } from "./CustomsSettingsForm";
 import { IntegrationsPanel } from "./IntegrationsPanel";
+import { ForwardingPanel } from "./ForwardingPanel";
 import { CustomerPageForm } from "./CustomerPageForm";
 import { PermissionMatrix } from "./PermissionMatrix";
 import { TeamAccess } from "./TeamAccess";
@@ -24,8 +25,10 @@ const STATUS_CLASS: Record<HealthStatus, string> = {
   unconfigured: "status-neutral",
 };
 
-export default async function SettingsPage() {
-  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const m365Outcome = typeof sp.m365 === "string" ? sp.m365 : null;
+  const [{ canManagePermissions, canEditSettings, integrations, team, grants, chase, carriers, prediction, customerPage, customs, connections, forwarding, orgName }, audit] = await Promise.all([loadSettings(), loadAudit()]);
   const editablePeople = team.filter((p) => p.editable).length;
   const connected = integrations.filter((i) => i.status === "ok").length;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
@@ -176,6 +179,22 @@ export default async function SettingsPage() {
               hand.
             </p>
             <IntegrationsPanel items={connections.items} canEdit={connections.canEdit} storeReady={connections.storeReady} />
+          </div>
+        </details>
+      )}
+
+      {forwarding && (
+        <details className={styles.fold} id="supplier-replies" open={m365Outcome !== null}>
+          <summary>
+            <span className={styles.foldTitles}>
+              <h2 className={styles.cardTitle}>Supplier replies by email</h2>
+              <span className={styles.foldMeta}>
+                {forwarding.address ? "Forwarding address set up" : "No forwarding address yet"} · Microsoft 365 {forwarding.m365.consented ? "connected" : "not connected"}
+              </span>
+            </span>
+          </summary>
+          <div className={styles.foldBody}>
+            <ForwardingPanel view={forwarding} m365Outcome={m365Outcome} />
           </div>
         </details>
       )}

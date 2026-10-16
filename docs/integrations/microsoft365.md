@@ -5,7 +5,7 @@
 > **Settings → Integrations**; the secrets are encrypted per organisation
 > and are no longer environment variables. Where this guide says "set X as
 > an environment variable", enter the same value in that organisation's
-> Integrations form instead. COAST's own multi-tenant app (`M365_CLIENT_ID`, `M365_CLIENT_SECRET`) is the only part in the hosting settings; each organisation's tenant ID and mailbox are in its Integrations form. Task 3 turns this guide into an IT-admin onboarding pack.
+> Integrations form instead. COAST's own multi-tenant app (`M365_CLIENT_ID`, `M365_CLIENT_SECRET`) is the only part in the hosting settings; each organisation's tenant ID and mailbox are in its Integrations form. Task 3 replaced this guide: see `inbound-email.md` (platform setup) and `microsoft365-onboarding.md` (the pack for each customer's IT admin).
 
 
 > **Pack note for Claude Code:** this is the email channel for COAST (spec §6).

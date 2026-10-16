@@ -165,7 +165,7 @@ describe.skipIf(!enabled)("shipment security", () => {
   it("keeps carrier budgets and the job log for the system, readable but not writable by staff", async () => {
     expect((await sales.from("carrier_activity").select("carrier")).error).toBeNull();
     expect((await procurement.from("carrier_activity").insert({ carrier: "mock", calls_today: 0 })).error).not.toBeNull();
-    expect((await procurement.rpc("reserve_carrier_calls", { p_carrier: "dhl", p_limit: 1000, p_wanted: 1 })).error).not.toBeNull();
+    expect((await procurement.rpc("reserve_carrier_calls", { p_org: orgA, p_carrier: "dhl", p_limit: 1000, p_wanted: 1 })).error).not.toBeNull();
     expect((await procurement.from("cron_runs").insert({ job: "tracking-poll" })).error).not.toBeNull();
     // The run detail (counts across every organisation) stays with the system.
     expect((await sales.from("cron_runs").select("detail").limit(1)).error).not.toBeNull();
@@ -173,11 +173,16 @@ describe.skipIf(!enabled)("shipment security", () => {
   });
 
   it("never grants more calls than a carrier's daily limit", async () => {
-    await service.from("carrier_activity").delete().eq("carrier", "mock");
-    expect((await service.rpc("reserve_carrier_calls", { p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(3);
-    expect((await service.rpc("reserve_carrier_calls", { p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(2);
-    expect((await service.rpc("reserve_carrier_calls", { p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(0);
-    expect((await service.rpc("reserve_carrier_calls", { p_carrier: "mock", p_limit: null, p_wanted: 7 })).data).toBe(7);
+    await service.from("carrier_activity").delete().eq("org_id", orgA).eq("carrier", "mock");
+    expect((await service.rpc("reserve_carrier_calls", { p_org: orgA, p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(3);
+    expect((await service.rpc("reserve_carrier_calls", { p_org: orgA, p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(2);
+    expect((await service.rpc("reserve_carrier_calls", { p_org: orgA, p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(0);
+    expect((await service.rpc("reserve_carrier_calls", { p_org: orgA, p_carrier: "mock", p_limit: null, p_wanted: 7 })).data).toBe(7);
+    // Each organisation has its own allowance (its own carrier account, readiness Task 2).
+    const orgB = (await service.from("organisations").select("id").eq("slug", "demo-org-b").single()).data!.id;
+    await service.from("carrier_activity").delete().eq("org_id", orgB).eq("carrier", "mock");
+    expect((await service.rpc("reserve_carrier_calls", { p_org: orgB, p_carrier: "mock", p_limit: 5, p_wanted: 3 })).data).toBe(3);
+    await service.from("carrier_activity").delete().eq("org_id", orgB).eq("carrier", "mock");
     await service.from("carrier_activity").delete().eq("carrier", "mock");
   });
 });

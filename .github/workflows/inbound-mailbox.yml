@@ -1,0 +1,30 @@
+# Reads each organisation's connected Microsoft 365 mailbox every 15 minutes
+# (readiness plan Task 3). Does nothing until COAST_APP_URL and CRON_SECRET
+# are set as repository secrets (see tracking-poll.yml), and COAST does
+# nothing until an organisation has connected and consented.
+name: Inbound mailbox
+
+on:
+  schedule:
+    - cron: "4,19,34,49 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read connected mailboxes
+        env:
+          COAST_APP_URL: ${{ secrets.COAST_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$COAST_APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "COAST_APP_URL or CRON_SECRET isn't set yet — nothing to do."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${COAST_APP_URL%/}/api/cron/inbound-mailbox"

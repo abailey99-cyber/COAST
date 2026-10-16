@@ -17,6 +17,8 @@ export interface Supplier {
   currency: Currency;
   leadTimeDays: number | null;
   isActive: boolean;
+  /** Other addresses its replies come from (readiness Task 3: a "known contact"). */
+  knownSenders: string[];
 }
 
 interface SupplierRow {
@@ -27,12 +29,13 @@ interface SupplierRow {
   currency: string;
   typical_lead_time_days: number | null;
   is_active: boolean;
+  known_senders: string[] | null;
 }
 
 export async function listSuppliers(client: SupabaseClient): Promise<Supplier[]> {
   const { data, error } = await client
     .from("suppliers")
-    .select("id, name, email, phone, currency, typical_lead_time_days, is_active")
+    .select("id, name, email, phone, currency, typical_lead_time_days, is_active, known_senders")
     .order("name")
     .returns<SupplierRow[]>();
   if (error) throw new Error(`Couldn't load suppliers: ${error.message}`);
@@ -44,6 +47,7 @@ export async function listSuppliers(client: SupabaseClient): Promise<Supplier[]>
     currency: isCurrency(s.currency) ? s.currency : "GBP",
     leadTimeDays: s.typical_lead_time_days,
     isActive: s.is_active,
+    knownSenders: s.known_senders ?? [],
   }));
 }
 
@@ -258,4 +262,10 @@ export async function getPoStatus(client: SupabaseClient, id: string): Promise<P
   const { data, error } = await client.from("purchase_orders").select("status").eq("id", id).maybeSingle<{ status: PoStatus }>();
   if (error) throw new Error(`Couldn't load purchase order: ${error.message}`);
   return data?.status ?? null;
+}
+
+export async function saveKnownSenders(client: SupabaseClient, supplierId: string, senders: string[]): Promise<boolean> {
+  const { data, error } = await client.from("suppliers").update({ known_senders: senders }).eq("id", supplierId).select("id");
+  if (error) throw new Error(`Couldn't save: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }

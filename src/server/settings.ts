@@ -1,4 +1,5 @@
 import "server-only";
+import { loadForwarding, type ForwardingView } from "./inbound-view";
 import { loadIntegrations, type IntegrationsView } from "./integrations";
 import { listPersonOverrides, listRolePermissions } from "@/lib/data/permissions";
 import { listStaffInOrg, type StaffProfile } from "@/lib/data/staff";
@@ -46,6 +47,7 @@ export interface SettingsView {
   chase: ChaseSettings;
   carriers: CarrierConnectionsView | null;
   connections: IntegrationsView | null;
+  forwarding: ForwardingView | null;
   prediction: PredictionSettings;
   customerPage: CustomerPageSettings;
   customs: CustomsSettings;
@@ -64,6 +66,7 @@ export async function loadSettings(): Promise<SettingsView> {
   const chase: ChaseSettings = supabase ? await getChaseSettings(supabase) : { thresholds: DEFAULT_THRESHOLDS, calendar: DEFAULT_CALENDAR };
   const carriers = supabase ? await loadCarrierConnections(staff) : null;
   const connections = supabase ? await loadIntegrations(staff) : null;
+  const forwarding = supabase ? await loadForwarding(staff) : null;
   const prediction = supabase ? await getPredictionSettings(supabase) : DEFAULT_PREDICTION_SETTINGS;
   const customs = supabase ? await getCustomsSettings(supabase) : { eori: null, territoriesNeedCustoms: true };
   const customerPage = supabase ? await getCustomerPageSettings(supabase) : { displayName: null, logoUrl: null, supplierWord: "shipper", showDirectCarrier: false, minGapHours: 4, dateShiftDays: 2 };
@@ -99,6 +102,7 @@ export async function loadSettings(): Promise<SettingsView> {
     chase,
     carriers,
     connections,
+    forwarding,
     prediction,
     customerPage,
     customs,

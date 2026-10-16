@@ -581,3 +581,20 @@ second person".
 Customer accounts are people who follow orders across businesses (L1), so a
 group belongs to that account. Sharing groups within a customer's company is
 for later.
+
+### N10. Inbound email provider: Mailgun, EU region — DECIDED (product owner, 16 October 2026)
+EU data residency, signed webhooks, and it passes on each email's sender
+checks. Each organisation's address is `r-<30 random hex>@INBOUND_EMAIL_DOMAIN`,
+made by the database. Setup: `docs/integrations/inbound-email.md`.
+
+### N11. What counts as "proven" and "known" for auto-apply — DEFAULT — CONFIRM
+A supplier's emails are proven after 3 clean answers in the last 180 days
+(read with certainty and applied, or accepted at review without a note, and
+not undone). A known contact is the supplier's email or one listed under
+Suppliers → Other addresses. The people told about an automatic date are
+the sales reps on the PO's orders, or procurement if none.
+
+### N12. Microsoft 365 reads only new mail — DEFAULT — CONFIRM
+After consent, COAST reads mail arriving from then on, never the existing
+inbox. Unmatched or held-back emails go to an "Emails to sort out" list in
+the Review queue, where procurement attaches them to a PO or dismisses them.

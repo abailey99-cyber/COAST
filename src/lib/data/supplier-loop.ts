@@ -220,7 +220,16 @@ export interface ResponseRow {
   source: ResponseSource;
   rawText: string | null;
   lines: ResponseLine[];
-  extras: { trackingNumbers?: string[]; supplierReference?: string; note?: string; currency?: string | null };
+  extras: {
+    trackingNumbers?: string[];
+    supplierReference?: string;
+    note?: string;
+    currency?: string | null;
+    /** What the PO looked like before an emailed date applied itself, so it can be undone (readiness Task 3). */
+    previous?: { poStatus: string; lines: { poLineId: string; confirmedDate: string | null; confirmedQuantity: number | null }[] };
+    /** Which inbound email it came from. */
+    inboundMessageId?: string;
+  };
   confidence: Confidence;
   reasons: string[];
   status: "applied" | "needs_review" | "accepted" | "rejected";

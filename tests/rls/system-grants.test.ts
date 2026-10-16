@@ -20,8 +20,8 @@ const SYSTEM_FUNCTIONS: Record<string, Record<string, unknown>> = {
   apply_supplier_answer: { p: { purchase_order_id: "00000000-0000-0000-0000-000000000000", lines: [], fully_confirmed: false } },
   regenerate_tracking_code: { p_order: "00000000-0000-0000-0000-000000000000" },
   hit_rate_limit: { p_bucket: "system-grants-test", p_limit: 1000, p_window_seconds: 1 },
-  reserve_carrier_calls: { p_carrier: "mock", p_limit: null, p_wanted: 0 },
-  record_carrier_outcome: { p_carrier: "mock", p_error: null },
+  reserve_carrier_calls: { p_org: "00000000-0000-0000-0000-000000000000", p_carrier: "mock", p_limit: null, p_wanted: 0 },
+  record_carrier_outcome: { p_org: "00000000-0000-0000-0000-000000000000", p_carrier: "mock", p_error: null },
 };
 
 describe.skipIf(!enabled)("service-role function grants", () => {

@@ -152,6 +152,12 @@ describe.skipIf(!enabled)("cross-tenant harness: every table, every role, both w
       await service.from("role_permissions").delete().eq("org_id", orgId[o]!).eq("role", "goods_in").eq("permission", "section.metrics");
       await service.from("role_permissions").insert({ org_id: orgId[o], role: "goods_in", permission: "section.metrics" });
       fixtures.push({ table: "role_permissions", match: { org_id: orgId[o]!, role: "goods_in", permission: "section.metrics" } });
+      // A forwarding address, only if the organisation hasn't one of its own.
+      const { data: hadAddress } = await service.from("inbound_addresses").select("org_id").eq("org_id", orgId[o]!).maybeSingle();
+      if (!hadAddress) {
+        await service.from("inbound_addresses").insert({ org_id: orgId[o], allowed_domains: ["harness.example"] });
+        fixtures.push({ table: "inbound_addresses", match: { org_id: orgId[o]! } });
+      }
       // A settings-only connection (no secret), only if the organisation hasn't one of its own.
       const { data: had } = await service.from("integration_credentials").select("id").eq("org_id", orgId[o]!).eq("provider", "microsoft365").maybeSingle();
       if (!had) {

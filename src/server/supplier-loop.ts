@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPurchaseOrder, type PoDetail } from "@/lib/data/procurement";
+import type { ResponseRow } from "@/lib/data/supplier-loop";
 import { listStaffInOrg } from "@/lib/data/staff";
 import {
   applyAnswer,
@@ -14,7 +15,7 @@ import {
   resolveSupplierChases,
   type ChaseSettings,
 } from "@/lib/data/supplier-loop";
-import { CONFIDENCE_LABELS, type Confidence } from "@/lib/logic/email-reading";
+import { CONFIDENCE_LABELS, readSupplierEmail, scoreExtraction, type Confidence, type Extraction, type Score } from "@/lib/logic/email-reading";
 import { ESCALATION_LABELS, describeWait, escalate, type EscalationLevel } from "@/lib/logic/escalation";
 import { formatDateTime, formatIsoDate, formatMoney, formatQuantity, type Currency } from "@/lib/logic/format";
 import { hasPermission } from "@/lib/logic/permissions";
@@ -53,6 +54,7 @@ export interface ProcessResult {
   reasons: string[];
   /** Shipments added from tracking numbers in the answer (applied answers only). */
   shipmentsAdded: number;
+  responseId: string;
 }
 
 /**
@@ -71,7 +73,7 @@ export async function processSupplierAnswer(
     answer: SupplierAnswer;
     confidence: Confidence;
     extraReasons: string[];
-    extras: { trackingNumbers?: string[]; supplierReference?: string; note?: string; currency?: string | null };
+    extras: ResponseRow["extras"];
     linkId?: string;
     includePrices: boolean;
   },
@@ -109,7 +111,27 @@ export async function processSupplierAnswer(
   }
   // Either way the supplier has answered, so any open chase is done.
   await resolveSupplierChases(db, a.po.id, decision.action === "apply" ? "Supplier confirmed." : "Supplier replied; waiting for review.");
-  return { outcome: decision.action === "apply" ? "applied" : "needs_review", reasons, shipmentsAdded };
+  return { outcome: decision.action === "apply" ? "applied" : "needs_review", reasons, shipmentsAdded, responseId };
+}
+
+/**
+ * Read a supplier's email for one PO: the rules' reading, their confidence,
+ * and the answer to process. Shared by paste-in and arriving mail.
+ */
+export function answerFromEmail(po: PoDetail, raw: string, includePrices: boolean, now: Date): { read: Extraction; score: Score; answer: SupplierAnswer } {
+  const read = readSupplierEmail(raw, now);
+  const score = scoreExtraction(read, { poNumber: po.poNumber, lineCount: po.lines.length, currency: po.currency });
+  const answer: SupplierAnswer = {
+    currency: score.price?.currency ?? null,
+    lines: po.lines.map((l) => ({
+      poLineId: l.id,
+      available: !read.negative,
+      quantity: null,
+      date: read.negative ? null : score.date,
+      unitCostMinor: po.lines.length === 1 && includePrices ? (score.price?.minor ?? null) : null,
+    })),
+  };
+  return { read, score, answer };
 }
 
 // ── PO page: everything about talking to the supplier ───────────────────────
@@ -197,6 +219,8 @@ export async function loadPoCommunication(po: PoDetail) {
       tracking: r.extras.trackingNumbers ?? [],
       note: r.extras.note ?? null,
       reviewNote: r.reviewNote,
+      // A date that applied itself from an email can be undone in one click (readiness Task 3).
+      canUndo: r.source === "inbound" && r.status === "applied" && Boolean(r.extras.previous) && hasPermission(staff.permissions, "procurement.manage"),
     })),
     lineConfirmations: po.lines.map((l, i) => ({
       id: l.id,

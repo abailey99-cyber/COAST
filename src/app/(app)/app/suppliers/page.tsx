@@ -3,6 +3,7 @@ import { PageHeader } from "../PageHeader";
 import ui from "../ui.module.css";
 import { AddSupplierForm } from "./AddSupplierForm";
 import { Availability } from "./Availability";
+import { KnownSenders } from "./KnownSenders";
 
 export const metadata = { title: "Suppliers" };
 
@@ -43,7 +44,10 @@ export default async function SuppliersPage() {
                 {suppliers.map((s) => (
                   <tr key={s.id}>
                     <td className={ui.strong}>{s.name}</td>
-                    <td>{s.email ?? "—"}</td>
+                    <td>
+                      {s.email ?? "—"}
+                      <KnownSenders supplierId={s.id} name={s.name} senders={s.knownSenders} canEdit={canCreate} />
+                    </td>
                     <td>{s.phone ?? "—"}</td>
                     <td>{s.currency}</td>
                     <td>{s.leadTimeDays === null ? <span className={ui.muted}>Not known</span> : `${s.leadTimeDays} working days`}</td>

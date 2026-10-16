@@ -3,11 +3,13 @@ import { loadReviewQueue } from "@/server/supplier-loop";
 import { PageHeader } from "../PageHeader";
 import ui from "../ui.module.css";
 import { ReviewForm } from "./ReviewForm";
+import { EmailsToSort } from "./EmailsToSort";
+import { loadEmailsToSort } from "@/server/inbound-view";
 
 export const metadata = { title: "Review queue" };
 
 export default async function ReviewQueuePage() {
-  const { canReview, items } = await loadReviewQueue();
+  const [{ canReview, items }, emails] = await Promise.all([loadReviewQueue(), loadEmailsToSort()]);
 
   return (
     <>
@@ -15,6 +17,7 @@ export default async function ReviewQueuePage() {
         title="Review queue"
         subtitle={items.length ? `${items.length} supplier ${items.length === 1 ? "answer needs" : "answers need"} a person to check` : "Supplier answers COAST wasn't sure about"}
       />
+      {emails.canSort && emails.items.length > 0 && <EmailsToSort items={emails.items} />}
       {items.length === 0 ? (
         <section className={ui.panel}>
           <p className={ui.muted}>Nothing to review. Answers that are certain and match the PO are applied automatically.</p>
@@ -43,7 +46,7 @@ export default async function ReviewQueuePage() {
             {item.note && <p className={ui.muted}>Supplier&apos;s note: “{item.note}”</p>}
             {item.rawText && (
               <details>
-                <summary style={{ cursor: "pointer", fontSize: 13 }}>The email as pasted</summary>
+                <summary style={{ cursor: "pointer", fontSize: 13 }}>{item.source === "Email" ? "The email" : "The email as pasted"}</summary>
                 <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, margin: "8px 0 0" }}>{item.rawText}</pre>
               </details>
             )}

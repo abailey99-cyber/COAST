@@ -19,15 +19,14 @@ import {
   updateChaseSettings,
 } from "@/lib/data/supplier-loop";
 import { appUrl } from "@/lib/env";
-import { readSupplierEmail, scoreExtraction } from "@/lib/logic/email-reading";
 import { thresholdsProblem } from "@/lib/logic/escalation";
 import { formatDateTime, formatIsoDate } from "@/lib/logic/format";
 import { hasPermission } from "@/lib/logic/permissions";
 import { buildChaseEmail, buildPoEmail, type EmailMessage } from "@/lib/logic/po-email";
-import { confirmedLines, isFullyConfirmed, validateLinkAnswer, type SupplierAnswer } from "@/lib/logic/supplier-response";
+import { confirmedLines, isFullyConfirmed, validateLinkAnswer } from "@/lib/logic/supplier-response";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotAllowedError, requirePermission, requireStaffForAction, type StaffContext } from "./session";
-import { poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
+import { answerFromEmail, poLinesForCheck, processSupplierAnswer } from "./supplier-loop";
 import { addSupplierShipments } from "./shipments";
 import { refreshPredictionsLater } from "./predictions";
 import { LINK_LIFETIME_DAYS, newLinkToken } from "./tokens";
@@ -200,19 +199,8 @@ export async function pasteSupplierReply(poId: string, _prev: LoopResult, formDa
     if (!po) return { ok: false, error: "That purchase order isn't available." };
     if (po.status === "cancelled") return { ok: false, error: "This purchase order is cancelled." };
 
-    const read = readSupplierEmail(raw, new Date());
-    const score = scoreExtraction(read, { poNumber: po.poNumber, lineCount: po.lines.length, currency: po.currency });
     const canSeeCosts = hasPermission(staff.permissions, "costs.view");
-    const answer: SupplierAnswer = {
-      currency: score.price?.currency ?? null,
-      lines: po.lines.map((l) => ({
-        poLineId: l.id,
-        available: !read.negative,
-        quantity: null,
-        date: read.negative ? null : score.date,
-        unitCostMinor: po.lines.length === 1 && canSeeCosts ? (score.price?.minor ?? null) : null,
-      })),
-    };
+    const { read, score, answer } = answerFromEmail(po, raw, canSeeCosts, new Date());
     const result = await processSupplierAnswer(supabase, {
       orgId: staff.orgId,
       po,

@@ -67,3 +67,50 @@ test.describe("Settings → Integrations", () => {
     expect((await service.from("integration_credentials").select("id").eq("org_id", await demoOrgId(service)).eq("provider", "dhl")).data).toEqual([]);
   });
 });
+
+// Readiness Task 3: forwarding address, and sorting out emails COAST couldn't match.
+test.describe("Supplier replies by email", () => {
+  test.skip(!e2eEnabled, "Dev database or DEMO_USER_PASSWORD not configured");
+  test.describe.configure({ mode: "serial" });
+
+  let hadAddress = false;
+  const messageId = `<e2e-${Date.now()}@supplier.test>`;
+
+  test.beforeAll(async () => {
+    const service = serviceClient();
+    const orgId = await demoOrgId(service);
+    hadAddress = Boolean((await service.from("inbound_addresses").select("org_id").eq("org_id", orgId).maybeSingle()).data);
+    await service.from("inbound_messages").insert({ org_id: orgId, channel: "forward", message_id: messageId, from_address: "someone@elsewhere.test", subject: "Quote for your enquiry", body: "Please see attached.", status: "quarantined", reason: "Not forwarded from yourco.test, so it's held back." });
+  });
+  test.afterAll(async () => {
+    const service = serviceClient();
+    const orgId = await demoOrgId(service);
+    await service.from("inbound_messages").delete().eq("org_id", orgId).eq("message_id", messageId);
+    if (!hadAddress) await service.from("inbound_addresses").delete().eq("org_id", orgId);
+  });
+
+  async function as(browser: Browser, email: DemoUser): Promise<Page> {
+    return (await browser.newContext({ storageState: sessionFile(email) })).newPage();
+  }
+
+  test("an admin sets up the forwarding address", async ({ browser }) => {
+    const page = await as(browser, "admin@demo-a.coast.test");
+    await page.goto("/app/settings#supplier-replies");
+    await page.getByRole("heading", { name: "Supplier replies by email" }).click();
+    await page.getByLabel("Your mailbox's domain(s)").fill("yourco.test");
+    await page.getByRole("button", { name: /Make my address|Save/ }).first().click();
+    await expect(page.getByRole("status").filter({ hasText: /forwarding address is ready|Saved/ })).toBeVisible();
+    await page.reload();
+    await page.getByRole("heading", { name: "Supplier replies by email" }).click();
+    await expect(page.locator("code").filter({ hasText: /^r-[0-9a-f]{30}/ })).toBeVisible();
+  });
+
+  test("procurement sees a held-back email and dismisses it", async ({ browser }) => {
+    const page = await as(browser, "procurement@demo-a.coast.test");
+    await page.goto("/app/review-queue");
+    const item = page.getByRole("listitem").filter({ hasText: "Quote for your enquiry" });
+    await expect(item.getByText("● Held back")).toBeVisible();
+    await item.getByRole("button", { name: "Dismiss" }).click();
+    await expect(item.getByRole("status").filter({ hasText: "Dismissed." })).toBeVisible();
+  });
+});

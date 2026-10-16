@@ -18,6 +18,30 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 3 (supplier replies by email)
+
+- **Not yet tried with real accounts.** Both ways in are built and tested
+  against made-up messages; "done" needs a Mailgun account and a test
+  Microsoft 365 tenant in staging (founder tasks, `docs/integrations/inbound-email.md`).
+  Mailgun's fields, how Microsoft 365 and Google rewrite forwarded mail, and
+  the Graph mailbox calls are marked UNVERIFIED in the code.
+- **Forwarded mail never applies itself**, by design. Only the Microsoft 365
+  connection can, and only when SPF, DKIM and DMARC pass, the sender is a
+  known address for that supplier, COAST has read 3 earlier answers from
+  them cleanly, and no price or quantity is mentioned.
+- **Holding back forwarded mail** relies on the forwarder's domain appearing
+  in the envelope sender (SRS) or a forwarding header. A mailbox that
+  forwards without either will have every email held back for a person.
+- **Sending POs from the customer's own mailbox** (Microsoft 365) isn't
+  built yet: COAST asks for Mail.Send scoping now, and sending arrives with
+  Phase 8. Emails are still written and logged, not sent.
+- **COAST's Microsoft app needs its client secret renewed** before it
+  expires (Entra shows the date; founder task).
+- **Emails are kept in full** (up to 50,000 characters) with the order;
+  retention rules come with Task 6.
+- **Only the first 50 new messages per mailbox per 15 minutes** are read;
+  the rest are picked up on the next run.
+
 ### Readiness Task 2 (per-organisation encrypted credentials)
 
 - **Each environment needs its own `COAST_CREDENTIAL_KEYS`** (founder task,

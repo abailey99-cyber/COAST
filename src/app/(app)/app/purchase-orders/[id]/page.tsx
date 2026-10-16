@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UndoAutomaticDate } from "./UndoAutomaticDate";
 import { notFound } from "next/navigation";
 import { loadPurchaseOrder } from "@/server/procurement";
 import { loadPoCommunication } from "@/server/supplier-loop";
@@ -12,8 +13,11 @@ export const metadata = { title: "Purchase order" };
 
 const LEVEL_CLASS = { none: "status-neutral", amber: "status-warn", red: "status-bad", alert: "status-bad" } as const;
 
-export default async function PurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PurchaseOrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
+  const sp = await searchParams;
+  // From the "applied automatically" email's one-click link.
+  const undo = typeof sp.undo === "string" ? sp.undo : null;
   const page = await loadPurchaseOrder(id);
   if (!page) notFound();
   const { po } = page;
@@ -166,6 +170,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
                       {r.tracking.length > 0 && <div className={ui.muted}>Tracking: {r.tracking.join(", ")}</div>}
                       {r.note && <div className={ui.muted}>Note: “{r.note}”</div>}
                       {r.reviewNote && <div className={ui.muted}>Review note: “{r.reviewNote}”</div>}
+                      {r.canUndo && <UndoAutomaticDate responseId={r.id} highlight={undo === r.id} />}
                     </div>
                   </li>
                 ))}

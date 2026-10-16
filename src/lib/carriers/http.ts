@@ -39,7 +39,6 @@ interface CachedToken {
   expiresAt: number;
 }
 
-/** OAuth client-credentials tokens, kept until a minute before they expire. */
 /**
  * OAuth tokens, cached per organisation: each organisation signs in with its
  * own carrier account, so a token is never shared across tenants
