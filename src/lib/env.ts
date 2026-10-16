@@ -40,6 +40,7 @@ export function integrationHealth(): IntegrationHealth[] {
     ["credentials", "Credential encryption key", ["COAST_CREDENTIAL_KEYS"]],
     ["m365", "COAST's Microsoft 365 app", ["M365_CLIENT_ID", "M365_CLIENT_SECRET"]],
     ["inbound", "Supplier replies by email (Mailgun)", ["INBOUND_EMAIL_DOMAIN", "MAILGUN_WEBHOOK_SIGNING_KEY"]],
+    ["aggregator", "Tracking aggregator", ["AGGREGATOR_PROVIDER", "AGGREGATOR_WEBHOOK_SECRET"]],
   ];
   return items.map(([key, label, required]) => ({ key, label, ...configHealth(label, required, env) }));
 }

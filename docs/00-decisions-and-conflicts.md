@@ -598,3 +598,13 @@ the sales reps on the PO's orders, or procurement if none.
 After consent, COAST reads mail arriving from then on, never the existing
 inbox. Unmatched or held-back emails go to an "Emails to sort out" list in
 the Review queue, where procurement attaches them to a PO or dismisses them.
+
+### N13. Aggregator tracking defaults — DEFAULT — CONFIRM
+Provider: still the founder's choice (the code takes any, as a setting).
+Cost: 5p a shipment until the real price is known. Cap: 5% of the plan
+price, "near" at 80% of that; near or over, checks happen a quarter as
+often and the founder is emailed once per level per month; tracking never
+stops. A shipment on an organisation's own carrier account stays direct;
+the test carrier always does. With webhooks, COAST still checks once a day
+as a safety net; without, every 2 hours near the delivery date, 8 hours
+normally, once a day after 3 quiet days, never once delivered.

@@ -32,6 +32,7 @@ staff-facing use.
 | `src/server/confirm-page.ts` | Showing the no-login confirmation page | The link's token |
 | `src/server/cron.ts` | Scheduled jobs | `CRON_SECRET`; each row carries its own organisation |
 | `src/server/tracking-poll.ts` | Checking shipments with carriers | Scheduled job; writes keyed by shipment id; each shipment checked only with its own organisation's credentials |
+| `src/server/aggregator.ts` | Aggregator tracking: registering shipments, signed webhooks, safety-net checks, cost counting | Scheduled job (`CRON_SECRET`) or the provider's webhook signature; every update goes only to the shipment registered for that parcel, which carries its own organisation |
 | `src/server/credentials.ts` | **Decrypting integration credentials** (`getIntegrationCredentials`) | An explicit organisation id; the secret only decrypts for that organisation, provider and kind |
 | `src/server/inbound-webhook.ts` | Supplier replies forwarded to an organisation's COAST address (Mailgun) | Mailgun's signature (fresh, used once); the organisation comes only from the random address; POs looked up within that organisation only |
 | `src/server/m365.ts` | Microsoft 365 consent; reading each connected mailbox | Consent: a signed, expiring state naming the organisation and the same signed-in admin. Mailbox job: `CRON_SECRET`, each organisation read with its own tenant's token and its mail handled as its own |

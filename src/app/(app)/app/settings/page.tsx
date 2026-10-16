@@ -216,6 +216,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               connected. The claim window is how long you have to claim from that carrier for damage or loss; leave it blank
               until you know it.
             </p>
+            <p className={styles.cardText} data-testid="aggregator-health">
+              <strong>Tracking aggregator:</strong>{" "}
+              <span className={`status ${carriers.aggregator.status === "ok" ? "status-ok" : carriers.aggregator.status === "error" ? "status-bad" : carriers.aggregator.status === "warn" ? "status-warn" : "status-neutral"}`}>
+                ● {carriers.aggregator.reason}
+              </span>
+              {carriers.aggregator.usage ? <span> · {carriers.aggregator.usage}</span> : null}
+            </p>
             <CarrierConnections carriers={carriers.carriers} editable={carriers.canEdit} />
           </div>
         </details>

@@ -6,8 +6,9 @@ import type { PoDetail } from "@/lib/data/procurement";
 import { DuplicateError } from "@/lib/data/orders";
 import { createShipment, getShipment, listCarrierActivity, listCarrierSettings, listShipmentLines, listShipments, listTrackingEvents, type ShipmentRow } from "@/lib/data/shipments";
 import { listStaffInOrg } from "@/lib/data/staff";
-import { CARRIERS, NO_ACTIVITY, carrierHealth, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers, type CarrierDef, type CarrierKey } from "@/lib/logic/carriers";
-import { formatDateTime, formatIsoDate } from "@/lib/logic/format";
+import { CARRIERS, NO_ACTIVITY, carrierHealth, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers, directAllowed, type CarrierDef, type CarrierKey } from "@/lib/logic/carriers";
+import { formatDateTime, formatIsoDate, formatMoney } from "@/lib/logic/format";
+import { aggregatorHealth } from "@/lib/carriers/aggregator";
 import type { HealthStatus } from "@/lib/logic/health";
 import { canAccessSection } from "@/lib/logic/navigation";
 import { stageLabel, type FulfilmentRoute, type LineStage } from "@/lib/logic/orders";
@@ -378,6 +379,8 @@ export interface CarrierConnection {
 
 export interface CarrierConnectionsView {
   carriers: CarrierConnection[];
+  /** The tracking aggregator (readiness Task 4): its health, and this month's tracking cost for admins. */
+  aggregator: { status: HealthStatus; reason: string; usage: string | null };
   lastRun: CronRun | null;
   lastRunLabel: string;
   canEdit: boolean;
@@ -386,9 +389,19 @@ export interface CarrierConnectionsView {
 export async function loadCarrierConnections(staff: StaffContext): Promise<CarrierConnectionsView> {
   const supabase = await client();
   const [activity, settings, lastRun, connected] = await Promise.all([listCarrierActivity(supabase, today()), listCarrierSettings(supabase), lastCronRun(supabase, "tracking-poll"), connectedProviders(supabase)]);
+  const aggregatorReady = aggregatorHealth(null).status !== "unconfigured";
+  // Every carrier stays listed (its claim window matters however it's tracked); direct checks that are switched off say so (readiness Task 4).
   const carriers = trackableCarriers(process.env.COAST_ENV).map((def) => {
     const a = activity[def.key] ?? NO_ACTIVITY;
-    const h = carrierHealth(def, isConnected(def, connected), a);
+    const h =
+      def.confidence === "test" || directAllowed(def.key, process.env)
+        ? carrierHealth(def, isConnected(def, connected), a)
+        : {
+            status: aggregatorReady ? ("ok" as const) : ("unconfigured" as const),
+            reason: aggregatorReady
+              ? "Tracked through the tracking aggregator (direct connection switched off)."
+              : "Direct connection switched off; tracked through the aggregator once one is set up. Update by hand meanwhile.",
+          };
     return {
       key: def.key,
       label: def.label,
@@ -403,7 +416,15 @@ export async function loadCarrierConnections(staff: StaffContext): Promise<Carri
   const lastRunLabel = !lastRun
     ? "The tracking schedule hasn't run yet."
     : `Last run ${formatDateTime(new Date(lastRun.startedAt))}${lastRun.outcome === "ok" ? "" : lastRun.outcome === "partial" ? " · some checks failed" : lastRun.outcome === "error" ? " · it failed" : " · still running"}.`;
-  return { carriers, lastRun, lastRunLabel, canEdit: hasPermission(staff.permissions, "settings.edit") };
+  const { data: usage } = await supabase.from("tracking_usage").select("shipments_registered, cost_minor").eq("month", `${today().slice(0, 7)}-01`).maybeSingle<{ shipments_registered: number; cost_minor: number }>();
+  const agg = aggregatorHealth(null);
+  return {
+    carriers,
+    aggregator: { status: agg.status, reason: agg.reason, usage: usage ? `${usage.shipments_registered} shipments this month · ${formatMoney(Number(usage.cost_minor), "GBP")}` : null },
+    lastRun,
+    lastRunLabel,
+    canEdit: hasPermission(staff.permissions, "settings.edit"),
+  };
 }
 
 /** "● 3 healthy · ● 1 check" for the sidebar card (App.dc.html). Only carriers that are set up count. */

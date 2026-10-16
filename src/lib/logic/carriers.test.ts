@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CARRIERS, CARRIER_KEYS, carrierHealth, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers } from "./carriers";
+import { CARRIERS, CARRIER_KEYS, carrierHealth, directAllowed, getCarrier, guessCarrier, hasLiveAdapter, selectableCarriers, trackableCarriers } from "./carriers";
 
 describe("carrier list", () => {
   it("has one definition per key", () => {
@@ -86,5 +86,18 @@ describe("carrierHealth", () => {
   });
   it("mentions the FedEx connection for TNT", () => {
     expect(carrierHealth(getCarrier("tnt"), false).reason).toContain("FedEx");
+  });
+});
+
+describe("direct connections (readiness Task 4)", () => {
+  it("freezes the carriers built without their own documentation", () => {
+    for (const k of ["royal_mail", "dpd", "evri", "yodel"] as const) expect(directAllowed(k, {})).toBe(false);
+    expect(directAllowed("royal_mail", { COAST_ENABLE_FROZEN_CARRIERS: "true" })).toBe(true);
+  });
+  it("keeps UPS direct off unless switched on, and DHL and FedEx on", () => {
+    expect(directAllowed("ups", {})).toBe(false);
+    expect(directAllowed("ups", { COAST_ALLOW_UPS_DIRECT: "true" })).toBe(true);
+    expect(directAllowed("dhl", {})).toBe(true);
+    expect(directAllowed("fedex", {})).toBe(true);
   });
 });

@@ -1,5 +1,19 @@
 # Live carrier tracking — what's needed to switch each carrier on
 
+> **Tracking aggregator (Task 4, 16 October 2026).** Shipments are tracked
+> through one aggregator, priced per shipment, chosen by the founder
+> (`AGGREGATOR_PROVIDER`). Each shipment registers once; updates arrive by
+> signed webhook at `/api/tracking/webhook/<provider>` (or adaptive checks
+> if the provider has no webhooks). Each organisation's tracking cost is
+> capped at 5% of its plan price (set in `org_plans`): near the cap checks
+> slow down and `FOUNDER_ALERT_EMAIL` is told — tracking never stops.
+> Royal Mail, DPD, Evri and Yodel direct adapters are frozen (off, hidden,
+> UNVERIFIED). DHL, FedEx and UPS direct are only for organisations that
+> connect their own account; UPS direct also needs `COAST_ALLOW_UPS_DIRECT=true`
+> (UPS's UK terms). Adding the chosen provider: one entry in
+> `src/lib/carriers/aggregator.ts` (register, check, verify and read
+> webhooks, and its carrier/status mapping).
+>
 > **Changed by the pilot readiness plan (Task 2, 16 October 2026).** Each
 > organisation now connects its **own** account in COAST under
 > **Settings → Integrations**; the secrets are encrypted per organisation

@@ -1,6 +1,6 @@
 import "server-only";
 import { failure, mockTrack, parseDhl, parseFedex, parseRoyalMail, parseUps, type TrackOutcome } from "@/lib/logic/carrier-responses";
-import { getCarrier, hasLiveAdapter, isMockAllowed, type CarrierKey } from "@/lib/logic/carriers";
+import { directAllowed, getCarrier, hasLiveAdapter, isMockAllowed, type CarrierKey } from "@/lib/logic/carriers";
 import { fetchCarrierJson, fetchOAuthToken, tokenCache } from "./http";
 
 /**
@@ -149,6 +149,8 @@ const ADAPTERS: Partial<Record<CarrierKey, CarrierAdapter>> = {
 export function carrierAdapter(key: CarrierKey): CarrierAdapter | null {
   if (!hasLiveAdapter(key)) return null;
   if (key === "mock" && !isMockAllowed(process.env.COAST_ENV)) return null;
+  // Frozen carriers, and UPS unless switched on, are never called directly (readiness Task 4).
+  if (key !== "mock" && !directAllowed(key, process.env)) return null;
   return ADAPTERS[key] ?? null;
 }
 

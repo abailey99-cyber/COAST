@@ -16,13 +16,14 @@ import {
   type DueShipment,
 } from "@/lib/data/shipments";
 import { getCarrier, NO_ACTIVITY, type CarrierKey } from "@/lib/logic/carriers";
-import { applySnapshot, lineStageForShipment } from "@/lib/logic/shipments";
+import { applySnapshot, lineStageForShipment, type ShipmentStatus, type TrackingSnapshot } from "@/lib/logic/shipments";
 import { nextPollAt, planPollRun, runAllowance, runsLeftToday } from "@/lib/logic/tracking-poll";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { refreshPredictions, sweepPredictions } from "./predictions";
 import { flushHeldNotifications, notifyCustomer } from "./notifications";
 import { draftCarrierProblem } from "./problems-auto";
 import { getIntegrationCredentials } from "./credentials";
+import { runAggregator } from "./aggregator";
 import { topicForShipmentStatus } from "@/lib/logic/notifications";
 
 /**
@@ -71,8 +72,23 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
     return outcome.kind === "not_found" ? "not_found" : "failed";
   }
 
-  const [shipment, events] = await Promise.all([getShipment(admin, due.id), listTrackingEvents(admin, due.id)]);
-  if (!shipment) return "skipped";
+  const folded = await foldSnapshot(admin, due.id, outcome.snapshot, now);
+  if (!folded) return "skipped";
+  // A person's "delivered" stops the checks; so does the carrier's.
+  await savePollState(admin, due.id, { nextPollAt: nextPollAt(folded.finalStatus, 0, now), polledAt: now, failures: 0, error: null });
+  await recordCarrierOutcome(admin, due.orgId, due.carrier, null);
+  return folded.changed ? "updated" : "unchanged";
+}
+
+/**
+ * Fold a carrier's (or the aggregator's) latest picture of one shipment into
+ * COAST: new events, status (sticky if set by hand), line stages, delivery
+ * dates, customer updates, and a delivery problem when it goes wrong.
+ * The same steps whichever way the update arrived.
+ */
+export async function foldSnapshot(admin: SupabaseClient, shipmentId: string, snapshot: TrackingSnapshot, now: Date): Promise<{ changed: boolean; finalStatus: ShipmentStatus } | null> {
+  const [shipment, events] = await Promise.all([getShipment(admin, shipmentId), listTrackingEvents(admin, shipmentId)]);
+  if (!shipment) return null;
 
   const result = applySnapshot(
     {
@@ -84,31 +100,28 @@ export async function pollShipment(admin: SupabaseClient, due: DueShipment, now:
       eventKeys: new Set(events.map((e) => e.key)),
       events,
     },
-    outcome.snapshot,
+    snapshot,
   );
 
-  await insertTrackingEvents(admin, due.id, result.newEvents, "carrier");
-  await saveSnapshot(admin, due.id, result.patch);
+  await insertTrackingEvents(admin, shipmentId, result.newEvents, "carrier");
+  await saveSnapshot(admin, shipmentId, result.patch);
 
   if (result.statusChange) {
-    for (const line of await listShipmentLines(admin, due.id)) {
+    for (const line of await listShipmentLines(admin, shipmentId)) {
       const to = lineStageForShipment(line.route, line.stage, shipment.leg, result.patch.status);
       if (to) await updateLineStage(admin, line.id, line.stage, to);
     }
   }
 
-  // A person's "delivered" stops the checks; so does the carrier's.
   const finalStatus = shipment.statusSource === "manual" ? shipment.status : result.patch.status;
-  await savePollState(admin, due.id, { nextPollAt: nextPollAt(finalStatus, 0, now), polledAt: now, failures: 0, error: null });
-  await recordCarrierOutcome(admin, due.orgId, due.carrier, null);
   const changed = result.statusChange !== null || result.newEvents.length > 0 || result.patch.estimatedFrom !== shipment.estimatedFrom || result.patch.estimatedTo !== shipment.estimatedTo;
   if (changed) await refreshPredictions([shipment.salesOrderId], now);
-  if (result.statusChange?.to === "exception") await draftCarrierProblem(admin, due.id, now);
+  if (result.statusChange?.to === "exception") await draftCarrierProblem(admin, shipmentId, now);
   if (result.statusChange) {
     const topic = topicForShipmentStatus(shipment.leg, result.statusChange.from, result.statusChange.to);
     if (topic) await notifyCustomer(shipment.salesOrderId, topic, { now });
   }
-  return changed ? "updated" : "unchanged";
+  return { changed, finalStatus };
 }
 
 export interface PollRunSummary {
@@ -188,14 +201,19 @@ export async function runTrackingPoll(admin: SupabaseClient, now: Date = new Dat
 }
 
 /** The /api/cron/tracking-poll job. */
-export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error"; predictionsRefreshed?: number; heldUpdatesSent?: number } & Partial<PollRunSummary>> {
+export async function scheduledTrackingPoll(): Promise<{ outcome: "ok" | "partial" | "error"; predictionsRefreshed?: number; heldUpdatesSent?: number; aggregator?: Awaited<ReturnType<typeof runAggregator>> } & Partial<PollRunSummary>> {
   const admin = createSupabaseAdminClient();
   if (!admin) return { outcome: "error" };
   const s = await runTrackingPoll(admin);
+  // Shipments tracked through the aggregator: register new ones, safety-net checks (readiness Task 4).
+  const aggregated = await runAggregator(admin).catch((e) => {
+    console.warn("[aggregator] run failed", e instanceof Error ? e.message : e);
+    return null;
+  });
   // Delivery dates drift as days pass, so the same run keeps predictions fresh (Phase 4).
   const predictionsRefreshed = await sweepPredictions(admin);
   // Customer updates held back by the spacing rule go out once the gap has passed (Phase 5).
   const heldUpdatesSent = await flushHeldNotifications(admin, "throttle");
   const outcome = s.failed === 0 ? "ok" : s.failed < s.checked ? "partial" : "error";
-  return { outcome, ...s, predictionsRefreshed, heldUpdatesSent };
+  return { outcome, ...s, predictionsRefreshed, heldUpdatesSent, aggregator: aggregated };
 }

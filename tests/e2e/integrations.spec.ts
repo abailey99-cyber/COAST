@@ -40,11 +40,9 @@ test.describe("Settings → Integrations", () => {
     await expect(page.getByText(KEY)).toHaveCount(0);
     expect(await page.content()).not.toContain(KEY);
 
-    // UPS asks for written consent first.
-    const ups = page.locator("[data-provider=ups]");
-    await ups.getByRole("button", { name: "Connect" }).click();
-    await expect(ups.getByText(/written consent/)).toBeVisible();
-    await ups.getByRole("button", { name: "Cancel" }).click();
+    // UPS direct is off by default (UPS's UK API terms), so it isn't offered; nor are the frozen carriers.
+    await expect(page.locator("[data-provider=ups]")).toHaveCount(0);
+    await expect(page.locator("[data-provider=royal_mail]")).toHaveCount(0);
   });
 
   test("a non-admin sees the connection but can't change it", async ({ browser }) => {

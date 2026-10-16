@@ -2,7 +2,7 @@ import "server-only";
 import { listCarrierActivity } from "@/lib/data/shipments";
 import { listConnections } from "@/lib/data/credentials";
 import { listStaffInOrg } from "@/lib/data/staff";
-import { NO_ACTIVITY, carrierHealth, CARRIERS } from "@/lib/logic/carriers";
+import { NO_ACTIVITY, carrierHealth, CARRIERS, directAllowed } from "@/lib/logic/carriers";
 import { formatDateTime } from "@/lib/logic/format";
 import type { Health } from "@/lib/logic/health";
 import { CREDENTIAL_PROVIDERS, PROVIDERS, type CredentialField, type CredentialProvider } from "@/lib/logic/integrations";
@@ -49,7 +49,12 @@ export async function loadIntegrations(staff: StaffContext): Promise<Integration
   if (!supabase) return { items: [], canEdit: false, storeReady: false };
   const [connections, activity, team] = await Promise.all([listConnections(supabase), listCarrierActivity(supabase, today()), listStaffInOrg(supabase)]);
   const names = new Map(team.map((t) => [t.id, t.fullName]));
-  const items = CREDENTIAL_PROVIDERS.map((p): IntegrationItem => {
+  // Direct connections that are switched off aren't offered (readiness Task 4): their parcels go through the aggregator.
+  const offered = CREDENTIAL_PROVIDERS.filter((p) => {
+    const carrier = CARRIERS.find((d) => d.provider === p);
+    return !carrier || directAllowed(carrier.key, process.env) || connections.some((c) => c.provider === p);
+  });
+  const items = offered.map((p): IntegrationItem => {
     const def = PROVIDERS[p];
     const c = connections.find((x) => x.provider === p) ?? null;
     let health: Health;

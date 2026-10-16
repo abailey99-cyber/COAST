@@ -201,3 +201,22 @@ export function carrierHealth(def: CarrierDef, connected: boolean, activity: Car
   if (!activity.lastSuccessAt) return { status: "ok", reason: `${beta}Set up. No shipments checked yet${via}.` };
   return { status: def.confidence === "best_effort" ? "warn" : "ok", reason: `${beta}Working${via}.` };
 }
+
+// ── Direct carrier connections (readiness plan Task 4) ──────────────────────
+/**
+ * Built without the carrier's own documentation, so frozen: off, hidden,
+ * still UNVERIFIED. Their parcels are tracked through the aggregator.
+ * COAST_ENABLE_FROZEN_CARRIERS=true turns them back on for testing.
+ */
+export const FROZEN_CARRIERS: ReadonlySet<CarrierKey> = new Set(["royal_mail", "dpd", "evri", "yodel"]);
+
+/**
+ * May COAST call this carrier directly with an organisation's own account?
+ * UPS is off unless COAST_ALLOW_UPS_DIRECT=true: UPS's UK API terms restrict
+ * intermediaries and more than one shipper without written consent.
+ */
+export function directAllowed(key: CarrierKey, env: Readonly<Record<string, string | undefined>>): boolean {
+  if (FROZEN_CARRIERS.has(key)) return env.COAST_ENABLE_FROZEN_CARRIERS === "true";
+  if (key === "ups") return env.COAST_ALLOW_UPS_DIRECT === "true";
+  return true;
+}

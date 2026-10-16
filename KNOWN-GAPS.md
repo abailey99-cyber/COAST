@@ -18,6 +18,23 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 4 (aggregator tracking)
+
+- **No real aggregator yet.** The founder is choosing one; everything is
+  built and tested against the test aggregator (`AGGREGATOR_PROVIDER=mock`,
+  never in production). Adding the chosen provider is one entry in
+  `src/lib/carriers/aggregator.ts`; its codes, webhook format and signature
+  must then be checked against a real account in staging.
+- **The cost per shipment is a setting** (`AGGREGATOR_COST_PER_SHIPMENT_MINOR`,
+  default 5p) until the provider's price is known.
+- **Plan prices aren't set** (billing is later), so organisations have no
+  cost cap yet: the founder is told once a month that an organisation has
+  no plan price. Set one in `org_plans` (service role) to switch the cap on.
+- **New shipments are registered on the next scheduled run** (every 30
+  minutes), not the moment they're added.
+- **Royal Mail, DPD, Evri and Yodel direct are frozen** and UPS direct is off
+  by default; their parcels go through the aggregator.
+
 ### Readiness Task 3 (supplier replies by email)
 
 - **Not yet tried with real accounts.** Both ways in are built and tested
