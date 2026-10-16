@@ -170,8 +170,8 @@ describe("grantablePermissions (E7)", () => {
 });
 
 describe("sales manager defaults (E7)", () => {
-  it("is everything sales has, plus managing reps", () => {
-    expect([...DEFAULT_PERMISSIONS.sales_manager].sort()).toEqual([...DEFAULT_PERMISSIONS.sales, "people.manage_sales"].sort());
+  it("is everything sales has, plus managing reps and seeing every branch (N5)", () => {
+    expect([...DEFAULT_PERMISSIONS.sales_manager].sort()).toEqual([...DEFAULT_PERMISSIONS.sales, "people.manage_sales", "branches.view_all"].sort());
   });
 
   it("is a configurable role", () => {

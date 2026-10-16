@@ -164,6 +164,12 @@ describe.skipIf(!enabled)("cross-tenant harness: every table, every role, both w
         await service.from("integration_credentials").insert({ org_id: orgId[o], provider: "microsoft365", kind: "microsoft365_tenant", config: { tenantId: "00000000-0000-0000-0000-000000000000", mailbox: "harness@example.test" } });
         fixtures.push({ table: "integration_credentials", match: { org_id: orgId[o]!, provider: "microsoft365" } });
       }
+      // An extra-branch grant and an ERP mapping, both to the organisation's default branch.
+      const { data: branch } = await service.from("branches").select("id").eq("org_id", orgId[o]!).eq("is_default", true).single();
+      await service.from("user_branch_access").upsert({ org_id: orgId[o], staff_id: someone!.id, branch_id: branch!.id }, { onConflict: "staff_id,branch_id" });
+      fixtures.push({ table: "user_branch_access", match: { staff_id: someone!.id, branch_id: branch!.id } });
+      await service.from("erp_branch_mappings").upsert({ org_id: orgId[o], source_field: "location", source_value: "HARNESS", branch_id: branch!.id }, { onConflict: "org_id,source_field,source_value" });
+      fixtures.push({ table: "erp_branch_mappings", match: { org_id: orgId[o]!, source_field: "location", source_value: "HARNESS" } });
       await service.from("staff_permission_overrides").upsert({ user_id: someone!.id, permission: "section.goods-in", granted: false, set_by: null }, { onConflict: "user_id,permission" });
       fixtures.push({ table: "staff_permission_overrides", match: { user_id: someone!.id, permission: "section.goods-in" } });
     }

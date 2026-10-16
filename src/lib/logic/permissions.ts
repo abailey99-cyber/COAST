@@ -38,6 +38,7 @@ export const PERMISSIONS = [
   { key: "supplier.identity.view", group: "Data", label: "Supplier names", description: "See which supplier fulfils an order, and PO numbers." },
   { key: "costs.view", group: "Data", label: "Costs", description: "See what the business pays suppliers." },
   { key: "audit.view", group: "Data", label: "Audit log", description: "See the full record of who changed what, and when." },
+  { key: "branches.view_all", group: "Data", label: "See every branch", description: "See orders from every branch, not just their own. Only matters once the business has more than one branch." },
   { key: "orders.edit", group: "Actions", label: "Create and edit orders", description: "Create orders and change their details." },
   { key: "procurement.manage", group: "Actions", label: "Manage suppliers and POs", description: "Create suppliers and purchase orders, chase suppliers, resolve discrepancies." },
   { key: "chases.internal", group: "Actions", label: "Chase procurement", description: "Ask procurement for an update on an order line." },
@@ -68,6 +69,7 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "orders.view_all",
     "supplier.identity.view",
     "costs.view",
+    "branches.view_all",
     "orders.edit",
     "procurement.manage",
     "chases.internal",
@@ -103,13 +105,14 @@ export const DEFAULT_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     "orders.view_all",
     "supplier.identity.view",
     "costs.view",
+    "branches.view_all",
     "chases.internal",
     "problems.manage",
     "customers.manage",
     "people.manage_sales",
   ],
   // E3: directors see everything, change nothing — unless an admin allows it.
-  director: [...SCREENS_ALL, "orders.view_all", "supplier.identity.view", "costs.view", "audit.view"],
+  director: [...SCREENS_ALL, "orders.view_all", "supplier.identity.view", "costs.view", "audit.view", "branches.view_all"],
   goods_in: ["section.goods-in", "section.settings", "supplier.identity.view", "goods_in.check"],
 };
 
