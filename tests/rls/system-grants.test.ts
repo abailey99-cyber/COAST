@@ -25,10 +25,11 @@ const SYSTEM_FUNCTIONS: Record<string, Record<string, unknown>> = {
 };
 
 describe.skipIf(!enabled)("service-role function grants", () => {
-  const service = createClient(url!, serviceKey!, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Made on first use: describe bodies run even when skipped, and CI has no database.
+  const service = () => createClient(url!, serviceKey!, { auth: { persistSession: false, autoRefreshToken: false } });
   for (const [fn, args] of Object.entries(SYSTEM_FUNCTIONS)) {
     it(`lets the service role run ${fn}`, async () => {
-      const { error } = await service.rpc(fn, args);
+      const { error } = await service().rpc(fn, args);
       // Any other error (e.g. "no such purchase order") means it got in. A wrong argument name would hide the check, so that fails too.
       expect(error?.message ?? "").not.toMatch(/permission denied|could not find the function/i);
     });
