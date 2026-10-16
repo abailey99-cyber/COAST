@@ -47,3 +47,38 @@ jobs:
 
       - name: Browser tests
         run: npm run test:e2e
+
+  security:
+    name: Secret scan and dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks reads a pull request's commits to scan only what it adds.
+      pull-requests: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history, so a secret committed and later removed is still found.
+          fetch-depth: 0
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # What ships to users must have no high or critical advisories. Build and
+      # lint tools only run on our machines and in CI, so only a critical one
+      # there blocks; the rest is reported (KNOWN-GAPS.md).
+      - name: Dependency audit (shipped packages)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Dependency audit (all packages, critical only)
+        run: npm audit --audit-level=critical

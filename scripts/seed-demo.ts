@@ -31,6 +31,12 @@ async function main() {
     { email: "director@demo-a.coast.test", fullName: "[Director A]", role: "director", orgId: orgA },
     { email: "goodsin@demo-a.coast.test", fullName: "[Goods-in A]", role: "goods_in", orgId: orgA },
     { email: "admin@demo-b.coast.test", fullName: "[Admin B]", role: "admin", orgId: orgB },
+    // Every role in organisation B too, for the cross-tenant harness (readiness Task 5A).
+    { email: "procurement@demo-b.coast.test", fullName: "[Procurement B]", role: "procurement", orgId: orgB },
+    { email: "salesmanager@demo-b.coast.test", fullName: "[Sales manager B]", role: "sales_manager", orgId: orgB },
+    { email: "sales@demo-b.coast.test", fullName: "[Sales rep B]", role: "sales", orgId: orgB },
+    { email: "director@demo-b.coast.test", fullName: "[Director B]", role: "director", orgId: orgB },
+    { email: "goodsin@demo-b.coast.test", fullName: "[Goods-in B]", role: "goods_in", orgId: orgB },
   ];
 
   const ids: Record<string, string> = {};
@@ -41,11 +47,36 @@ async function main() {
 
   await seedOrders(admin, orgA, ids["sales@demo-a.coast.test"]!, ids["sales2@demo-a.coast.test"]!);
   await seedShipments(admin, orgA);
+  await seedOrgB(admin, orgB, ids["sales@demo-b.coast.test"]!);
 
   console.log("\nDemo data ready. Sign in with any address above and DEMO_USER_PASSWORD.\n");
 }
 
 type Admin = ReturnType<typeof adminClient>;
+
+/** A little data in organisation B, so every table has rows on both sides of the harness. */
+async function seedOrgB(admin: Admin, orgId: string, rep: string) {
+  const existing = await admin.from("sales_orders").select("id").eq("org_id", orgId).eq("so_number", "SO-90001").maybeSingle();
+  if (existing.data) {
+    console.log("  · organisation B data already present");
+    return;
+  }
+  const supplier = await must("supplier B", admin.from("suppliers").insert({ org_id: orgId, name: "[Demo Supplier B]", email: "orders@supplier-b.coast.test", currency: "GBP" }).select("id").single());
+  const customer = await must("customer B", admin.from("customers").insert({ org_id: orgId, name: "[Customer B1]" }).select("id").single());
+  const order = await must(
+    "order B",
+    admin
+      .from("sales_orders")
+      .insert({ org_id: orgId, so_number: "SO-90001", customer_id: customer.id, sales_rep_id: rep, currency: "GBP", delivery_name: "[Customer B1] Goods In", delivery_line1: "2 Example Road", delivery_town: "Leeds", delivery_postcode: "LS1 1AA", delivery_country: "GB" })
+      .select("id")
+      .single(),
+  );
+  const line = await must("order line B", admin.from("order_lines").insert({ sales_order_id: order.id, line_no: 1, description: "Demo widget", quantity: 2, unit_price_minor: 1000, route: "direct_ship" }).select("id").single());
+  const po = await must("PO B", admin.from("purchase_orders").insert({ org_id: orgId, supplier_id: supplier.id, currency: "GBP" }).select("id").single());
+  await must("PO line B", admin.from("purchase_order_lines").insert({ purchase_order_id: po.id, order_line_id: line.id, quantity: 2 }).select("id").single());
+  await must("message B", admin.from("order_messages").insert({ org_id: orgId, sales_order_id: order.id, author_kind: "customer", body: "Any news?" }).select("id").single());
+  console.log("  ✓ organisation B demo order");
+}
 
 /** Await a Supabase call; stop the script with a clear message if it failed. */
 async function must<R = { id: string }>(label: string, p: PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<R> {

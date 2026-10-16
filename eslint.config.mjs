@@ -21,6 +21,15 @@ const PURE_BANNED_SYNTAX = [
   { selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']", message: "Pure logic must be deterministic." },
 ];
 
+// The service-role key bypasses row-level security (readiness Task 5A): only
+// src/lib/supabase/admin.ts may read it, and only src/server may create the
+// client. Every use is listed in docs/security/service-role-uses.md.
+const SERVICE_KEY_SYNTAX = [
+  { selector: "MemberExpression[property.name='SUPABASE_SERVICE_ROLE_KEY']", message: "Only src/lib/supabase/admin.ts reads the service-role key. Use createSupabaseAdminClient() from src/server." },
+  { selector: "MemberExpression[property.value='SUPABASE_SERVICE_ROLE_KEY']", message: "Only src/lib/supabase/admin.ts reads the service-role key. Use createSupabaseAdminClient() from src/server." },
+];
+const ADMIN_CLIENT_IMPORT = { group: ["@/lib/supabase/admin"], message: "Only src/server may use the service-role client (docs/security/service-role-uses.md)." };
+
 const config = [
   ...nextVitals,
   ...nextTs,
@@ -38,10 +47,20 @@ const config = [
     ],
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/supabase/admin.ts"],
+    rules: { "no-restricted-syntax": ["error", ...SERVICE_KEY_SYNTAX] },
+  },
+  {
+    files: ["src/lib/**/*.ts"],
+    ignores: ["src/lib/logic/**", "src/lib/data/**", "src/lib/supabase/**"],
+    rules: { "no-restricted-imports": ["error", { patterns: [ADMIN_CLIENT_IMPORT] }] },
+  },
+  {
     files: ["src/lib/logic/**/*.ts"],
     rules: {
       "no-restricted-imports": ["error", { patterns: PURE_BANNED_IMPORTS }],
-      "no-restricted-syntax": ["error", ...PURE_BANNED_SYNTAX],
+      "no-restricted-syntax": ["error", ...PURE_BANNED_SYNTAX, ...SERVICE_KEY_SYNTAX],
     },
   },
   {
@@ -49,6 +68,7 @@ const config = [
     rules: {
       "no-restricted-imports": ["error", { patterns: [
         { group: ["@/server/*", "@/components/*", "@/app/*"], message: "The data layer must not import from layers above it." },
+        ADMIN_CLIENT_IMPORT,
       ] }],
     },
   },

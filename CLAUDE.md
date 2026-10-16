@@ -117,6 +117,12 @@ data passes through the masking function. No secrets in code.
   (list, defaults, backfill). Every new table grants `service_role` in its
   own migration (newer Supabase projects don't by default).
 
+- **Tenancy checks:** `tests/rls/cross-tenant.test.ts` tries every table as
+  every role of the other organisation; a new table with no route to an
+  `org_id` fails it. A new file using the service-role client must be listed in
+  `docs/security/service-role-uses.md` (a test enforces it). Build for any
+  number of organisations — never a fixed few (decisions N0).
+
 - Environment variables only for credentials; keep `.env.example` complete
   and commented. Integration variable names are in `docs/integrations/`.
 - Every integration is optional: the app runs fully with none configured.

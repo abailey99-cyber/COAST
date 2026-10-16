@@ -18,6 +18,33 @@ _Last updated: end of Phase 6 — 14 October 2026._
 
 ## Limitations to know about
 
+### Readiness Task 5A (foundations)
+
+- **Staging and production don't exist yet.** The code is ready; creating
+  the two Supabase projects and Vercel environments is a founder task
+  (`docs/environments.md`). Until then there's one development database.
+- **`main` isn't protected yet** (a GitHub setting, founder task). CI runs on
+  every push and pull request, but nothing stops a push to `main` that fails.
+- **CI has no database**, so the database tests (RLS, the cross-tenant
+  harness) run on this computer, not in CI. They'll join CI once a staging
+  database's details are added as GitHub secrets.
+- **"Every service-role query takes an explicit organisation ID"** is met by
+  rule and inventory rather than by the type system: each use is listed with
+  how it's scoped (`docs/security/service-role-uses.md`), lint stops the key
+  or client being used anywhere else, and a test fails on an unlisted use.
+  Forcing an organisation id into every query builder call isn't practical
+  with the Supabase client.
+- **Cross-tenant inserts** aren't tried generically (a valid row differs per
+  table); each table's own isolation tests cover them. Reads, updates and
+  deletes are tried on every table.
+- **Dependency audit:** shipped packages must have no high or critical
+  advisories. Five high ones sit in the lint toolchain (eslint-config-next →
+  fast-glob → micromatch → braces); they never ship and only a critical one
+  there blocks CI. They clear when eslint-config-next updates.
+- **`carrier_activity`** (per-carrier call counts) is shared platform-wide by
+  design for the single carrier allowance; it becomes per organisation with
+  aggregator tracking (Task 4).
+
 ### Readiness Task 1 (website truth pass)
 
 - **Website statuses live in `src/content/site-status.ts`.** Anything marked
